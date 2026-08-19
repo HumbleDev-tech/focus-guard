@@ -15,15 +15,22 @@ rm -f /etc/systemd/system/focus-guard.service
 systemctl daemon-reload
 
 echo "2. Cleaning /etc/hosts blocks..."
+# Use python if available, with sed fallback for 100% safety
 python3 -c "
 import sys; sys.path.insert(0, '/opt/focus-guard')
 try:
     from daemon.hosts_manager import HostsManager
     HostsManager('/etc/hosts').remove_block()
-    print('Hosts file cleaned.')
-except Exception as e:
-    print('Could not clean hosts file automatically:', e)
-" || true
+    print('Hosts file cleaned via HostsManager.')
+except Exception:
+    pass
+" 2>/dev/null || true
+
+# Direct sed cleanup fallback
+if grep -q "FOCUS-GUARD-BLOCK-START" /etc/hosts 2>/dev/null; then
+    sed -i '/### FOCUS-GUARD-BLOCK-START/,/### FOCUS-GUARD-BLOCK-END/d' /etc/hosts
+    echo "Hosts file cleaned via sed fallback."
+fi
 
 echo "3. Removing application files..."
 rm -rf /opt/focus-guard

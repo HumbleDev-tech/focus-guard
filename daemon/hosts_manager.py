@@ -24,11 +24,12 @@ CANARY_DOH_DOMAINS = [
 
 # Sibling domain expansions for complete coverage
 DOMAIN_SIBLINGS = {
-    "x.com": ["twitter.com", "t.co", "twimg.com"],
-    "twitter.com": ["x.com", "t.co", "twimg.com"],
+    "x.com": ["twitter.com", "mobile.twitter.com", "t.co", "twimg.com"],
+    "twitter.com": ["x.com", "mobile.twitter.com", "t.co", "twimg.com"],
     "instagram.com": ["threads.net", "cdninstagram.com"],
     "facebook.com": ["fb.com", "messenger.com"],
-    "youtube.com": ["youtu.be", "googlevideo.com"]
+    "youtube.com": ["youtu.be", "googlevideo.com", "music.youtube.com"],
+    "reddit.com": ["old.reddit.com", "redd.it", "redditstatic.com"]
 }
 
 
