@@ -1,6 +1,6 @@
 """
 Focus-Guard state machine and scheduler.
-Manages Curfew, System Uptime Boot Cooldown, Manual Locks, and Timed Bypasses.
+Manages Curfew, System Uptime Boot Cooldown, Manual Locks, and Configurable Bypasses.
 """
 import os
 import time
@@ -69,7 +69,6 @@ class StateScheduler:
                 remaining = max(0, int((target - now).total_seconds()))
                 return True, remaining, target
         else:
-            # Curfew in same day (e.g. 14:00 to 18:00)
             in_curfew = start_t <= now_t < end_t
             if in_curfew:
                 target = datetime.combine(now.date(), end_t)
@@ -87,7 +86,6 @@ class StateScheduler:
         now = now or datetime.now()
         start_t = self._parse_time_str(curfew_cfg.get("start_time", "23:15"))
 
-        # Build start datetime for today
         start_dt = datetime.combine(now.date(), start_t)
         if now > start_dt and (now - start_dt).total_seconds() > 3600 * 12:
             start_dt += timedelta(days=1)
@@ -98,10 +96,7 @@ class StateScheduler:
         return False, 0
 
     def is_in_boot_cooldown(self, now: Optional[datetime] = None) -> Tuple[bool, int, Optional[datetime]]:
-        """
-        Checks if system boot cooldown is active using /proc/uptime (or daemon start in dev mode).
-        Returns (is_boot_cooldown, remaining_seconds, target_end_datetime).
-        """
+        """Checks if system boot cooldown is active."""
         boot_cfg = self.config.get("boot_cooldown", {})
         if not boot_cfg.get("enabled", True):
             return False, 0, None
@@ -113,14 +108,12 @@ class StateScheduler:
         uptime = get_system_uptime_seconds() if not self.dev_mode else None
 
         if uptime is not None:
-            # Real Linux system uptime
             if uptime < cooldown_total_seconds:
                 remaining = max(0, int(cooldown_total_seconds - uptime))
                 target = now + timedelta(seconds=remaining)
                 return True, remaining, target
             return False, 0, None
         else:
-            # Fallback to daemon start time
             cooldown_end = self.daemon_start_time + timedelta(minutes=duration_minutes)
             if now < cooldown_end:
                 remaining = max(0, int((cooldown_end - now).total_seconds()))
@@ -128,10 +121,7 @@ class StateScheduler:
             return False, 0, None
 
     def is_in_bypass(self, now: Optional[datetime] = None) -> Tuple[bool, int, Optional[datetime]]:
-        """
-        Checks if an authorized temporary bypass is active.
-        Returns (is_bypass, remaining_seconds, target_end_datetime).
-        """
+        """Checks if an authorized temporary bypass is active."""
         if not self.bypass_end_time:
             return False, 0, None
 
@@ -145,20 +135,15 @@ class StateScheduler:
             return False, 0, None
 
     def evaluate_state(self, now: Optional[datetime] = None) -> Dict[str, Any]:
-        """
-        Evaluates current rules in strict priority:
-        1. Curfew (unless emergency bypass active)
-        2. Bypass
-        3. Boot Cooldown
-        4. Manual Lock
-        5. Free / Unlocked
-        """
+        """Evaluates rules in strict priority."""
         now = now or datetime.now()
+        bypasses_cfg = self.config.get("bypasses", {})
+        bypasses_enabled = bypasses_cfg.get("enabled", True)
+        allow_during_curfew = bypasses_cfg.get("allow_during_curfew", False)
 
         # 1. Curfew check
         in_curfew, curfew_remaining, curfew_target = self.is_in_curfew(now)
         if in_curfew:
-            # Check if an emergency bypass is authorized
             in_bypass, bypass_rem, bypass_target = self.is_in_bypass(now)
             if in_bypass and self.emergency_bypass_active:
                 return {
@@ -166,13 +151,13 @@ class StateScheduler:
                     "reason": "EMERGENCY_BYPASS",
                     "remaining_seconds": bypass_rem,
                     "target_time_str": bypass_target.strftime("%H:%M:%S") if bypass_target else "",
-                    "message": f"Desbloqueo de emergencia ({bypass_rem // 60}m {bypass_rem % 60}s restantes)",
+                    "message": f"Desbloqueo de emergencia ({bypass_rem // 60}m restantes)",
                     "can_bypass": True,
+                    "bypasses_enabled": bypasses_enabled,
                     "is_blocking": False,
                     "in_curfew": True
                 }
 
-            # Normal Curfew active
             self.bypass_end_time = None
             self.emergency_bypass_active = False
             end_t_str = self.config.get("curfew", {}).get("end_time", "07:00")
@@ -182,24 +167,25 @@ class StateScheduler:
                 "remaining_seconds": curfew_remaining,
                 "target_time_str": end_t_str,
                 "message": f"Toque de Queda nocturno hasta las {end_t_str}",
-                "can_bypass": self.config.get("curfew", {}).get("allow_bypass", False),
+                "can_bypass": allow_during_curfew,
+                "bypasses_enabled": bypasses_enabled,
                 "is_blocking": True,
                 "in_curfew": True
             }
 
-        # Curfew approaching warning check
         curfew_warn, warn_secs = self.is_curfew_approaching(now)
 
         # 2. Check Standard Bypass
         in_bypass, bypass_rem, bypass_target = self.is_in_bypass(now)
-        if in_bypass:
+        if in_bypass and bypasses_enabled:
             return {
                 "state": "BYPASS",
                 "reason": "USER_BYPASS",
                 "remaining_seconds": bypass_rem,
                 "target_time_str": bypass_target.strftime("%H:%M:%S") if bypass_target else "",
-                "message": f"Descanso temporal activo ({bypass_rem // 60}m {bypass_rem % 60}s restantes)",
+                "message": f"Descanso temporal activo ({bypass_rem // 60}m restantes)",
                 "can_bypass": True,
+                "bypasses_enabled": bypasses_enabled,
                 "is_blocking": False,
                 "in_curfew": False,
                 "curfew_warning": curfew_warn,
@@ -215,8 +201,9 @@ class StateScheduler:
                 "reason": "BOOT_COOLDOWN",
                 "remaining_seconds": boot_remaining,
                 "target_time_str": target_str,
-                "message": f"Cooldown de Arranque ({boot_remaining // 60}m {boot_remaining % 60}s restantes)",
-                "can_bypass": True,
+                "message": f"Cooldown de Arranque ({boot_remaining // 60}m restantes)",
+                "can_bypass": bypasses_enabled,
+                "bypasses_enabled": bypasses_enabled,
                 "is_blocking": True,
                 "in_curfew": False,
                 "curfew_warning": curfew_warn,
@@ -242,7 +229,8 @@ class StateScheduler:
                     "remaining_seconds": remaining,
                     "target_time_str": target_str,
                     "message": "Modo Focus Manual activo",
-                    "can_bypass": True,
+                    "can_bypass": bypasses_enabled,
+                    "bypasses_enabled": bypasses_enabled,
                     "is_blocking": True,
                     "in_curfew": False,
                     "curfew_warning": curfew_warn,
@@ -257,6 +245,7 @@ class StateScheduler:
             "target_time_str": "",
             "message": "Modo Libre (Sitios desbloqueados)",
             "can_bypass": False,
+            "bypasses_enabled": bypasses_enabled,
             "is_blocking": False,
             "in_curfew": False,
             "curfew_warning": curfew_warn,
@@ -265,11 +254,15 @@ class StateScheduler:
 
     def request_bypass(self, duration_minutes: int, force: bool = False) -> Tuple[bool, str]:
         """Requests a temporary bypass."""
+        bypasses_cfg = self.config.get("bypasses", {})
+        if not bypasses_cfg.get("enabled", True) and not force:
+            return False, "La opción de descansos temporales está desactivada en los ajustes."
+
         now = datetime.now()
         in_curfew, _, _ = self.is_in_curfew(now)
 
-        if in_curfew and not self.config.get("curfew", {}).get("allow_bypass", False) and not force:
-            return False, f"Bypass denegado: El Toque de Queda nocturno está activo hasta las {self.config.get('curfew', {}).get('end_time', '07:00')}."
+        if in_curfew and not bypasses_cfg.get("allow_during_curfew", False) and not force:
+            return False, f"Bypass denegado: El Toque de Queda está activo hasta las {self.config.get('curfew', {}).get('end_time', '07:00')}."
 
         if duration_minutes <= 0 or duration_minutes > 180:
             return False, "Duración inválida (debe ser entre 1 y 180 minutos)."
@@ -278,7 +271,7 @@ class StateScheduler:
         self.emergency_bypass_active = force and in_curfew
         self.manual_lock = False
         self.manual_lock_end_time = None
-        logger.info(f"Bypass granted for {duration_minutes} minutes (until {self.bypass_end_time.strftime('%H:%M:%S')})")
+        logger.info(f"Bypass granted for {duration_minutes} minutes")
         return True, f"Bypass activado por {duration_minutes} minutos."
 
     def cancel_bypass(self) -> Tuple[bool, str]:

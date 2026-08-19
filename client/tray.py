@@ -1,6 +1,6 @@
 """
 PyQt6 System Tray Applet for Focus-Guard.
-Minimalist, typography-driven StatusNotifierItem for KDE Plasma 6 (Wayland).
+Minimalist, context-aware StatusNotifierItem for KDE Plasma 6 (Wayland).
 """
 import os
 import sys
@@ -8,13 +8,13 @@ import logging
 from typing import Dict, Any, Optional
 
 from PyQt6.QtWidgets import (
-    QSystemTrayIcon, QMenu, QMessageBox, QApplication, QInputDialog, QLineEdit
+    QSystemTrayIcon, QMenu, QMessageBox, QApplication, QDialog
 )
 from PyQt6.QtGui import QIcon, QAction, QFont
 from PyQt6.QtCore import QTimer, Qt
 
 from client.ipc_client import FocusIPCClient
-from client.settings_dialog import SettingsDialog
+from client.settings_dialog import SettingsDialog, EmergencyPromptDialog
 
 logger = logging.getLogger("focus-guard.client.tray")
 
@@ -42,10 +42,8 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.setup_menu()
         self.setContextMenu(self.menu)
 
-        # Connect click activations
         self.activated.connect(self.on_tray_activated)
 
-        # Polling Timer for state updates
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh_status)
         self.timer.start(2000)
@@ -78,8 +76,8 @@ class FocusTrayApplet(QSystemTrayIcon):
 
         self.menu.addSeparator()
 
-        # 4. Quick Lock Action
-        self.lock_action = QAction("Bloquear Ahora (Modo Focus)", self.menu)
+        # 4. Contextual Lock Action
+        self.lock_action = QAction("Bloquear Ahora", self.menu)
         self.lock_action.triggered.connect(self.on_lock_clicked)
         self.menu.addAction(self.lock_action)
 
@@ -109,7 +107,7 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.emergency_action.setVisible(False)
         self.menu.addAction(self.emergency_action)
 
-        # 7. Unlock Action (for manual unlock when permitted)
+        # 7. Unlock Action
         self.unlock_action = QAction("Desbloquear Sitios", self.menu)
         self.unlock_action.triggered.connect(self.on_unlock_clicked)
         self.menu.addAction(self.unlock_action)
@@ -189,8 +187,8 @@ class FocusTrayApplet(QSystemTrayIcon):
         remaining = res.get("remaining_seconds", 0)
         target_time = res.get("target_time_str", "")
         message = res.get("message", "")
-        can_bypass = res.get("can_bypass", True)
         is_blocking = res.get("is_blocking", False)
+        bypasses_enabled = res.get("bypasses_enabled", True)
         in_curfew = res.get("in_curfew", False)
         curfew_warn = res.get("curfew_warning", False)
         curfew_warn_secs = res.get("curfew_warning_seconds", 0)
@@ -258,31 +256,52 @@ class FocusTrayApplet(QSystemTrayIcon):
                 tooltip_txt += f"\n{time_str}"
             self.setToolTip(tooltip_txt)
 
-        # 4. Update Header and Subtext in Menu
+        # 4. Context-Aware Menu Items
         if state == "LOCKED":
             if reason == "CURFEW":
                 self.status_action.setText("Toque de Queda Nocturno (Bloqueado)")
-                self.bypass_menu.setEnabled(False)
+                self.bypass_menu.setVisible(False)
                 self.emergency_action.setVisible(True)
+                self.lock_action.setText("Bloqueo Nocturno Activo")
+                self.lock_action.setEnabled(False)
+                self.unlock_action.setVisible(False)
             elif reason == "BOOT_COOLDOWN":
                 self.status_action.setText("Cooldown de Arranque (Bloqueado)")
-                self.bypass_menu.setEnabled(True)
+                self.bypass_menu.setVisible(bypasses_enabled)
+                self.bypass_menu.setEnabled(bypasses_enabled)
                 self.emergency_action.setVisible(False)
+                self.lock_action.setText("Bloqueo de Inicio Activo")
+                self.lock_action.setEnabled(False)
+                self.unlock_action.setVisible(False)
             else:
                 self.status_action.setText("Modo Focus Manual (Bloqueado)")
-                self.bypass_menu.setEnabled(True)
+                self.bypass_menu.setVisible(bypasses_enabled)
+                self.bypass_menu.setEnabled(bypasses_enabled)
                 self.emergency_action.setVisible(False)
+                self.lock_action.setText("Bloqueo Manual Activo")
+                self.lock_action.setEnabled(False)
+                self.unlock_action.setVisible(True)
+                self.unlock_action.setEnabled(True)
+
         elif state == "BYPASS":
             if reason == "EMERGENCY_BYPASS":
                 self.status_action.setText("Desbloqueo de Emergencia Activo")
             else:
                 self.status_action.setText("Descanso Temporal Activo")
+            self.bypass_menu.setVisible(True)
             self.bypass_menu.setEnabled(True)
             self.emergency_action.setVisible(False)
+            self.lock_action.setText("Terminar Descanso y Bloquear")
+            self.lock_action.setEnabled(True)
+            self.unlock_action.setVisible(False)
+
         else:
             self.status_action.setText("Modo Libre (Sin Restricciones)")
-            self.bypass_menu.setEnabled(False)
+            self.bypass_menu.setVisible(False)
             self.emergency_action.setVisible(False)
+            self.lock_action.setText("Bloquear Ahora (Modo Focus)")
+            self.lock_action.setEnabled(True)
+            self.unlock_action.setVisible(False)
 
         # Detail text
         if target_time and time_str:
@@ -297,10 +316,7 @@ class FocusTrayApplet(QSystemTrayIcon):
         else:
             self.detail_action.setVisible(False)
 
-        # Enable/Disable Buttons
-        self.lock_action.setEnabled(state != "LOCKED" or state == "BYPASS")
         self.cancel_bypass_action.setEnabled(state == "BYPASS")
-        self.unlock_action.setEnabled(reason == "MANUAL_LOCK")
 
     def on_bypass_clicked(self, minutes: int):
         """Handler for requesting standard bypass."""
@@ -319,17 +335,12 @@ class FocusTrayApplet(QSystemTrayIcon):
 
     def on_emergency_bypass_clicked(self):
         """Opens anti-impulse confirmation dialog for emergency bypass during curfew."""
-        phrase = "necesito desbloqueo de emergencia"
-        text, ok = QInputDialog.getText(
-            None,
-            "Desbloqueo de Emergencia (15 minutos)",
-            f"El Toque de Queda protege tu horario de descanso.\n\n"
-            f"Para confirmar la excepción de trabajo, escribe:\n"
-            f"<b>{phrase}</b>",
-            QLineEdit.EchoMode.Normal
-        )
+        cfg_res = self.ipc.send_command({"action": "get_config"})
+        config = cfg_res.get("config", {})
+        phrase = config.get("bypasses", {}).get("emergency_phrase", "necesito desbloqueo de emergencia")
 
-        if ok and text.strip().lower() == phrase:
+        dialog = EmergencyPromptDialog(phrase=phrase)
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.confirmed:
             res = self.ipc.request_emergency_bypass(15)
             if res.get("status") == "ok":
                 self.showMessage(
@@ -340,13 +351,6 @@ class FocusTrayApplet(QSystemTrayIcon):
                 )
             else:
                 self.showMessage("Error", res.get("message", "No se pudo activar."), QSystemTrayIcon.MessageIcon.Critical, 3000)
-        elif ok:
-            self.showMessage(
-                "Cancelado",
-                "La frase no coincide. Bloqueo mantenido.",
-                QSystemTrayIcon.MessageIcon.Information,
-                3000
-            )
         self.refresh_status()
 
     def on_cancel_bypass_clicked(self):
@@ -355,8 +359,14 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.refresh_status()
 
     def on_lock_clicked(self):
-        """Handler for manual lock."""
-        self.ipc.lock_now()
+        """Handler for contextual lock click."""
+        res = self.ipc.get_status()
+        state = res.get("state", "UNLOCKED")
+
+        if state == "BYPASS":
+            self.ipc.cancel_bypass()
+        elif state == "UNLOCKED":
+            self.ipc.lock_now()
         self.refresh_status()
 
     def on_unlock_clicked(self):

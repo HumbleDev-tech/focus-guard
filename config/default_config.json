@@ -9,8 +9,12 @@
   "curfew": {
     "enabled": true,
     "start_time": "23:15",
-    "end_time": "07:00",
-    "allow_bypass": false
+    "end_time": "07:00"
+  },
+  "bypasses": {
+    "enabled": true,
+    "allow_during_curfew": false,
+    "emergency_phrase": "necesito desbloqueo de emergencia"
   },
   "blocked_domains": [
     "x.com",
