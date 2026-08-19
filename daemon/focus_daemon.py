@@ -71,8 +71,11 @@ class FocusDaemon:
             "socket_path": "/run/focus-guard.sock",
             "hosts_path": "/etc/hosts",
             "boot_cooldown": {"enabled": True, "duration_minutes": 30},
-            "curfew": {"enabled": True, "start_time": "23:15", "end_time": "07:00", "allow_bypass": False},
-            "blocked_domains": ["x.com", "twitter.com", "instagram.com", "reddit.com", "youtube.com", "tiktok.com"]
+            "curfew": {"enabled": True, "start_time": "23:15", "end_time": "07:00"},
+            "bypasses": {"enabled": True, "allow_during_curfew": False, "emergency_phrase": "necesito desbloqueo de emergencia"},
+            "blocked_domains": ["x.com", "twitter.com", "instagram.com", "reddit.com", "youtube.com", "tiktok.com"],
+            "redirect_ipv4": "0.0.0.0",
+            "redirect_ipv6": "::1"
         }
 
     def _save_config(self, new_config: Dict[str, Any]) -> bool:
