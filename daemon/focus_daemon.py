@@ -165,7 +165,6 @@ class FocusDaemon:
 
     def start_socket_server(self):
         """Initializes and runs the Unix Domain Socket listener."""
-        # Ensure parent directory of socket exists
         sock_dir = os.path.dirname(os.path.abspath(self.socket_path))
         os.makedirs(sock_dir, exist_ok=True)
 
@@ -179,7 +178,6 @@ class FocusDaemon:
         self.server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.server_socket.bind(self.socket_path)
 
-        # Grant read/write permissions to all users so non-root GUI client can connect
         try:
             os.chmod(self.socket_path, 0o666)
             logger.info(f"Socket created at {self.socket_path} (mode 0666)")
@@ -217,9 +215,16 @@ class FocusDaemon:
         finally:
             self.stop()
 
-    def stop(self):
-        """Cleans up sockets and state."""
+    def stop(self, clean_hosts: bool = True):
+        """Cleans up sockets and restores hosts."""
         self.running = False
+        if clean_hosts:
+            try:
+                self.hosts_mgr.remove_block()
+                logger.info("Removed Focus-Guard block from hosts on shutdown.")
+            except Exception as e:
+                logger.warning(f"Could not remove block on stop: {e}")
+
         if self.server_socket:
             try:
                 self.server_socket.close()
@@ -239,6 +244,7 @@ def main():
     parser.add_argument("--hosts-file", help="Path to custom hosts file (e.g. for testing)")
     parser.add_argument("--socket-path", help="Path to custom Unix socket")
     parser.add_argument("--dev", action="store_true", help="Run in dev mode with local paths")
+    parser.add_argument("--clean", action="store_true", help="Clean hosts block and exit immediately")
     args = parser.parse_args()
 
     hosts_file = args.hosts_file
@@ -254,6 +260,14 @@ def main():
             socket_path = "/tmp/focus_guard_dev.sock"
         logger.info(f"Running in DEV MODE (Hosts: {hosts_file}, Socket: {socket_path})")
 
+    if args.clean:
+        mgr = HostsManager(hosts_file or "/etc/hosts")
+        if mgr.remove_block():
+            print("Successfully cleaned Focus-Guard block from hosts.")
+        else:
+            print("Failed to clean hosts.")
+        return
+
     daemon = FocusDaemon(
         config_path=args.config,
         hosts_path=hosts_file,
@@ -262,7 +276,7 @@ def main():
 
     def sig_handler(signum, frame):
         logger.info(f"Signal {signum} received, stopping daemon...")
-        daemon.stop()
+        daemon.stop(clean_hosts=True)
         sys.exit(0)
 
     signal.signal(signal.SIGTERM, sig_handler)
