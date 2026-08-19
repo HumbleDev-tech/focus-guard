@@ -1,7 +1,6 @@
 """
 Focus-Guard Settings & Dashboard Dialog.
-Minimalist, high-contrast, context-aware actions, and custom configurable rules.
-Inverted guard semantics: Green = Protected/Focus Active, Red = Unprotected/Idle.
+Features: Auto-save, Autostart management, Pomodoro focus sessions, keyboard shortcuts, and zero data loss.
 """
 import os
 import re
@@ -11,12 +10,46 @@ from typing import Dict, Any, List, Optional
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit,
     QListWidget, QListWidgetItem, QTabWidget, QWidget, QCheckBox,
-    QTimeEdit, QSpinBox, QFrame, QMessageBox, QApplication
+    QTimeEdit, QSpinBox, QFrame, QMessageBox, QApplication, QMenu
 )
-from PyQt6.QtGui import QIcon, QPalette
+from PyQt6.QtGui import QIcon, QPalette, QKeySequence, QShortcut
 from PyQt6.QtCore import Qt, QTime, QTimer, pyqtSignal
 
 from client.ipc_client import FocusIPCClient
+
+AUTOSTART_PATH = os.path.expanduser("~/.config/autostart/focus-guard.desktop")
+
+
+def is_autostart_enabled() -> bool:
+    """Checks if autostart desktop entry exists for the current user."""
+    return os.path.exists(AUTOSTART_PATH)
+
+
+def set_autostart_enabled(enabled: bool) -> bool:
+    """Enables or disables desktop autostart for the current user."""
+    try:
+        if enabled:
+            os.makedirs(os.path.dirname(AUTOSTART_PATH), exist_ok=True)
+            content = (
+                "[Desktop Entry]\n"
+                "Name=Focus-Guard\n"
+                "Comment=Anti-procrastination website blocker and focus regulator\n"
+                "Exec=python3 /opt/focus-guard/client/main.py\n"
+                "Icon=/opt/focus-guard/resources/icon-active.svg\n"
+                "Terminal=false\n"
+                "Type=Application\n"
+                "Categories=Utility;System;\n"
+                "StartupNotify=false\n"
+                "X-GNOME-Autostart-enabled=true\n"
+            )
+            with open(AUTOSTART_PATH, "w", encoding="utf-8") as f:
+                f.write(content)
+        else:
+            if os.path.exists(AUTOSTART_PATH):
+                os.unlink(AUTOSTART_PATH)
+        return True
+    except Exception as e:
+        return False
 
 
 def sanitize_domain(raw_input: str) -> Optional[str]:
@@ -158,7 +191,11 @@ class SettingsDialog(QDialog):
         # 3. Bottom Bar
         self.setup_bottom_bar()
 
-        # Load config
+        # 4. Keyboard Shortcuts
+        QShortcut(QKeySequence("Ctrl+S"), self, self.on_save_clicked)
+        QShortcut(QKeySequence("Escape"), self, self.close)
+
+        # Load initial config
         self.load_configuration()
 
         # Live poll timer
@@ -359,6 +396,7 @@ class SettingsDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
+        # Direct Input Row
         top_row = QHBoxLayout()
         top_row.setSpacing(8)
 
@@ -373,13 +411,20 @@ class SettingsDialog(QDialog):
         top_row.addWidget(add_btn)
         layout.addLayout(top_row)
 
+        # Header with counter and inline auto-save feedback
         count_row = QHBoxLayout()
         self.domains_count_lbl = QLabel("Sitios Bloqueados")
         self.domains_count_lbl.setStyleSheet("font-size: 12px; font-weight: 600; opacity: 0.8;")
         count_row.addWidget(self.domains_count_lbl)
+
         count_row.addStretch()
+
+        self.domain_auto_feedback_lbl = QLabel("")
+        self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #10B981; font-weight: 600;")
+        count_row.addWidget(self.domain_auto_feedback_lbl)
         layout.addLayout(count_row)
 
+        # Clean List
         self.domains_list = QListWidget()
         self.domains_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
         layout.addWidget(self.domains_list)
@@ -392,7 +437,19 @@ class SettingsDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(14)
 
-        # 1. Curfew Card
+        # 1. System Integration Card
+        sys_card = QFrame()
+        sys_card.setStyleSheet("QFrame { border: 1px solid rgba(128,128,128,0.2); border-radius: 6px; padding: 12px; }")
+        sys_layout = QVBoxLayout(sys_card)
+        sys_layout.setSpacing(6)
+
+        self.autostart_cb = QCheckBox("Iniciar Focus-Guard automáticamente al encender el equipo")
+        self.autostart_cb.setChecked(is_autostart_enabled())
+        self.autostart_cb.toggled.connect(self.on_autostart_toggled)
+        sys_layout.addWidget(self.autostart_cb)
+        layout.addWidget(sys_card)
+
+        # 2. Curfew Card
         curfew_card = QFrame()
         curfew_card.setStyleSheet("QFrame { border: 1px solid rgba(128,128,128,0.2); border-radius: 6px; padding: 12px; }")
         curfew_layout = QVBoxLayout(curfew_card)
@@ -426,7 +483,7 @@ class SettingsDialog(QDialog):
         curfew_layout.addLayout(time_row)
         layout.addWidget(curfew_card)
 
-        # 2. Boot Cooldown Card
+        # 3. Boot Cooldown Card
         boot_card = QFrame()
         boot_card.setStyleSheet("QFrame { border: 1px solid rgba(128,128,128,0.2); border-radius: 6px; padding: 12px; }")
         boot_layout = QVBoxLayout(boot_card)
@@ -452,7 +509,7 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(boot_card)
 
-        # 3. Configurable Bypasses & Emergency Rules Card
+        # 4. Configurable Bypasses & Emergency Rules Card
         bypass_card = QFrame()
         bypass_card.setStyleSheet("QFrame { border: 1px solid rgba(128,128,128,0.2); border-radius: 6px; padding: 12px; }")
         bypass_layout = QVBoxLayout(bypass_card)
@@ -512,10 +569,10 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(self.hero_card)
 
-        # Contextual Action Area
+        # Contextual Action Area with Focus Sessions (Pomodoro)
         act_box = QVBoxLayout()
         act_box.setSpacing(8)
-        act_box.addWidget(QLabel("Control"))
+        act_box.addWidget(QLabel("Sesiones de Enfoque y Control"))
 
         self.action_btn_row = QHBoxLayout()
         self.action_btn_row.setSpacing(8)
@@ -524,6 +581,16 @@ class SettingsDialog(QDialog):
         self.btn_primary_action.setObjectName("primaryBtn")
         self.btn_primary_action.clicked.connect(self.on_primary_action_clicked)
         self.action_btn_row.addWidget(self.btn_primary_action)
+
+        self.btn_pomodoro_25 = QPushButton("Pomodoro (25m)")
+        self.btn_pomodoro_25.setObjectName("secondaryBtn")
+        self.btn_pomodoro_25.clicked.connect(lambda: self.start_focus_session(25))
+        self.action_btn_row.addWidget(self.btn_pomodoro_25)
+
+        self.btn_pomodoro_50 = QPushButton("Enfoque (50m)")
+        self.btn_pomodoro_50.setObjectName("secondaryBtn")
+        self.btn_pomodoro_50.clicked.connect(lambda: self.start_focus_session(50))
+        self.action_btn_row.addWidget(self.btn_pomodoro_50)
 
         self.btn_secondary_action = QPushButton("Descanso (15m)")
         self.btn_secondary_action.setObjectName("secondaryBtn")
@@ -551,12 +618,12 @@ class SettingsDialog(QDialog):
 
         bottom.addStretch()
 
-        close_btn = QPushButton("Cerrar")
+        close_btn = QPushButton("Cerrar (Esc)")
         close_btn.setObjectName("secondaryBtn")
         close_btn.clicked.connect(self.accept)
         bottom.addWidget(close_btn)
 
-        self.save_btn = QPushButton("Guardar Cambios")
+        self.save_btn = QPushButton("Guardar Cambios (Ctrl+S)")
         self.save_btn.setObjectName("primaryBtn")
         self.save_btn.clicked.connect(self.on_save_clicked)
         bottom.addWidget(self.save_btn)
@@ -587,6 +654,10 @@ class SettingsDialog(QDialog):
             self.emergency_phrase_input.setText(bypasses.get("emergency_phrase", "necesito desbloqueo de emergencia"))
         else:
             self.save_feedback_lbl.setText("Servicio fuera de línea.")
+
+    def on_autostart_toggled(self, checked: bool):
+        """Manages autostart desktop file."""
+        set_autostart_enabled(checked)
 
     def render_domains_list(self):
         self.domains_list.clear()
@@ -646,21 +717,43 @@ class SettingsDialog(QDialog):
         raw = self.domain_input.text()
         domain = sanitize_domain(raw)
         if not domain:
-            QMessageBox.warning(self, "Dominio Inválido", "Ingresa un nombre de dominio válido (ej: twitter.com).")
+            self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #EF4444; font-weight: 600;")
+            self.domain_auto_feedback_lbl.setText("Dominio inválido")
+            QTimer.singleShot(2500, lambda: self.domain_auto_feedback_lbl.setText(""))
             return
 
         if domain in self.blocked_domains:
-            QMessageBox.information(self, "Dominio Existente", f"'{domain}' ya está en la lista.")
+            self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #F59E0B; font-weight: 600;")
+            self.domain_auto_feedback_lbl.setText("Ya está en la lista")
+            QTimer.singleShot(2500, lambda: self.domain_auto_feedback_lbl.setText(""))
             return
 
         self.blocked_domains.append(domain)
         self.domain_input.clear()
         self.render_domains_list()
 
+        # Instant Auto-Save on Add
+        self.auto_save_domains(feedback_text=f"'{domain}' añadido y guardado")
+
     def on_remove_domain(self, domain: str):
         if domain in self.blocked_domains:
             self.blocked_domains.remove(domain)
             self.render_domains_list()
+            # Instant Auto-Save on Remove
+            self.auto_save_domains(feedback_text=f"'{domain}' eliminado")
+
+    def auto_save_domains(self, feedback_text: str = "Guardado"):
+        """Silently auto-saves domain modifications to daemon."""
+        updated_config = dict(self.config_data)
+        updated_config["blocked_domains"] = self.blocked_domains
+
+        res = self.ipc.save_config(updated_config)
+        if res.get("status") == "ok":
+            self.config_data = updated_config
+            self.config_saved.emit()
+            self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #10B981; font-weight: 600;")
+            self.domain_auto_feedback_lbl.setText(f"✓ {feedback_text}")
+            QTimer.singleShot(2500, lambda: self.domain_auto_feedback_lbl.setText(""))
 
     def on_save_clicked(self):
         curfew_cfg = {
@@ -707,6 +800,8 @@ class SettingsDialog(QDialog):
             self.dash_countdown_lbl.setText("Inactivo")
             self.dash_desc_lbl.setText("Inicia el servicio focus-guard.")
             self.btn_primary_action.setEnabled(False)
+            self.btn_pomodoro_25.setVisible(False)
+            self.btn_pomodoro_50.setVisible(False)
             self.btn_secondary_action.setEnabled(False)
             return
 
@@ -730,10 +825,12 @@ class SettingsDialog(QDialog):
             self.dash_state_title.setText("Modo Libre (Sin Protección)")
             self.dash_countdown_lbl.setText("Sitios Desbloqueados")
             self.dash_countdown_lbl.setStyleSheet("font-size: 18px; font-weight: 700; color: #EF4444;")
-            self.dash_desc_lbl.setText("El bloqueo no está activo. Puedes navegar libremente.")
+            self.dash_desc_lbl.setText("El bloqueo no está activo. Puedes iniciar una sesión de enfoque cuando gustes.")
 
-            self.btn_primary_action.setText("Bloquear Ahora (Activar Focus)")
+            self.btn_primary_action.setText("Bloquear Indefinido")
             self.btn_primary_action.setEnabled(True)
+            self.btn_pomodoro_25.setVisible(True)
+            self.btn_pomodoro_50.setVisible(True)
             self.btn_secondary_action.setVisible(False)
 
         elif state == "BYPASS":
@@ -749,15 +846,18 @@ class SettingsDialog(QDialog):
 
             self.btn_primary_action.setText("Terminar Descanso y Bloquear")
             self.btn_primary_action.setEnabled(True)
+            self.btn_pomodoro_25.setVisible(False)
+            self.btn_pomodoro_50.setVisible(False)
             self.btn_secondary_action.setVisible(False)
 
         elif is_blocking:
-            # Active Protection -> Green / Distinct Icons
             self.status_badge.setText("PROTEGIDO")
             self.status_badge.setStyleSheet("background-color: #10B981; color: #FFF; font-weight: 700; padding: 4px 10px; border-radius: 6px;")
             self.dash_state_pill.setText("ACTIVO")
             self.dash_state_pill.setStyleSheet("border-color: #10B981; color: #10B981; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px;")
             self.dash_countdown_lbl.setStyleSheet("font-size: 18px; font-weight: 700; color: #10B981;")
+            self.btn_pomodoro_25.setVisible(False)
+            self.btn_pomodoro_50.setVisible(False)
 
             if reason == "CURFEW":
                 self.header_icon_lbl.setPixmap(QIcon(os.path.join(self.resource_dir, "icon-curfew.svg")).pixmap(30, 30))
@@ -790,7 +890,7 @@ class SettingsDialog(QDialog):
             elif reason == "MANUAL_LOCK":
                 self.header_icon_lbl.setPixmap(QIcon(os.path.join(self.resource_dir, "icon-active.svg")).pixmap(30, 30))
                 self.dash_state_title.setText("Modo Focus Manual")
-                self.dash_desc_lbl.setText("Protección activada manualmente por el usuario.")
+                self.dash_desc_lbl.setText("Protección activada manualmente.")
                 self.btn_primary_action.setText("Desbloquear Sitios")
                 self.btn_primary_action.setEnabled(True)
 
@@ -805,6 +905,13 @@ class SettingsDialog(QDialog):
                 self.dash_countdown_lbl.setText(f"{human_time} restantes")
             else:
                 self.dash_countdown_lbl.setText("Protección Activa")
+
+    def start_focus_session(self, minutes: int):
+        """Starts a timed focus session (Pomodoro)."""
+        self.ipc.lock_now(duration_minutes=minutes)
+        self.dash_feedback_lbl.setText(f"Sesión de enfoque de {minutes} minutos iniciada.")
+        QTimer.singleShot(3000, lambda: self.dash_feedback_lbl.setText(""))
+        self.refresh_live_status()
 
     def on_primary_action_clicked(self):
         res = self.ipc.get_status()
