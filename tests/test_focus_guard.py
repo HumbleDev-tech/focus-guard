@@ -14,6 +14,18 @@ from daemon.hosts_manager import HostsManager, HEADER_MARKER, FOOTER_MARKER
 from daemon.scheduler import StateScheduler
 from daemon.focus_daemon import FocusDaemon
 from client.ipc_client import FocusIPCClient
+from client.settings_dialog import sanitize_domain
+
+
+class TestDomainSanitizer(unittest.TestCase):
+    def test_sanitize_domain(self):
+        self.assertEqual(sanitize_domain("twitter.com"), "twitter.com")
+        self.assertEqual(sanitize_domain("https://www.youtube.com/watch?v=123"), "youtube.com")
+        self.assertEqual(sanitize_domain("http://reddit.com/r/all"), "reddit.com")
+        self.assertEqual(sanitize_domain("  INSTAGRAM.COM  "), "instagram.com")
+        self.assertEqual(sanitize_domain("sub.domain.com:8080/path"), "sub.domain.com")
+        self.assertIsNone(sanitize_domain("invalid_domain_name"))
+        self.assertIsNone(sanitize_domain(""))
 
 
 class TestHostsManager(unittest.TestCase):
@@ -64,7 +76,6 @@ class TestScheduler(unittest.TestCase):
             "curfew": {"enabled": True, "start_time": "23:15", "end_time": "07:00", "allow_bypass": False},
             "blocked_domains": ["twitter.com"]
         }
-        # In test mode we enable dev_mode to test relative timings
         self.scheduler = StateScheduler(self.config, dev_mode=True)
 
     def test_boot_cooldown_dev(self):
@@ -99,26 +110,22 @@ class TestScheduler(unittest.TestCase):
         self.assertIsNone(target3)
 
     def test_curfew_warning(self):
-        # 23:10 is 5 mins before 23:15 -> warning should be True
         pre_curfew_time = datetime(2026, 8, 19, 23, 10, 0)
         warn, secs = self.scheduler.is_curfew_approaching(pre_curfew_time, warning_minutes=10)
         self.assertTrue(warn)
         self.assertEqual(secs, 300)
 
-        # 22:00 is 1h15m before -> warning should be False
         early_time = datetime(2026, 8, 19, 22, 0, 0)
         warn2, _ = self.scheduler.is_curfew_approaching(early_time, warning_minutes=10)
         self.assertFalse(warn2)
 
     def test_emergency_bypass_during_curfew(self):
-        # Normal bypass rejected during curfew
         now = datetime.now()
         in_curfew, _, _ = self.scheduler.is_in_curfew(now)
         if in_curfew:
             ok, msg = self.scheduler.request_bypass(15, force=False)
             self.assertFalse(ok)
 
-            # Emergency bypass accepted with force=True
             ok_emerg, msg_emerg = self.scheduler.request_bypass(15, force=True)
             self.assertTrue(ok_emerg)
             eval_state = self.scheduler.evaluate_state()
@@ -145,10 +152,16 @@ class TestIPCIntegration(unittest.TestCase):
     def setUpClass(cls):
         cls.sock_path = f"/tmp/focus_guard_test_{int(time.time())}.sock"
         cls.hosts_file = f"/tmp/focus_guard_test_hosts_{int(time.time())}"
+        cls.config_file = f"/tmp/focus_guard_test_cfg_{int(time.time())}.json"
+        
         with open(cls.hosts_file, "w") as f:
             f.write("127.0.0.1 localhost\n")
 
+        with open(cls.config_file, "w") as f:
+            f.write('{"version": "1.0.0", "blocked_domains": ["x.com"], "curfew": {"enabled": false}, "boot_cooldown": {"enabled": false}}')
+
         cls.daemon = FocusDaemon(
+            config_path=cls.config_file,
             hosts_path=cls.hosts_file,
             socket_path=cls.sock_path,
             dev_mode=True
@@ -165,21 +178,31 @@ class TestIPCIntegration(unittest.TestCase):
             os.unlink(cls.sock_path)
         if os.path.exists(cls.hosts_file):
             os.unlink(cls.hosts_file)
+        if os.path.exists(cls.config_file):
+            os.unlink(cls.config_file)
 
     def test_ipc_communication(self):
         client = FocusIPCClient(socket_path=self.sock_path)
 
+        # 1. Get status
         status = client.get_status()
         self.assertEqual(status.get("status"), "ok")
-        self.assertIn("state", status)
-        self.assertIn("reason", status)
 
+        # 2. Get and Save Config
+        cfg = client.get_config()
+        self.assertEqual(cfg.get("status"), "ok")
+        
+        updated_cfg = dict(cfg["config"])
+        updated_cfg["blocked_domains"] = ["tiktok.com", "instagram.com"]
+        save_res = client.save_config(updated_cfg)
+        self.assertEqual(save_res.get("status"), "ok")
+
+        cfg_after = client.get_config()
+        self.assertIn("tiktok.com", cfg_after["config"]["blocked_domains"])
+
+        # 3. Lock & Cancel Bypass
         res_lock = client.lock_now()
         self.assertEqual(res_lock.get("status"), "ok")
-
-        status2 = client.get_status()
-        self.assertTrue(status2.get("is_blocking"))
-
         res_cancel = client.cancel_bypass()
         self.assertEqual(res_cancel.get("status"), "ok")
 

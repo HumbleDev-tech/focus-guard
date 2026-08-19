@@ -47,7 +47,7 @@ class FocusIPCClient:
 
             buffer = ""
             while True:
-                chunk = client_sock.recv(4096).decode("utf-8")
+                chunk = client_sock.recv(8192).decode("utf-8")
                 if not chunk:
                     break
                 buffer += chunk
@@ -74,6 +74,14 @@ class FocusIPCClient:
     def get_status(self) -> Dict[str, Any]:
         """Fetches current blocking state and remaining times."""
         return self.send_command({"action": "status"})
+
+    def get_config(self) -> Dict[str, Any]:
+        """Fetches configuration from daemon."""
+        return self.send_command({"action": "get_config"})
+
+    def save_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Saves updated configuration to the daemon."""
+        return self.send_command({"action": "save_config", "config": config})
 
     def request_bypass(self, duration_minutes: int) -> Dict[str, Any]:
         """Requests a timed bypass (15, 30, 45 mins)."""

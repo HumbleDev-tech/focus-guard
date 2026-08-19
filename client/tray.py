@@ -14,6 +14,7 @@ from PyQt6.QtGui import QIcon, QAction, QFont
 from PyQt6.QtCore import QTimer, Qt
 
 from client.ipc_client import FocusIPCClient
+from client.settings_dialog import SettingsDialog
 
 logger = logging.getLogger("focus-guard.client.tray")
 
@@ -23,6 +24,7 @@ class FocusTrayApplet(QSystemTrayIcon):
         super().__init__(parent)
         self.ipc = ipc_client
         self.resource_dir = resource_dir
+        self.settings_dialog: Optional[SettingsDialog] = None
 
         self.icon_active = QIcon(os.path.join(resource_dir, "icon-active.svg"))
         self.icon_idle = QIcon(os.path.join(resource_dir, "icon-idle.svg"))
@@ -39,6 +41,9 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.menu = QMenu()
         self.setup_menu()
         self.setContextMenu(self.menu)
+
+        # Connect click activations
+        self.activated.connect(self.on_tray_activated)
 
         # Polling Timer for state updates
         self.timer = QTimer(self)
@@ -66,12 +71,19 @@ class FocusTrayApplet(QSystemTrayIcon):
 
         self.menu.addSeparator()
 
-        # 3. Quick Lock Action
+        # 3. Settings / Dashboard Action
+        self.settings_action = QAction("⚙️ Ajustes y Sitios Bloqueados...", self.menu)
+        self.settings_action.triggered.connect(self.show_settings_dialog)
+        self.menu.addAction(self.settings_action)
+
+        self.menu.addSeparator()
+
+        # 4. Quick Lock Action
         self.lock_action = QAction("🔒 Bloquear Ahora (Modo Focus)", self.menu)
         self.lock_action.triggered.connect(self.on_lock_clicked)
         self.menu.addAction(self.lock_action)
 
-        # 4. Standard Bypass Submenu
+        # 5. Standard Bypass Submenu
         self.bypass_menu = self.menu.addMenu("☕ Bypass Temporal (Descanso)")
         
         self.bypass_15_action = QAction("15 minutos", self.bypass_menu)
@@ -91,35 +103,53 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.cancel_bypass_action.triggered.connect(self.on_cancel_bypass_clicked)
         self.bypass_menu.addAction(self.cancel_bypass_action)
 
-        # 5. Emergency Bypass (for Curfew)
+        # 6. Emergency Bypass (for Curfew)
         self.emergency_action = QAction("🚨 Desbloqueo de Emergencia (15m)...", self.menu)
         self.emergency_action.triggered.connect(self.on_emergency_bypass_clicked)
         self.emergency_action.setVisible(False)
         self.menu.addAction(self.emergency_action)
 
-        # 6. Unlock Action (for manual unlock when permitted)
+        # 7. Unlock Action (for manual unlock when permitted)
         self.unlock_action = QAction("🔓 Desbloquear Sitios", self.menu)
         self.unlock_action.triggered.connect(self.on_unlock_clicked)
         self.menu.addAction(self.unlock_action)
 
         self.menu.addSeparator()
 
-        # 7. Information Action
-        self.info_action = QAction("ℹ️ Ver Información y Reglas", self.menu)
+        # 8. Information Action
+        self.info_action = QAction("ℹ️ Acerca de Focus-Guard", self.menu)
         self.info_action.triggered.connect(self.show_info_dialog)
         self.menu.addAction(self.info_action)
 
-        # 8. Refresh Action
+        # 9. Refresh Action
         self.refresh_action = QAction("🔄 Actualizar", self.menu)
         self.refresh_action.triggered.connect(self.refresh_status)
         self.menu.addAction(self.refresh_action)
 
         self.menu.addSeparator()
 
-        # 9. Quit Action
+        # 10. Quit Action
         self.quit_action = QAction("✕ Salir de la Bandeja", self.menu)
         self.quit_action.triggered.connect(QApplication.instance().quit)
         self.menu.addAction(self.quit_action)
+
+    def on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason):
+        """Opens settings when tray icon is triggered or double-clicked."""
+        if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
+            self.show_settings_dialog()
+
+    def show_settings_dialog(self):
+        """Displays or brings forward the settings window."""
+        if not self.settings_dialog or not self.settings_dialog.isVisible():
+            self.settings_dialog = SettingsDialog(
+                ipc_client=self.ipc,
+                resource_dir=self.resource_dir
+            )
+            self.settings_dialog.config_saved.connect(self.refresh_status)
+            self.settings_dialog.show()
+        else:
+            self.settings_dialog.raise_()
+            self.settings_dialog.activateWindow()
 
     def _format_remaining_time(self, seconds: int) -> str:
         """Formats remaining seconds into a human-friendly string."""
@@ -254,7 +284,7 @@ class FocusTrayApplet(QSystemTrayIcon):
             self.bypass_menu.setEnabled(False)
             self.emergency_action.setVisible(False)
 
-        # Detail text showing target time and remaining
+        # Detail text
         if target_time and time_str:
             self.detail_action.setText(f"⏳ Hasta las {target_time} ({time_str})")
             self.detail_action.setVisible(True)
@@ -359,7 +389,7 @@ class FocusTrayApplet(QSystemTrayIcon):
             f"<b>🚀 Cooldown al Iniciar:</b> {boot_text}<br>"
             f"<b>🌐 Sitios configurados ({len(domains)}):</b><br>"
             f"<i>{domains_text}</i><br><br>"
-            "<small>Para editar sitios o reglas, modifica <code>/etc/focus-guard/config.json</code></small>"
+            "<small>Para editar sitios o reglas, abre <b>Ajustes y Sitios Bloqueados</b>.</small>"
         )
 
         msg_box = QMessageBox()

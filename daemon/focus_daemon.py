@@ -31,32 +31,10 @@ DEFAULT_CONFIG_LOCATIONS = [
 ]
 
 
-def load_config(custom_path: Optional[str] = None) -> Dict[str, Any]:
-    """Finds and loads configuration JSON."""
-    paths_to_check = [custom_path] if custom_path else DEFAULT_CONFIG_LOCATIONS
-    for p in paths_to_check:
-        if p and os.path.exists(p):
-            try:
-                with open(p, "r", encoding="utf-8") as f:
-                    cfg = json.load(f)
-                    logger.info(f"Loaded configuration from {p}")
-                    return cfg
-            except Exception as e:
-                logger.error(f"Error reading config {p}: {e}")
-    # Fallback minimal config
-    return {
-        "version": "1.0.0",
-        "socket_path": "/run/focus-guard.sock",
-        "hosts_path": "/etc/hosts",
-        "boot_cooldown": {"enabled": True, "duration_minutes": 30},
-        "curfew": {"enabled": True, "start_time": "23:15", "end_time": "07:00", "allow_bypass": False},
-        "blocked_domains": ["x.com", "twitter.com", "instagram.com", "reddit.com", "youtube.com", "tiktok.com"]
-    }
-
-
 class FocusDaemon:
     def __init__(self, config_path: Optional[str] = None, hosts_path: Optional[str] = None, socket_path: Optional[str] = None, dev_mode: bool = False):
-        self.config = load_config(config_path)
+        self.config_path = self._resolve_config_path(config_path)
+        self.config = self._load_config()
         self.hosts_path = hosts_path or self.config.get("hosts_path", "/etc/hosts")
         self.socket_path = socket_path or self.config.get("socket_path", "/run/focus-guard.sock")
         self.dev_mode = dev_mode
@@ -66,6 +44,53 @@ class FocusDaemon:
         self.running = False
         self.server_socket: Optional[socket.socket] = None
         self._last_block_state: Optional[bool] = None
+
+    def _resolve_config_path(self, custom_path: Optional[str] = None) -> str:
+        """Determines active config file path."""
+        if custom_path:
+            return custom_path
+        for p in DEFAULT_CONFIG_LOCATIONS:
+            if os.path.exists(p):
+                return p
+        return DEFAULT_CONFIG_LOCATIONS[0]
+
+    def _load_config(self) -> Dict[str, Any]:
+        """Loads configuration from active config path."""
+        if os.path.exists(self.config_path):
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                    logger.info(f"Loaded configuration from {self.config_path}")
+                    return cfg
+            except Exception as e:
+                logger.error(f"Error reading config {self.config_path}: {e}")
+
+        # Fallback minimal config
+        return {
+            "version": "1.0.0",
+            "socket_path": "/run/focus-guard.sock",
+            "hosts_path": "/etc/hosts",
+            "boot_cooldown": {"enabled": True, "duration_minutes": 30},
+            "curfew": {"enabled": True, "start_time": "23:15", "end_time": "07:00", "allow_bypass": False},
+            "blocked_domains": ["x.com", "twitter.com", "instagram.com", "reddit.com", "youtube.com", "tiktok.com"]
+        }
+
+    def _save_config(self, new_config: Dict[str, Any]) -> bool:
+        """Saves updated configuration to disk safely."""
+        try:
+            cfg_dir = os.path.dirname(os.path.abspath(self.config_path))
+            os.makedirs(cfg_dir, exist_ok=True)
+
+            with open(self.config_path, "w", encoding="utf-8") as f:
+                json.dump(new_config, f, indent=2, ensure_ascii=False)
+            
+            self.config = new_config
+            self.scheduler.update_config(new_config)
+            logger.info(f"Configuration successfully updated in {self.config_path}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save configuration: {e}")
+            return False
 
     def _apply_current_state(self):
         """Evaluates scheduler and applies or removes the /etc/hosts block."""
@@ -85,6 +110,12 @@ class FocusDaemon:
                 self.hosts_mgr.remove_block()
 
             self._last_block_state = should_block
+        elif should_block:
+            # If already blocked and config changed, update hosts entries
+            domains = self.config.get("blocked_domains", [])
+            ipv4 = self.config.get("redirect_ipv4", "127.0.0.1")
+            ipv6 = self.config.get("redirect_ipv6", "::1")
+            self.hosts_mgr.apply_block(domains, ipv4, ipv6)
 
     def _state_worker_loop(self):
         """Periodic background loop that monitors curfew and timers."""
@@ -154,6 +185,20 @@ class FocusDaemon:
         elif action == "get_config":
             return {"status": "ok", "config": self.config}
 
+        elif action == "save_config":
+            new_cfg = req.get("config")
+            if not isinstance(new_cfg, dict):
+                return {"status": "error", "error": "Invalid config data (must be a dictionary)"}
+
+            merged_config = dict(self.config)
+            merged_config.update(new_cfg)
+
+            if self._save_config(merged_config):
+                self._apply_current_state()
+                return {"status": "ok", "message": "Configuración guardada y aplicada."}
+            else:
+                return {"status": "error", "error": "No se pudo guardar la configuración en disco."}
+
         else:
             return {"status": "error", "error": f"Unknown action '{action}'"}
 
@@ -161,7 +206,7 @@ class FocusDaemon:
         """Handles a connected Unix socket client connection."""
         try:
             conn.settimeout(5.0)
-            data = conn.recv(8192).decode("utf-8")
+            data = conn.recv(16384).decode("utf-8")
             if data:
                 response = self.handle_client_request(data.strip())
                 payload = json.dumps(response) + "\n"
@@ -258,8 +303,16 @@ def main():
 
     hosts_file = args.hosts_file
     socket_path = args.socket_path
+    config_file = args.config
 
     if args.dev:
+        if not config_file:
+            config_file = "/tmp/focus_guard_dev_config.json"
+            if not os.path.exists(config_file):
+                default_cfg = os.path.abspath(os.path.join(os.path.dirname(__file__), "../config/default_config.json"))
+                if os.path.exists(default_cfg):
+                    import shutil
+                    shutil.copyfile(default_cfg, config_file)
         if not hosts_file:
             hosts_file = "/tmp/focus_guard_dev_hosts"
             if not os.path.exists(hosts_file):
@@ -267,7 +320,7 @@ def main():
                     f.write("127.0.0.1 localhost\n::1 localhost\n")
         if not socket_path:
             socket_path = "/tmp/focus_guard_dev.sock"
-        logger.info(f"Running in DEV MODE (Hosts: {hosts_file}, Socket: {socket_path})")
+        logger.info(f"Running in DEV MODE (Config: {config_file}, Hosts: {hosts_file}, Socket: {socket_path})")
 
     if args.clean:
         mgr = HostsManager(hosts_file or "/etc/hosts")
@@ -278,7 +331,7 @@ def main():
         return
 
     daemon = FocusDaemon(
-        config_path=args.config,
+        config_path=config_file,
         hosts_path=hosts_file,
         socket_path=socket_path,
         dev_mode=args.dev
