@@ -44,6 +44,7 @@ class FocusDaemon:
         self.running = False
         self.server_socket: Optional[socket.socket] = None
         self._last_block_state: Optional[bool] = None
+        self._last_applied_domains: Optional[tuple] = None
 
     def _resolve_config_path(self, custom_path: Optional[str] = None) -> str:
         """Determines active config file path."""
@@ -65,7 +66,6 @@ class FocusDaemon:
             except Exception as e:
                 logger.error(f"Error reading config {self.config_path}: {e}")
 
-        # Fallback minimal config
         return {
             "version": "1.0.0",
             "socket_path": "/run/focus-guard.sock",
@@ -92,12 +92,16 @@ class FocusDaemon:
             logger.error(f"Failed to save configuration: {e}")
             return False
 
-    def _apply_current_state(self):
-        """Evaluates scheduler and applies or removes the /etc/hosts block."""
+    def _apply_current_state(self, force: bool = False):
+        """Evaluates scheduler and applies or removes the /etc/hosts block only when state or domains change."""
         state = self.scheduler.evaluate_state()
         should_block = state.get("is_blocking", False)
+        current_domains = tuple(sorted(self.config.get("blocked_domains", [])))
 
-        if should_block != self._last_block_state:
+        state_changed = (should_block != self._last_block_state)
+        domains_changed = (current_domains != self._last_applied_domains)
+
+        if state_changed or (should_block and domains_changed) or force:
             domains = self.config.get("blocked_domains", [])
             ipv4 = self.config.get("redirect_ipv4", "127.0.0.1")
             ipv6 = self.config.get("redirect_ipv6", "::1")
@@ -110,12 +114,7 @@ class FocusDaemon:
                 self.hosts_mgr.remove_block()
 
             self._last_block_state = should_block
-        elif should_block:
-            # If already blocked and config changed, update hosts entries
-            domains = self.config.get("blocked_domains", [])
-            ipv4 = self.config.get("redirect_ipv4", "127.0.0.1")
-            ipv6 = self.config.get("redirect_ipv6", "::1")
-            self.hosts_mgr.apply_block(domains, ipv4, ipv6)
+            self._last_applied_domains = current_domains
 
     def _state_worker_loop(self):
         """Periodic background loop that monitors curfew and timers."""
@@ -157,29 +156,29 @@ class FocusDaemon:
             duration = int(req.get("duration_minutes", 15))
             force = bool(req.get("force", False))
             ok, msg = self.scheduler.request_bypass(duration, force=force)
-            self._apply_current_state()
+            self._apply_current_state(force=True)
             return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
 
         elif action == "emergency_bypass":
             duration = int(req.get("duration_minutes", 15))
             ok, msg = self.scheduler.request_bypass(duration, force=True)
-            self._apply_current_state()
+            self._apply_current_state(force=True)
             return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
 
         elif action == "cancel_bypass":
             ok, msg = self.scheduler.cancel_bypass()
-            self._apply_current_state()
+            self._apply_current_state(force=True)
             return {"status": "ok", "message": msg, "success": ok}
 
         elif action == "lock":
             duration = int(req.get("duration_minutes", 0))
             ok, msg = self.scheduler.request_lock(duration)
-            self._apply_current_state()
+            self._apply_current_state(force=True)
             return {"status": "ok", "message": msg, "success": ok}
 
         elif action == "unlock":
             ok, msg = self.scheduler.request_unlock()
-            self._apply_current_state()
+            self._apply_current_state(force=True)
             return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
 
         elif action == "get_config":
@@ -194,7 +193,7 @@ class FocusDaemon:
             merged_config.update(new_cfg)
 
             if self._save_config(merged_config):
-                self._apply_current_state()
+                self._apply_current_state(force=True)
                 return {"status": "ok", "message": "Configuración guardada y aplicada."}
             else:
                 return {"status": "error", "error": "No se pudo guardar la configuración en disco."}
