@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "focus-guard"
+version = "1.0.0"
+description = "Anti-procrastination website blocker and focus regulator for Linux (KDE Plasma 6 / Wayland)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Focus-Guard Contributors" }
+]
+classifiers = [
+    "Environment :: X11 Applications :: Qt",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Desktop Environment :: K Desktop Environment (KDE)",
+    "Topic :: Utilities"
+]
+dependencies = [
+    "PyQt6>=6.5.0"
+]
+
+[project.scripts]
+focus-guard-daemon = "daemon.focus_daemon:main"
+focus-guard-tray = "client.main:main"

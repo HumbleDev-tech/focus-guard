@@ -1,0 +1,31 @@
+{
+  "version": "1.0.0",
+  "socket_path": "/run/focus-guard.sock",
+  "hosts_path": "/etc/hosts",
+  "boot_cooldown": {
+    "enabled": true,
+    "duration_minutes": 30
+  },
+  "curfew": {
+    "enabled": true,
+    "start_time": "23:15",
+    "end_time": "07:00",
+    "allow_bypass": false
+  },
+  "blocked_domains": [
+    "x.com",
+    "twitter.com",
+    "instagram.com",
+    "reddit.com",
+    "youtube.com",
+    "tiktok.com",
+    "facebook.com",
+    "twitch.tv",
+    "netflix.com",
+    "threads.net",
+    "pinterest.com",
+    "9gag.com"
+  ],
+  "redirect_ipv4": "127.0.0.1",
+  "redirect_ipv6": "::1"
+}
