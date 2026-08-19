@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bootGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06B6D4" />
+      <stop offset="100%" stop-color="#0891B2" />
+    </linearGradient>
+  </defs>
+  <path d="M32 4 L54 12 C54 36 32 58 32 58 C32 58 10 36 10 12 Z" 
+        fill="url(#bootGrad)" 
+        stroke="#FFFFFF" 
+        stroke-width="2" 
+        stroke-linejoin="round"/>
+  <!-- Lightning / Power symbol -->
+  <polygon points="34,16 23,32 31,32 29,48 41,30 33,30" fill="#FFFFFF"/>
+</svg>

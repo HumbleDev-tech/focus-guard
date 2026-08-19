@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="nightGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8B5CF6" />
+      <stop offset="100%" stop-color="#6D28D9" />
+    </linearGradient>
+  </defs>
+  <path d="M32 4 L54 12 C54 36 32 58 32 58 C32 58 10 36 10 12 Z" 
+        fill="url(#nightGrad)" 
+        stroke="#FFFFFF" 
+        stroke-width="2" 
+        stroke-linejoin="round"/>
+  <!-- Crescent Moon -->
+  <path d="M36 18 C28 20 23 27 25 35 C27 42 34 47 42 45 C35 49 25 45 22 37 C19 29 24 20 32 16 C33.5 15.5 35 15.3 36 18 Z" 
+        fill="#FFFFFF"/>
+</svg>

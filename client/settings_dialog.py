@@ -1,7 +1,9 @@
 """
 Focus-Guard Settings & Dashboard Dialog.
 Minimalist, high-contrast, context-aware actions, and custom configurable rules.
+Inverted guard semantics: Green = Protected/Focus Active, Red = Unprotected/Idle.
 """
+import os
 import re
 from urllib.parse import urlparse
 from typing import Dict, Any, List, Optional
@@ -137,10 +139,8 @@ class SettingsDialog(QDialog):
         self.setMinimumSize(600, 560)
         self.resize(640, 580)
 
-        # Apply strict monochrome theme
         self.apply_theme_styles()
 
-        # Layout
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(20, 20, 20, 20)
         self.main_layout.setSpacing(14)
@@ -167,12 +167,10 @@ class SettingsDialog(QDialog):
         self.poll_timer.start(1500)
 
     def is_dark_mode(self) -> bool:
-        """Checks if desktop is in dark mode."""
         bg = self.palette().color(QPalette.ColorRole.Window)
         return bg.lightness() < 128
 
     def apply_theme_styles(self):
-        """Pure monochrome minimalist stylesheet."""
         is_dark = self.is_dark_mode()
 
         if is_dark:
@@ -323,13 +321,12 @@ class SettingsDialog(QDialog):
         """)
 
     def setup_header(self):
-        """Header with app title and status indicator."""
         header = QHBoxLayout()
         header.setSpacing(12)
 
-        icon_lbl = QLabel()
-        icon_lbl.setPixmap(QIcon(f"{self.resource_dir}/icon-active.svg").pixmap(30, 30))
-        header.addWidget(icon_lbl)
+        self.header_icon_lbl = QLabel()
+        self.header_icon_lbl.setPixmap(QIcon(os.path.join(self.resource_dir, "icon-active.svg")).pixmap(30, 30))
+        header.addWidget(self.header_icon_lbl)
 
         title_box = QVBoxLayout()
         title_box.setSpacing(1)
@@ -357,13 +354,11 @@ class SettingsDialog(QDialog):
         self.main_layout.addLayout(header)
 
     def setup_domains_tab(self):
-        """Tab 1: Direct, clean list management without unnecessary filters."""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        # Direct Input Row
         top_row = QHBoxLayout()
         top_row.setSpacing(8)
 
@@ -378,7 +373,6 @@ class SettingsDialog(QDialog):
         top_row.addWidget(add_btn)
         layout.addLayout(top_row)
 
-        # Header with counter
         count_row = QHBoxLayout()
         self.domains_count_lbl = QLabel("Sitios Bloqueados")
         self.domains_count_lbl.setStyleSheet("font-size: 12px; font-weight: 600; opacity: 0.8;")
@@ -386,7 +380,6 @@ class SettingsDialog(QDialog):
         count_row.addStretch()
         layout.addLayout(count_row)
 
-        # Clean List
         self.domains_list = QListWidget()
         self.domains_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
         layout.addWidget(self.domains_list)
@@ -394,7 +387,6 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(tab, "Sitios Bloqueados")
 
     def setup_rules_tab(self):
-        """Tab 2: Curfew, Boot Cooldown, and configurable Bypasses."""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(16, 16, 16, 16)
@@ -488,7 +480,6 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(tab, "Horarios y Reglas")
 
     def setup_dashboard_tab(self):
-        """Tab 3: Context-aware actions and live status."""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(16, 16, 16, 16)
@@ -511,7 +502,7 @@ class SettingsDialog(QDialog):
         hero_layout.addLayout(top_row)
 
         self.dash_countdown_lbl = QLabel("Calculando tiempo...")
-        self.dash_countdown_lbl.setStyleSheet("font-size: 18px; font-weight: 700; color: #3B82F6;")
+        self.dash_countdown_lbl.setStyleSheet("font-size: 18px; font-weight: 700; color: #10B981;")
         hero_layout.addWidget(self.dash_countdown_lbl)
 
         self.dash_desc_lbl = QLabel("")
@@ -544,14 +535,13 @@ class SettingsDialog(QDialog):
 
         # Action feedback label
         self.dash_feedback_lbl = QLabel("")
-        self.dash_feedback_lbl.setStyleSheet("font-size: 11px; color: #3B82F6; font-weight: 600;")
+        self.dash_feedback_lbl.setStyleSheet("font-size: 11px; color: #10B981; font-weight: 600;")
         layout.addWidget(self.dash_feedback_lbl)
 
         layout.addStretch()
         self.tabs.addTab(tab, "Estado y Control")
 
     def setup_bottom_bar(self):
-        """Bottom bar."""
         bottom = QHBoxLayout()
         bottom.setSpacing(10)
 
@@ -574,7 +564,6 @@ class SettingsDialog(QDialog):
         self.main_layout.addLayout(bottom)
 
     def load_configuration(self):
-        """Fetches configuration from daemon."""
         res = self.ipc.get_config()
         if res.get("status") == "ok":
             self.config_data = res.get("config", {})
@@ -600,7 +589,6 @@ class SettingsDialog(QDialog):
             self.save_feedback_lbl.setText("Servicio fuera de línea.")
 
     def render_domains_list(self):
-        """Populates the domain list."""
         self.domains_list.clear()
         self.domains_count_lbl.setText(f"Sitios Bloqueados ({len(self.blocked_domains)})")
 
@@ -655,7 +643,6 @@ class SettingsDialog(QDialog):
             self.domains_list.setItemWidget(item, row)
 
     def on_add_domain_clicked(self):
-        """Adds cleaned domain."""
         raw = self.domain_input.text()
         domain = sanitize_domain(raw)
         if not domain:
@@ -671,13 +658,11 @@ class SettingsDialog(QDialog):
         self.render_domains_list()
 
     def on_remove_domain(self, domain: str):
-        """Removes a domain."""
         if domain in self.blocked_domains:
             self.blocked_domains.remove(domain)
             self.render_domains_list()
 
     def on_save_clicked(self):
-        """Saves configuration to daemon."""
         curfew_cfg = {
             "enabled": self.curfew_enabled_cb.isChecked(),
             "start_time": self.curfew_start_time.time().toString("HH:mm"),
@@ -713,10 +698,11 @@ class SettingsDialog(QDialog):
             self.save_feedback_lbl.setText(f"Error: {res.get('error', 'No se pudo guardar')}")
 
     def refresh_live_status(self):
-        """Updates live status and updates context-aware action buttons."""
         res = self.ipc.get_status()
         if res.get("status") != "ok":
             self.status_badge.setText("OFFLINE")
+            self.status_badge.setStyleSheet("background-color: #4B5563; color: #FFF; font-weight: 700; padding: 4px 10px; border-radius: 6px;")
+            self.header_icon_lbl.setPixmap(QIcon(os.path.join(self.resource_dir, "icon-offline.svg")).pixmap(30, 30))
             self.dash_state_title.setText("Servicio Fuera de Línea")
             self.dash_countdown_lbl.setText("Inactivo")
             self.dash_desc_lbl.setText("Inicia el servicio focus-guard.")
@@ -734,23 +720,31 @@ class SettingsDialog(QDialog):
 
         human_time = format_human_time(rem)
 
-        # Context-Aware Button Logic
+        # Inverted Guard Logic: Green = Protected, Red = Inactive/Free, Amber = Break
         if state == "UNLOCKED":
-            self.status_badge.setText("LIBRE")
-            self.dash_state_pill.setText("LIBRE")
-            self.dash_state_title.setText("Modo Libre")
+            self.status_badge.setText("APAGADO / LIBRE")
+            self.status_badge.setStyleSheet("background-color: #EF4444; color: #FFF; font-weight: 700; padding: 4px 10px; border-radius: 6px;")
+            self.header_icon_lbl.setPixmap(QIcon(os.path.join(self.resource_dir, "icon-idle.svg")).pixmap(30, 30))
+            self.dash_state_pill.setText("DESPROTEGIDO")
+            self.dash_state_pill.setStyleSheet("border-color: #EF4444; color: #EF4444; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px;")
+            self.dash_state_title.setText("Modo Libre (Sin Protección)")
             self.dash_countdown_lbl.setText("Sitios Desbloqueados")
-            self.dash_desc_lbl.setText("No hay restricciones activas.")
+            self.dash_countdown_lbl.setStyleSheet("font-size: 18px; font-weight: 700; color: #EF4444;")
+            self.dash_desc_lbl.setText("El bloqueo no está activo. Puedes navegar libremente.")
 
-            self.btn_primary_action.setText("Bloquear Ahora")
+            self.btn_primary_action.setText("Bloquear Ahora (Activar Focus)")
             self.btn_primary_action.setEnabled(True)
             self.btn_secondary_action.setVisible(False)
 
         elif state == "BYPASS":
             self.status_badge.setText("DESCANSO")
-            self.dash_state_pill.setText("DESCANSO")
-            self.dash_state_title.setText("Descanso Temporal")
+            self.status_badge.setStyleSheet("background-color: #F59E0B; color: #FFF; font-weight: 700; padding: 4px 10px; border-radius: 6px;")
+            self.header_icon_lbl.setPixmap(QIcon(os.path.join(self.resource_dir, "icon-bypass.svg")).pixmap(30, 30))
+            self.dash_state_pill.setText("PAUSA")
+            self.dash_state_pill.setStyleSheet("border-color: #F59E0B; color: #F59E0B; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px;")
+            self.dash_state_title.setText("Descanso Temporal Activo")
             self.dash_countdown_lbl.setText(f"{human_time} restantes")
+            self.dash_countdown_lbl.setStyleSheet("font-size: 18px; font-weight: 700; color: #F59E0B;")
             self.dash_desc_lbl.setText("Acceso concedido temporalmente.")
 
             self.btn_primary_action.setText("Terminar Descanso y Bloquear")
@@ -758,12 +752,17 @@ class SettingsDialog(QDialog):
             self.btn_secondary_action.setVisible(False)
 
         elif is_blocking:
-            self.status_badge.setText("BLOQUEADO")
-            self.dash_state_pill.setText("BLOQUEADO")
+            # Active Protection -> Green / Distinct Icons
+            self.status_badge.setText("PROTEGIDO")
+            self.status_badge.setStyleSheet("background-color: #10B981; color: #FFF; font-weight: 700; padding: 4px 10px; border-radius: 6px;")
+            self.dash_state_pill.setText("ACTIVO")
+            self.dash_state_pill.setStyleSheet("border-color: #10B981; color: #10B981; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px;")
+            self.dash_countdown_lbl.setStyleSheet("font-size: 18px; font-weight: 700; color: #10B981;")
 
             if reason == "CURFEW":
+                self.header_icon_lbl.setPixmap(QIcon(os.path.join(self.resource_dir, "icon-curfew.svg")).pixmap(30, 30))
                 self.dash_state_title.setText("Toque de Queda Nocturno")
-                self.dash_desc_lbl.setText(f"Bloqueo estricto hasta las {target}.")
+                self.dash_desc_lbl.setText(f"Protección nocturna activa hasta las {target}.")
                 self.btn_primary_action.setText("Bloqueo Nocturno Activo")
                 self.btn_primary_action.setEnabled(False)
 
@@ -775,8 +774,9 @@ class SettingsDialog(QDialog):
                     self.btn_secondary_action.setVisible(False)
 
             elif reason == "BOOT_COOLDOWN":
+                self.header_icon_lbl.setPixmap(QIcon(os.path.join(self.resource_dir, "icon-boot.svg")).pixmap(30, 30))
                 self.dash_state_title.setText("Cooldown de Arranque")
-                self.dash_desc_lbl.setText(f"Bloqueo de inicio hasta las {target}.")
+                self.dash_desc_lbl.setText(f"Protección de inicio activa hasta las {target}.")
                 self.btn_primary_action.setText("Bloqueo de Inicio Activo")
                 self.btn_primary_action.setEnabled(False)
 
@@ -788,8 +788,9 @@ class SettingsDialog(QDialog):
                     self.btn_secondary_action.setVisible(False)
 
             elif reason == "MANUAL_LOCK":
+                self.header_icon_lbl.setPixmap(QIcon(os.path.join(self.resource_dir, "icon-active.svg")).pixmap(30, 30))
                 self.dash_state_title.setText("Modo Focus Manual")
-                self.dash_desc_lbl.setText("Bloqueo activado manualmente por el usuario.")
+                self.dash_desc_lbl.setText("Protección activada manualmente por el usuario.")
                 self.btn_primary_action.setText("Desbloquear Sitios")
                 self.btn_primary_action.setEnabled(True)
 
@@ -803,10 +804,9 @@ class SettingsDialog(QDialog):
             if rem > 0:
                 self.dash_countdown_lbl.setText(f"{human_time} restantes")
             else:
-                self.dash_countdown_lbl.setText("Bloqueo Activo")
+                self.dash_countdown_lbl.setText("Protección Activa")
 
     def on_primary_action_clicked(self):
-        """Contextual primary action."""
         res = self.ipc.get_status()
         state = res.get("state", "UNLOCKED")
         reason = res.get("reason", "FREE_TIME")
@@ -825,7 +825,6 @@ class SettingsDialog(QDialog):
         self.refresh_live_status()
 
     def on_secondary_action_clicked(self):
-        """Contextual secondary action (Bypass or Emergency)."""
         res = self.ipc.get_status()
         in_curfew = res.get("in_curfew", False)
 

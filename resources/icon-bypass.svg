@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bypassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+  </defs>
+  <path d="M32 4 L54 12 C54 36 32 58 32 58 C32 58 10 36 10 12 Z" 
+        fill="url(#bypassGrad)" 
+        stroke="#FFFFFF" 
+        stroke-width="2" 
+        stroke-linejoin="round"/>
+  <!-- Pause Bars -->
+  <rect x="25" y="22" width="5" height="18" rx="2" fill="#FFFFFF"/>
+  <rect x="34" y="22" width="5" height="18" rx="2" fill="#FFFFFF"/>
+</svg>
