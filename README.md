@@ -1,43 +1,44 @@
-# 🛡️ Focus-Guard
+# Focus-Guard
 
-> **Anti-procrastination and dopamine regulator for Linux (CachyOS / Arch Linux / KDE Plasma 6 & Wayland)**
+> Anti-procrastination and dopamine regulator for Linux (CachyOS / Arch Linux / KDE Plasma 6 & Wayland)
 
-Focus-Guard blocks distracting websites directly at the system level (`/etc/hosts`) with privilege separation, an automated systemd daemon, and a modern KDE Plasma StatusNotifier tray applet.
-
----
-
-## ✨ Features
-
-- **🚀 Boot Cooldown:** Mandatory 30-minute focus block automatically applied when your computer boots up or the daemon starts.
-- **🌙 Night Curfew (Toque de Queda):** Non-negotiable block every night from **23:15 to 07:00** to protect your sleep schedule.
-- **☕ Timed Bypasses:** Need a quick break? Request a temporary 15, 30, or 45-minute bypass directly from the system tray (bypasses are strictly disallowed during Night Curfew).
-- **🔒 Manual Lock:** Trigger immediate focus sessions whenever you need to get into deep work.
-- **🎨 KDE Plasma 6 / Wayland Native:** Uses standard `StatusNotifierItem` via PyQt6 with dynamic vector icons and informative status tooltips.
-- **🛡️ Secure Privilege Separation:** The GUI runs strictly as your unprivileged user. Only the lightweight daemon runs as root via Systemd to manage `/etc/hosts`.
+Focus-Guard blocks distracting websites directly at the system level (`/etc/hosts`) with privilege separation, an automated systemd daemon, and a minimalist KDE Plasma StatusNotifier tray applet and dashboard.
 
 ---
 
-## 🏛️ Architecture
+## Features
+
+- **Boot Cooldown:** Mandatory 30-minute focus block automatically applied when your computer boots up (based on `/proc/uptime`).
+- **Night Curfew:** Automated non-negotiable block every night from **23:15 to 07:00** to protect your sleep schedule.
+- **Timed Bypasses:** Request temporary 15, 30, or 45-minute breaks directly from the tray or dashboard (strictly restricted during Night Curfew with an emergency friction mechanism).
+- **Manual Lock:** Trigger immediate deep work focus sessions whenever needed.
+- **Native Settings UI & Dashboard:** Minimalist, adaptive interface matching KDE Plasma 6 Light & Dark themes to manage domains and rules effortlessly.
+- **KDE Plasma 6 / Wayland Integration:** Standard `StatusNotifierItem` via PyQt6 with vector icons and transition desktop notifications.
+- **Strict Privilege Separation:** The GUI and settings run exclusively as your standard user (`$USER`). Only the system daemon runs with root permissions to update `/etc/hosts`.
+
+---
+
+## Architecture
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  FRONTEND: Tray Applet (PyQt6 / QSystemTrayIcon)       │
+│  FRONTEND: Tray Applet & Settings UI (PyQt6)           │
 │  • Runs as standard user ($USER) in KDE Plasma 6       │
-│  • Visual status: Active (Red) / Break (Green)         │
-│  • Context Menu: Timed Bypasses, Manual Lock, Info     │
+│  • Visual status: Active (Red) / Break (Amber) / Idle  │
+│  • Context Menu & Dashboard: Domains, Rules, Bypasses  │
 └──────────────────────────┬─────────────────────────────┘
                            │ (IPC: JSON over Unix Socket /run/focus-guard.sock)
 ┌──────────────────────────▼─────────────────────────────┐
 │  BACKEND: Systemd Daemon (Root)                        │
 │  • Runs in background as focus-guard.service           │
-│  • Atomic, safe updates to /etc/hosts with delimiters  │
-│  • Enforces Curfew, Boot Cooldown, and Timers          │
+│  • Atomic, delimited updates to /etc/hosts             │
+│  • Enforces Curfew, Uptime Cooldown, and State Machine │
 └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Installation & Quick Start
+## Installation & Quick Start
 
 ### 1. Requirements (Arch Linux / CachyOS)
 ```bash
@@ -49,6 +50,7 @@ Run the automated installation script with `sudo`:
 ```bash
 sudo ./scripts/install.sh
 ```
+
 This will:
 - Install the backend and frontend to `/opt/focus-guard`
 - Create `/etc/focus-guard/config.json`
@@ -60,13 +62,13 @@ After installation, you can launch the tray applet:
 ```bash
 python3 /opt/focus-guard/client/main.py &
 ```
-*(Or simply search for **Focus-Guard** in your KDE Application Launcher)*.
+*(Or search for **Focus-Guard** in your KDE Application Launcher)*.
 
 ---
 
-## 🧪 Testing Locally (Development Mode)
+## Testing Locally (Development Mode)
 
-You can run both the daemon and the GUI locally without `sudo` and without modifying your real `/etc/hosts` file using mock files in `/tmp`:
+Run both the daemon and GUI in development mode without `sudo` and without modifying your real `/etc/hosts` file:
 
 ```bash
 ./scripts/run_dev.sh
@@ -74,9 +76,9 @@ You can run both the daemon and the GUI locally without `sudo` and without modif
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
-Custom domains, curfew hours, and cooldown durations can be adjusted in `/etc/focus-guard/config.json` (or `config/default_config.json`):
+Custom domains, curfew hours, and cooldown durations can be adjusted directly from the GUI (Ajustes y Sitios Bloqueados) or in `/etc/focus-guard/config.json`:
 
 ```json
 {
@@ -106,17 +108,17 @@ Custom domains, curfew hours, and cooldown durations can be adjusted in `/etc/fo
 
 ---
 
-## 🌐 Browser Note: DNS-over-HTTPS (DoH)
+## Browser Note: DNS-over-HTTPS (DoH)
 
-Modern web browsers (such as Firefox, Chrome, or Brave) sometimes have **DNS-over-HTTPS (DoH)** enabled by default. Since DoH queries external DNS servers directly, it can bypass `/etc/hosts`.
+Modern web browsers sometimes have **DNS-over-HTTPS (DoH)** enabled by default. Since DoH queries external DNS servers directly, it can bypass `/etc/hosts`.
 
 To ensure Focus-Guard works effectively:
-- **Firefox:** Go to `Settings` ➔ `Privacy & Security` ➔ `DNS over HTTPS` ➔ Select **Off** (or "Default Protection").
-- **Chrome / Brave:** Go to `Settings` ➔ `Privacy and security` ➔ `Security` ➔ Toggle off "Use secure DNS" or set to OS default.
+- **Firefox:** Go to `Settings` -> `Privacy & Security` -> `DNS over HTTPS` -> Select **Off** (or "Default Protection").
+- **Chrome / Brave:** Go to `Settings` -> `Privacy and security` -> `Security` -> Toggle off "Use secure DNS" or set to OS default.
 
 ---
 
-## 🗑️ Uninstallation
+## Uninstallation
 
 To cleanly remove Focus-Guard and restore `/etc/hosts`:
 ```bash
@@ -125,5 +127,5 @@ sudo ./scripts/uninstall.sh
 
 ---
 
-## 📄 License
+## License
 MIT License.

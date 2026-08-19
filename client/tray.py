@@ -1,6 +1,6 @@
 """
 PyQt6 System Tray Applet for Focus-Guard.
-Optimized for KDE Plasma 6 (Wayland) StatusNotifierItem.
+Minimalist, typography-driven StatusNotifierItem for KDE Plasma 6 (Wayland).
 """
 import os
 import sys
@@ -31,7 +31,7 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.icon_offline = QIcon(os.path.join(resource_dir, "icon-offline.svg"))
 
         self.setIcon(self.icon_offline)
-        self.setToolTip("Focus-Guard: Conectando con el demonio...")
+        self.setToolTip("Focus-Guard: Conectando con el servicio...")
 
         self.last_state: Optional[str] = None
         self.last_reason: Optional[str] = None
@@ -48,12 +48,12 @@ class FocusTrayApplet(QSystemTrayIcon):
         # Polling Timer for state updates
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh_status)
-        self.timer.start(2000)  # Check every 2.0 seconds
+        self.timer.start(2000)
 
         self.refresh_status()
 
     def setup_menu(self):
-        """Constructs the system tray context menu."""
+        """Constructs the clean, minimalist system tray context menu."""
         self.menu.clear()
 
         # 1. Header State Label
@@ -72,19 +72,19 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.menu.addSeparator()
 
         # 3. Settings / Dashboard Action
-        self.settings_action = QAction("⚙️ Ajustes y Sitios Bloqueados...", self.menu)
+        self.settings_action = QAction("Ajustes y Sitios Bloqueados...", self.menu)
         self.settings_action.triggered.connect(self.show_settings_dialog)
         self.menu.addAction(self.settings_action)
 
         self.menu.addSeparator()
 
         # 4. Quick Lock Action
-        self.lock_action = QAction("🔒 Bloquear Ahora (Modo Focus)", self.menu)
+        self.lock_action = QAction("Bloquear Ahora (Modo Focus)", self.menu)
         self.lock_action.triggered.connect(self.on_lock_clicked)
         self.menu.addAction(self.lock_action)
 
         # 5. Standard Bypass Submenu
-        self.bypass_menu = self.menu.addMenu("☕ Bypass Temporal (Descanso)")
+        self.bypass_menu = self.menu.addMenu("Bypass Temporal (Descanso)")
         
         self.bypass_15_action = QAction("15 minutos", self.bypass_menu)
         self.bypass_15_action.triggered.connect(lambda: self.on_bypass_clicked(15))
@@ -99,42 +99,42 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.bypass_menu.addAction(self.bypass_45_action)
 
         self.bypass_menu.addSeparator()
-        self.cancel_bypass_action = QAction("✕ Cancelar Descanso", self.bypass_menu)
+        self.cancel_bypass_action = QAction("Cancelar Descanso", self.bypass_menu)
         self.cancel_bypass_action.triggered.connect(self.on_cancel_bypass_clicked)
         self.bypass_menu.addAction(self.cancel_bypass_action)
 
         # 6. Emergency Bypass (for Curfew)
-        self.emergency_action = QAction("🚨 Desbloqueo de Emergencia (15m)...", self.menu)
+        self.emergency_action = QAction("Desbloqueo de Emergencia (15m)...", self.menu)
         self.emergency_action.triggered.connect(self.on_emergency_bypass_clicked)
         self.emergency_action.setVisible(False)
         self.menu.addAction(self.emergency_action)
 
         # 7. Unlock Action (for manual unlock when permitted)
-        self.unlock_action = QAction("🔓 Desbloquear Sitios", self.menu)
+        self.unlock_action = QAction("Desbloquear Sitios", self.menu)
         self.unlock_action.triggered.connect(self.on_unlock_clicked)
         self.menu.addAction(self.unlock_action)
 
         self.menu.addSeparator()
 
         # 8. Information Action
-        self.info_action = QAction("ℹ️ Acerca de Focus-Guard", self.menu)
+        self.info_action = QAction("Acerca de Focus-Guard", self.menu)
         self.info_action.triggered.connect(self.show_info_dialog)
         self.menu.addAction(self.info_action)
 
         # 9. Refresh Action
-        self.refresh_action = QAction("🔄 Actualizar", self.menu)
+        self.refresh_action = QAction("Actualizar Estado", self.menu)
         self.refresh_action.triggered.connect(self.refresh_status)
         self.menu.addAction(self.refresh_action)
 
         self.menu.addSeparator()
 
         # 10. Quit Action
-        self.quit_action = QAction("✕ Salir de la Bandeja", self.menu)
+        self.quit_action = QAction("Salir", self.menu)
         self.quit_action.triggered.connect(QApplication.instance().quit)
         self.menu.addAction(self.quit_action)
 
     def on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason):
-        """Opens settings when tray icon is triggered or double-clicked."""
+        """Opens settings when tray icon is clicked."""
         if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
             self.show_settings_dialog()
 
@@ -152,7 +152,7 @@ class FocusTrayApplet(QSystemTrayIcon):
             self.settings_dialog.activateWindow()
 
     def _format_remaining_time(self, seconds: int) -> str:
-        """Formats remaining seconds into a human-friendly string."""
+        """Formats remaining seconds into a clean string."""
         if seconds <= 0:
             return ""
         hours = seconds // 3600
@@ -171,8 +171,8 @@ class FocusTrayApplet(QSystemTrayIcon):
 
         if res.get("status") != "ok":
             self.setIcon(self.icon_offline)
-            self.setToolTip("Focus-Guard: Demonio no disponible\n(El servicio no está en ejecución)")
-            self.status_action.setText("⚠️ Demonio Fuera de Línea")
+            self.setToolTip("Focus-Guard: Servicio no disponible\n(El demonio no está en ejecución)")
+            self.status_action.setText("Servicio Fuera de Línea")
             self.detail_action.setText("Inicie el servicio focus-guard")
             self.detail_action.setVisible(True)
             self.bypass_menu.setEnabled(False)
@@ -200,8 +200,8 @@ class FocusTrayApplet(QSystemTrayIcon):
         if curfew_warn and not self.curfew_warned:
             mins_left = max(1, curfew_warn_secs // 60)
             self.showMessage(
-                "🌙 Advertencia de Toque de Queda",
-                f"El Toque de Queda comenzará en {mins_left} minutos. Termina tus tareas.",
+                "Aviso de Toque de Queda",
+                f"El Toque de Queda comenzará en {mins_left} minutos.",
                 QSystemTrayIcon.MessageIcon.Warning,
                 5000
             )
@@ -213,29 +213,29 @@ class FocusTrayApplet(QSystemTrayIcon):
         if self.last_reason is not None and self.last_reason != reason:
             if self.last_reason == "BOOT_COOLDOWN" and reason == "FREE_TIME":
                 self.showMessage(
-                    "🚀 Cooldown de Arranque Finalizado",
-                    "¡Sitios web desbloqueados! Puedes navegar libremente.",
+                    "Cooldown de Arranque Finalizado",
+                    "Sitios web desbloqueados. Modo Libre activo.",
                     QSystemTrayIcon.MessageIcon.Information,
                     4000
                 )
             elif self.last_reason == "CURFEW" and reason == "FREE_TIME":
                 self.showMessage(
-                    "☀️ Buenos Días",
-                    "Toque de Queda nocturno finalizado. Sitios web desbloqueados.",
+                    "Toque de Queda Finalizado",
+                    "Horario nocturno concluido. Sitios web desbloqueados.",
                     QSystemTrayIcon.MessageIcon.Information,
                     4000
                 )
             elif self.last_reason in ("USER_BYPASS", "EMERGENCY_BYPASS") and is_blocking:
                 self.showMessage(
-                    "☕ Fin del Descanso",
-                    "Tu tiempo de descanso ha finalizado. Modo Focus reactivado.",
+                    "Fin del Descanso",
+                    "El tiempo de descanso ha finalizado. Modo Focus reactivado.",
                     QSystemTrayIcon.MessageIcon.Warning,
                     4000
                 )
             elif reason == "CURFEW":
                 self.showMessage(
-                    "🌙 Toque de Queda Nocturno Iniciado",
-                    f"Sitios bloqueados hasta las {target_time or '07:00'}. ¡Hora de descansar!",
+                    "Toque de Queda Nocturno Iniciado",
+                    f"Sitios bloqueados hasta las {target_time or '07:00'}.",
                     QSystemTrayIcon.MessageIcon.Warning,
                     5000
                 )
@@ -247,13 +247,13 @@ class FocusTrayApplet(QSystemTrayIcon):
         # 3. Update Tray Icon & Tooltip
         if is_blocking:
             self.setIcon(self.icon_active)
-            tooltip_txt = f"Focus-Guard: BLOQUEADO\n{message}"
+            tooltip_txt = f"Focus-Guard: Bloqueado\n{message}"
             if time_str:
                 tooltip_txt += f"\n{time_str}"
             self.setToolTip(tooltip_txt)
         else:
             self.setIcon(self.icon_idle)
-            tooltip_txt = f"Focus-Guard: LIBRE\n{message}"
+            tooltip_txt = f"Focus-Guard: Libre\n{message}"
             if time_str:
                 tooltip_txt += f"\n{time_str}"
             self.setToolTip(tooltip_txt)
@@ -261,38 +261,38 @@ class FocusTrayApplet(QSystemTrayIcon):
         # 4. Update Header and Subtext in Menu
         if state == "LOCKED":
             if reason == "CURFEW":
-                self.status_action.setText("🌙 Toque de Queda Nocturno (Bloqueado)")
+                self.status_action.setText("Toque de Queda Nocturno (Bloqueado)")
                 self.bypass_menu.setEnabled(False)
                 self.emergency_action.setVisible(True)
             elif reason == "BOOT_COOLDOWN":
-                self.status_action.setText("🚀 Cooldown de Arranque (Bloqueado)")
+                self.status_action.setText("Cooldown de Arranque (Bloqueado)")
                 self.bypass_menu.setEnabled(True)
                 self.emergency_action.setVisible(False)
             else:
-                self.status_action.setText("🔒 Modo Enfoque Manual (Bloqueado)")
+                self.status_action.setText("Modo Focus Manual (Bloqueado)")
                 self.bypass_menu.setEnabled(True)
                 self.emergency_action.setVisible(False)
         elif state == "BYPASS":
             if reason == "EMERGENCY_BYPASS":
-                self.status_action.setText("🚨 Desbloqueo de Emergencia Activo")
+                self.status_action.setText("Desbloqueo de Emergencia Activo")
             else:
-                self.status_action.setText("☕ Descanso Temporal Activo")
+                self.status_action.setText("Descanso Temporal Activo")
             self.bypass_menu.setEnabled(True)
             self.emergency_action.setVisible(False)
         else:
-            self.status_action.setText("🟢 Modo Libre (Sin Restricciones)")
+            self.status_action.setText("Modo Libre (Sin Restricciones)")
             self.bypass_menu.setEnabled(False)
             self.emergency_action.setVisible(False)
 
         # Detail text
         if target_time and time_str:
-            self.detail_action.setText(f"⏳ Hasta las {target_time} ({time_str})")
+            self.detail_action.setText(f"Hasta las {target_time} ({time_str})")
             self.detail_action.setVisible(True)
         elif time_str:
-            self.detail_action.setText(f"⏳ {time_str}")
+            self.detail_action.setText(time_str)
             self.detail_action.setVisible(True)
         elif message:
-            self.detail_action.setText(f"ℹ️ {message}")
+            self.detail_action.setText(message)
             self.detail_action.setVisible(True)
         else:
             self.detail_action.setVisible(False)
@@ -308,7 +308,7 @@ class FocusTrayApplet(QSystemTrayIcon):
         if res.get("status") == "ok":
             self.showMessage(
                 "Bypass Activado",
-                f"Sitios desbloqueados por {minutes} minutos. ¡Aprovecha el descanso!",
+                f"Sitios desbloqueados durante {minutes} minutos.",
                 QSystemTrayIcon.MessageIcon.Information,
                 3000
             )
@@ -322,9 +322,9 @@ class FocusTrayApplet(QSystemTrayIcon):
         phrase = "necesito desbloqueo de emergencia"
         text, ok = QInputDialog.getText(
             None,
-            "🚨 Desbloqueo de Emergencia (15 minutos)",
-            f"El Toque de Queda protege tu descanso.\n\n"
-            f"Si realmente tienes una urgencia de trabajo, escribe exactamente:\n"
+            "Desbloqueo de Emergencia (15 minutos)",
+            f"El Toque de Queda protege tu horario de descanso.\n\n"
+            f"Para confirmar la excepción de trabajo, escribe:\n"
             f"<b>{phrase}</b>",
             QLineEdit.EchoMode.Normal
         )
@@ -334,7 +334,7 @@ class FocusTrayApplet(QSystemTrayIcon):
             if res.get("status") == "ok":
                 self.showMessage(
                     "Desbloqueo de Emergencia Activado",
-                    "Tienes 15 minutos de acceso. Al terminar, el Toque de Queda se reactivará.",
+                    "15 minutos concedidos. Al finalizar, el Toque de Queda volverá a activarse.",
                     QSystemTrayIcon.MessageIcon.Warning,
                     4000
                 )
@@ -343,7 +343,7 @@ class FocusTrayApplet(QSystemTrayIcon):
         elif ok:
             self.showMessage(
                 "Cancelado",
-                "La frase no coincide. Bloqueo de Toque de Queda mantenido.",
+                "La frase no coincide. Bloqueo mantenido.",
                 QSystemTrayIcon.MessageIcon.Information,
                 3000
             )
@@ -375,25 +375,25 @@ class FocusTrayApplet(QSystemTrayIcon):
         curfew = config.get("curfew", {})
         boot = config.get("boot_cooldown", {})
 
-        curfew_text = f"{curfew.get('start_time', '23:15')} a {curfew.get('end_time', '07:00')} (Innegociable)" if curfew.get('enabled') else "Desactivado"
+        curfew_text = f"{curfew.get('start_time', '23:15')} a {curfew.get('end_time', '07:00')}" if curfew.get('enabled') else "Desactivado"
         boot_text = f"{boot.get('duration_minutes', 30)} minutos" if boot.get('enabled') else "Desactivado"
         domains_text = ", ".join(domains[:12])
         if len(domains) > 12:
-            domains_text += f" (+{len(domains)-12} más)"
+            domains_text += f" (+{len(domains)-12} adicionales)"
 
         info = (
-            "<h3>🛡️ Focus-Guard</h3>"
-            "<p>Bloqueador de distracciones a nivel de sistema para Linux.</p>"
+            "<h3>Focus-Guard</h3>"
+            "<p>Sistema de enfoque y control de distracciones a nivel de red local.</p>"
             "<hr>"
-            f"<b>🌙 Toque de Queda:</b> {curfew_text}<br>"
-            f"<b>🚀 Cooldown al Iniciar:</b> {boot_text}<br>"
-            f"<b>🌐 Sitios configurados ({len(domains)}):</b><br>"
+            f"<b>Toque de Queda:</b> {curfew_text}<br>"
+            f"<b>Cooldown de Inicio:</b> {boot_text}<br>"
+            f"<b>Sitios configurados ({len(domains)}):</b><br>"
             f"<i>{domains_text}</i><br><br>"
             "<small>Para editar sitios o reglas, abre <b>Ajustes y Sitios Bloqueados</b>.</small>"
         )
 
         msg_box = QMessageBox()
-        msg_box.setWindowTitle("Información de Focus-Guard")
+        msg_box.setWindowTitle("Acerca de Focus-Guard")
         msg_box.setTextFormat(Qt.TextFormat.RichText)
         msg_box.setText(info)
         msg_box.setIcon(QMessageBox.Icon.Information)

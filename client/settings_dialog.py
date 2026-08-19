@@ -1,6 +1,6 @@
 """
 Focus-Guard Settings & Dashboard Dialog.
-Minimalist, responsive, and adaptive to KDE Plasma 6 Light & Dark themes.
+Minimalist, typography-driven, and adaptive to KDE Plasma 6 Light & Dark themes.
 """
 import re
 from urllib.parse import urlparse
@@ -9,7 +9,7 @@ from typing import Dict, Any, List, Optional
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit,
     QListWidget, QListWidgetItem, QTabWidget, QWidget, QCheckBox,
-    QTimeEdit, QSpinBox, QFrame, QMessageBox, QApplication, QScrollArea
+    QTimeEdit, QSpinBox, QFrame, QMessageBox, QApplication
 )
 from PyQt6.QtGui import QIcon, QFont, QColor, QPalette
 from PyQt6.QtCore import Qt, QTime, QTimer, pyqtSignal
@@ -23,19 +23,15 @@ def sanitize_domain(raw_input: str) -> Optional[str]:
     if not raw:
         return None
 
-    # Add scheme if missing so urlparse works
     if not raw.startswith("http://") and not raw.startswith("https://"):
         raw = "http://" + raw
 
     try:
         parsed = urlparse(raw)
         host = parsed.netloc or parsed.path
-        # Remove port if present
         host = host.split(":")[0]
-        # Remove www. prefix if present
         if host.startswith("www."):
             host = host[4:]
-        # Basic domain regex validation
         if re.match(r"^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", host):
             return host
     except Exception:
@@ -53,9 +49,9 @@ class SettingsDialog(QDialog):
         self.config_data: Dict[str, Any] = {}
         self.blocked_domains: List[str] = []
 
-        self.setWindowTitle("Focus-Guard — Panel y Ajustes")
-        self.setMinimumSize(600, 520)
-        self.resize(650, 560)
+        self.setWindowTitle("Focus-Guard — Panel de Control y Ajustes")
+        self.setMinimumSize(580, 520)
+        self.resize(640, 560)
 
         # Apply adaptive palette styles
         self.apply_theme_styles()
@@ -103,8 +99,6 @@ class SettingsDialog(QDialog):
             text_secondary = "#9CA3AF"
             accent_blue = "#3B82F6"
             accent_blue_hover = "#2563EB"
-            danger_color = "#EF4444"
-            danger_hover = "#DC2626"
             tab_bg = "#111418"
         else:
             bg_card = "#FFFFFF"
@@ -114,8 +108,6 @@ class SettingsDialog(QDialog):
             text_secondary = "#6B7280"
             accent_blue = "#2563EB"
             accent_blue_hover = "#1D4ED8"
-            danger_color = "#DC2626"
-            danger_hover = "#B91C1C"
             tab_bg = "#F3F4F6"
 
         self.setStyleSheet(f"""
@@ -133,11 +125,12 @@ class SettingsDialog(QDialog):
             QTabBar::tab {{
                 background: {tab_bg};
                 color: {text_secondary};
-                padding: 10px 18px;
+                padding: 9px 16px;
                 margin-right: 4px;
                 border-top-left-radius: 6px;
                 border-top-right-radius: 6px;
                 font-weight: 600;
+                font-size: 12px;
             }}
             QTabBar::tab:selected {{
                 background: {bg_card};
@@ -159,7 +152,7 @@ class SettingsDialog(QDialog):
                 border-radius: 6px;
                 padding: 8px 16px;
                 font-weight: 600;
-                font-size: 13px;
+                font-size: 12px;
             }}
             QPushButton#primaryBtn {{
                 background-color: {accent_blue};
@@ -207,7 +200,7 @@ class SettingsDialog(QDialog):
             }}
             QCheckBox {{
                 color: {text_primary};
-                font-size: 14px;
+                font-size: 13px;
                 font-weight: 600;
                 spacing: 8px;
             }}
@@ -229,17 +222,15 @@ class SettingsDialog(QDialog):
         header = QHBoxLayout()
         header.setSpacing(12)
 
-        # App Icon
         icon_lbl = QLabel()
-        icon_lbl.setPixmap(QIcon(f"{self.resource_dir}/icon-active.svg").pixmap(36, 36))
+        icon_lbl.setPixmap(QIcon(f"{self.resource_dir}/icon-active.svg").pixmap(32, 32))
         header.addWidget(icon_lbl)
 
-        # Title & Subtitle
         title_box = QVBoxLayout()
         title_box.setSpacing(2)
         title_lbl = QLabel("Focus-Guard")
-        title_lbl.setStyleSheet("font-size: 18px; font-weight: 700;")
-        sub_lbl = QLabel("Panel de Control y Reglas de Enfoque")
+        title_lbl.setStyleSheet("font-size: 17px; font-weight: 700; letter-spacing: 0.5px;")
+        sub_lbl = QLabel("Configuracion del Sistema y Reglas de Bloqueo")
         sub_lbl.setStyleSheet("font-size: 12px; opacity: 0.7;")
         title_box.addWidget(title_lbl)
         title_box.addWidget(sub_lbl)
@@ -247,15 +238,15 @@ class SettingsDialog(QDialog):
 
         header.addStretch()
 
-        # Status Pill Badge
         self.status_badge = QLabel("Verificando...")
         self.status_badge.setStyleSheet("""
             background-color: #374151;
             color: #FFFFFF;
             font-size: 11px;
-            font-weight: 600;
-            padding: 4px 12px;
-            border-radius: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 10px;
+            letter-spacing: 0.5px;
         """)
         header.addWidget(self.status_badge)
 
@@ -268,10 +259,9 @@ class SettingsDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        # Description & Count
         top_bar = QHBoxLayout()
         self.domains_count_lbl = QLabel("Sitios Bloqueados")
-        self.domains_count_lbl.setStyleSheet("font-weight: 600; font-size: 14px;")
+        self.domains_count_lbl.setStyleSheet("font-weight: 600; font-size: 13px;")
         top_bar.addWidget(self.domains_count_lbl)
         top_bar.addStretch()
         layout.addLayout(top_bar)
@@ -280,11 +270,11 @@ class SettingsDialog(QDialog):
         add_bar = QHBoxLayout()
         add_bar.setSpacing(8)
         self.domain_input = QLineEdit()
-        self.domain_input.setPlaceholderText("Ej: twitter.com, instagram.com o pega una URL...")
+        self.domain_input.setPlaceholderText("Ingresa un dominio (ej: twitter.com) o pega una URL...")
         self.domain_input.returnPressed.connect(self.on_add_domain_clicked)
         add_bar.addWidget(self.domain_input)
 
-        add_btn = QPushButton("➕ Añadir")
+        add_btn = QPushButton("Añadir")
         add_btn.setObjectName("primaryBtn")
         add_btn.clicked.connect(self.on_add_domain_clicked)
         add_bar.addWidget(add_btn)
@@ -293,21 +283,21 @@ class SettingsDialog(QDialog):
         # Preset Quick Chips
         preset_bar = QHBoxLayout()
         preset_bar.setSpacing(6)
-        preset_lbl = QLabel("Añadir categoría:")
+        preset_lbl = QLabel("Añadir categoria:")
         preset_lbl.setStyleSheet("font-size: 11px; opacity: 0.7;")
         preset_bar.addWidget(preset_lbl)
 
-        btn_social = QPushButton("+ Redes Sociales")
+        btn_social = QPushButton("Redes Sociales")
         btn_social.setObjectName("chipBtn")
         btn_social.clicked.connect(lambda: self.add_domain_preset(["x.com", "twitter.com", "instagram.com", "facebook.com", "tiktok.com", "threads.net"]))
         preset_bar.addWidget(btn_social)
 
-        btn_video = QPushButton("+ Streaming & Videos")
+        btn_video = QPushButton("Streaming y Video")
         btn_video.setObjectName("chipBtn")
         btn_video.clicked.connect(lambda: self.add_domain_preset(["youtube.com", "twitch.tv", "netflix.com", "disneyplus.com", "primevideo.com"]))
         preset_bar.addWidget(btn_video)
 
-        btn_distr = QPushButton("+ Ocio & Foros")
+        btn_distr = QPushButton("Foros y Ocio")
         btn_distr.setObjectName("chipBtn")
         btn_distr.clicked.connect(lambda: self.add_domain_preset(["reddit.com", "9gag.com", "pinterest.com", "discord.com"]))
         preset_bar.addWidget(btn_distr)
@@ -320,7 +310,7 @@ class SettingsDialog(QDialog):
         self.domains_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
         layout.addWidget(self.domains_list)
 
-        self.tabs.addTab(tab, "🌐 Sitios Bloqueados")
+        self.tabs.addTab(tab, "Sitios Bloqueados")
 
     def setup_rules_tab(self):
         """Tab 2: Curfew and Boot Cooldown rules."""
@@ -335,10 +325,10 @@ class SettingsDialog(QDialog):
         curfew_layout = QVBoxLayout(curfew_card)
         curfew_layout.setSpacing(10)
 
-        self.curfew_enabled_cb = QCheckBox("🌙 Toque de Queda Nocturno (Night Curfew)")
+        self.curfew_enabled_cb = QCheckBox("Toque de Queda Nocturno (Night Curfew)")
         curfew_layout.addWidget(self.curfew_enabled_cb)
 
-        curfew_desc = QLabel("Bloqueo estricto automático durante la noche para proteger tus horas de descanso.")
+        curfew_desc = QLabel("Bloqueo estricto durante la noche para proteger tus horas de descanso.")
         curfew_desc.setStyleSheet("font-size: 12px; opacity: 0.75;")
         curfew_desc.setWordWrap(True)
         curfew_layout.addWidget(curfew_desc)
@@ -369,16 +359,16 @@ class SettingsDialog(QDialog):
         boot_layout = QVBoxLayout(boot_card)
         boot_layout.setSpacing(10)
 
-        self.boot_enabled_cb = QCheckBox("🚀 Cooldown al Iniciar el PC (Boot Focus)")
+        self.boot_enabled_cb = QCheckBox("Cooldown al Iniciar el Sistema (Boot Focus)")
         boot_layout.addWidget(self.boot_enabled_cb)
 
-        boot_desc = QLabel("Activa un bloqueo al encender el PC para evitar distracciones al empezar tu día.")
+        boot_desc = QLabel("Activa un bloqueo temporal al encender el equipo para evitar distracciones tempranas.")
         boot_desc.setStyleSheet("font-size: 12px; opacity: 0.75;")
         boot_desc.setWordWrap(True)
         boot_layout.addWidget(boot_desc)
 
         dur_row = QHBoxLayout()
-        dur_row.addWidget(QLabel("Duración (minutos):"))
+        dur_row.addWidget(QLabel("Duracion (minutos):"))
         self.boot_duration_spin = QSpinBox()
         self.boot_duration_spin.setRange(5, 180)
         self.boot_duration_spin.setSingleStep(5)
@@ -389,7 +379,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(boot_card)
         layout.addStretch()
 
-        self.tabs.addTab(tab, "⏰ Horarios y Reglas")
+        self.tabs.addTab(tab, "Horarios y Reglas")
 
     def setup_dashboard_tab(self):
         """Tab 3: Live Status & Quick Actions."""
@@ -405,7 +395,7 @@ class SettingsDialog(QDialog):
         dash_layout.setSpacing(8)
 
         self.dash_state_lbl = QLabel("Estado: Desconocido")
-        self.dash_state_lbl.setStyleSheet("font-size: 16px; font-weight: 700;")
+        self.dash_state_lbl.setStyleSheet("font-size: 15px; font-weight: 700;")
         dash_layout.addWidget(self.dash_state_lbl)
 
         self.dash_time_lbl = QLabel("")
@@ -422,24 +412,24 @@ class SettingsDialog(QDialog):
         # Quick Actions Box
         act_box = QVBoxLayout()
         act_box.setSpacing(8)
-        act_lbl = QLabel("Acciones Rápidas")
+        act_lbl = QLabel("Acciones Rapidas")
         act_lbl.setStyleSheet("font-weight: 600; font-size: 13px;")
         act_box.addWidget(act_lbl)
 
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
 
-        self.btn_dash_lock = QPushButton("🔒 Bloquear Ahora")
+        self.btn_dash_lock = QPushButton("Bloquear Ahora")
         self.btn_dash_lock.setObjectName("primaryBtn")
         self.btn_dash_lock.clicked.connect(self.on_dash_lock_clicked)
         btn_row.addWidget(self.btn_dash_lock)
 
-        self.btn_dash_bypass15 = QPushButton("☕ Descanso 15m")
+        self.btn_dash_bypass15 = QPushButton("Descanso (15m)")
         self.btn_dash_bypass15.setObjectName("secondaryBtn")
         self.btn_dash_bypass15.clicked.connect(lambda: self.on_dash_bypass_clicked(15))
         btn_row.addWidget(self.btn_dash_bypass15)
 
-        self.btn_dash_unlock = QPushButton("🔓 Desbloquear")
+        self.btn_dash_unlock = QPushButton("Desbloquear")
         self.btn_dash_unlock.setObjectName("secondaryBtn")
         self.btn_dash_unlock.clicked.connect(self.on_dash_unlock_clicked)
         btn_row.addWidget(self.btn_dash_unlock)
@@ -448,7 +438,7 @@ class SettingsDialog(QDialog):
         layout.addLayout(act_box)
 
         layout.addStretch()
-        self.tabs.addTab(tab, "📊 Estado en Vivo")
+        self.tabs.addTab(tab, "Estado y Control")
 
     def setup_bottom_bar(self):
         """Bottom bar with Save, Feedback and Close buttons."""
@@ -466,7 +456,7 @@ class SettingsDialog(QDialog):
         close_btn.clicked.connect(self.accept)
         bottom.addWidget(close_btn)
 
-        self.save_btn = QPushButton("💾 Guardar Cambios")
+        self.save_btn = QPushButton("Guardar Cambios")
         self.save_btn.setObjectName("primaryBtn")
         self.save_btn.clicked.connect(self.on_save_clicked)
         bottom.addWidget(self.save_btn)
@@ -494,7 +484,7 @@ class SettingsDialog(QDialog):
             self.boot_enabled_cb.setChecked(boot.get("enabled", True))
             self.boot_duration_spin.setValue(int(boot.get("duration_minutes", 30)))
         else:
-            self.save_feedback_lbl.setText("⚠️ No se pudo conectar con el demonio.")
+            self.save_feedback_lbl.setText("Servicio fuera de linea.")
 
     def render_domains_list(self):
         """Populates the blocked domains list widget."""
@@ -513,13 +503,15 @@ class SettingsDialog(QDialog):
 
             row_layout.addStretch()
 
-            del_btn = QPushButton("🗑️")
+            del_btn = QPushButton("✕")
             del_btn.setStyleSheet("""
                 QPushButton {
                     border: none;
                     background: transparent;
-                    font-size: 14px;
-                    padding: 4px;
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: #9CA3AF;
+                    padding: 2px 6px;
                 }
                 QPushButton:hover {
                     color: #EF4444;
@@ -538,11 +530,11 @@ class SettingsDialog(QDialog):
         raw = self.domain_input.text()
         domain = sanitize_domain(raw)
         if not domain:
-            QMessageBox.warning(self, "Dominio inválido", "Por favor ingresa un nombre de dominio válido (ej: twitter.com).")
+            QMessageBox.warning(self, "Dominio Invalido", "Por favor ingresa un nombre de dominio valido (ej: twitter.com).")
             return
 
         if domain in self.blocked_domains:
-            QMessageBox.information(self, "Dominio existente", f"'{domain}' ya está en la lista.")
+            QMessageBox.information(self, "Dominio Existente", f"'{domain}' ya esta incluido en la lista.")
             return
 
         self.blocked_domains.append(domain)
@@ -587,23 +579,23 @@ class SettingsDialog(QDialog):
         res = self.ipc.save_config(updated_config)
         if res.get("status") == "ok":
             self.save_feedback_lbl.setStyleSheet("font-size: 12px; color: #10B981; font-weight: 600;")
-            self.save_feedback_lbl.setText("✓ Cambios guardados correctamente")
+            self.save_feedback_lbl.setText("Cambios guardados correctamente")
             self.config_data = updated_config
             self.config_saved.emit()
             QTimer.singleShot(3000, lambda: self.save_feedback_lbl.setText(""))
         else:
             self.save_feedback_lbl.setStyleSheet("font-size: 12px; color: #EF4444; font-weight: 600;")
-            self.save_feedback_lbl.setText(f"✕ Error: {res.get('error', 'No se pudo guardar')}")
+            self.save_feedback_lbl.setText(f"Error: {res.get('error', 'No se pudo guardar')}")
 
     def refresh_live_status(self):
         """Updates the dashboard tab with real-time daemon state."""
         res = self.ipc.get_status()
         if res.get("status") != "ok":
-            self.status_badge.setText("Offline")
-            self.status_badge.setStyleSheet("background-color: #6B7280; color: #FFF; border-radius: 12px; padding: 4px 12px;")
-            self.dash_state_lbl.setText("⚠️ Demonio Fuera de Línea")
+            self.status_badge.setText("OFFLINE")
+            self.status_badge.setStyleSheet("background-color: #6B7280; color: #FFF; border-radius: 10px; padding: 4px 10px; font-weight: 700;")
+            self.dash_state_lbl.setText("Servicio Fuera de Linea")
             self.dash_time_lbl.setText("")
-            self.dash_desc_lbl.setText("El servicio focus-guard no se encuentra en ejecución.")
+            self.dash_desc_lbl.setText("El servicio focus-guard no se encuentra en ejecucion.")
             return
 
         state = res.get("state", "UNLOCKED")
@@ -614,22 +606,22 @@ class SettingsDialog(QDialog):
         is_blocking = res.get("is_blocking", False)
 
         if is_blocking:
-            self.status_badge.setText("🔴 Focus Activo")
-            self.status_badge.setStyleSheet("background-color: #EF4444; color: #FFF; font-weight: 600; border-radius: 12px; padding: 4px 12px;")
-            self.dash_state_lbl.setText(f"🔒 Modo Bloqueado ({reason})")
+            self.status_badge.setText("BLOQUEADO")
+            self.status_badge.setStyleSheet("background-color: #EF4444; color: #FFF; font-weight: 700; border-radius: 10px; padding: 4px 10px;")
+            self.dash_state_lbl.setText(f"Modo Focus Activo ({reason})")
         elif state == "BYPASS":
-            self.status_badge.setText("☕ Descanso")
-            self.status_badge.setStyleSheet("background-color: #F59E0B; color: #FFF; font-weight: 600; border-radius: 12px; padding: 4px 12px;")
-            self.dash_state_lbl.setText("☕ Descanso Temporal Activo")
+            self.status_badge.setText("DESCANSO")
+            self.status_badge.setStyleSheet("background-color: #F59E0B; color: #FFF; font-weight: 700; border-radius: 10px; padding: 4px 10px;")
+            self.dash_state_lbl.setText("Descanso Temporal Activo")
         else:
-            self.status_badge.setText("🟢 Modo Libre")
-            self.status_badge.setStyleSheet("background-color: #10B981; color: #FFF; font-weight: 600; border-radius: 12px; padding: 4px 12px;")
-            self.dash_state_lbl.setText("🟢 Sitios Web Desbloqueados")
+            self.status_badge.setText("LIBRE")
+            self.status_badge.setStyleSheet("background-color: #10B981; color: #FFF; font-weight: 700; border-radius: 10px; padding: 4px 10px;")
+            self.dash_state_lbl.setText("Sitios Web Desbloqueados")
 
         if rem > 0:
             mins = rem // 60
             secs = rem % 60
-            self.dash_time_lbl.setText(f"⏳ Tiempo restante: {mins}m {secs}s" + (f" (Hasta las {target})" if target else ""))
+            self.dash_time_lbl.setText(f"Tiempo restante: {mins}m {secs}s" + (f" (Hasta las {target})" if target else ""))
         else:
             self.dash_time_lbl.setText("")
 
