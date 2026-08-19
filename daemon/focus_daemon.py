@@ -55,13 +55,14 @@ def load_config(custom_path: Optional[str] = None) -> Dict[str, Any]:
 
 
 class FocusDaemon:
-    def __init__(self, config_path: Optional[str] = None, hosts_path: Optional[str] = None, socket_path: Optional[str] = None):
+    def __init__(self, config_path: Optional[str] = None, hosts_path: Optional[str] = None, socket_path: Optional[str] = None, dev_mode: bool = False):
         self.config = load_config(config_path)
         self.hosts_path = hosts_path or self.config.get("hosts_path", "/etc/hosts")
         self.socket_path = socket_path or self.config.get("socket_path", "/run/focus-guard.sock")
+        self.dev_mode = dev_mode
         
         self.hosts_mgr = HostsManager(self.hosts_path)
-        self.scheduler = StateScheduler(self.config)
+        self.scheduler = StateScheduler(self.config, dev_mode=self.dev_mode)
         self.running = False
         self.server_socket: Optional[socket.socket] = None
         self._last_block_state: Optional[bool] = None
@@ -110,9 +111,13 @@ class FocusDaemon:
                 "state": state.get("state"),
                 "reason": state.get("reason"),
                 "remaining_seconds": state.get("remaining_seconds", 0),
+                "target_time_str": state.get("target_time_str", ""),
                 "message": state.get("message", ""),
                 "can_bypass": state.get("can_bypass", True),
                 "is_blocking": state.get("is_blocking", False),
+                "in_curfew": state.get("in_curfew", False),
+                "curfew_warning": state.get("curfew_warning", False),
+                "curfew_warning_seconds": state.get("curfew_warning_seconds", 0),
                 "domains_count": len(self.config.get("blocked_domains", [])),
                 "version": self.config.get("version", "1.0.0")
             }
@@ -121,6 +126,12 @@ class FocusDaemon:
             duration = int(req.get("duration_minutes", 15))
             force = bool(req.get("force", False))
             ok, msg = self.scheduler.request_bypass(duration, force=force)
+            self._apply_current_state()
+            return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
+
+        elif action == "emergency_bypass":
+            duration = int(req.get("duration_minutes", 15))
+            ok, msg = self.scheduler.request_bypass(duration, force=True)
             self._apply_current_state()
             return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
 
@@ -203,17 +214,15 @@ class FocusDaemon:
         self.running = True
         logger.info("Starting Focus-Guard Daemon...")
 
-        # Start background state monitor
         worker_thread = threading.Thread(target=self._state_worker_loop, daemon=True)
         worker_thread.start()
 
-        # Start socket server on main thread
         try:
             self.start_socket_server()
         except KeyboardInterrupt:
             logger.info("Received KeyboardInterrupt, stopping...")
         finally:
-            self.stop()
+            self.stop(clean_hosts=True)
 
     def stop(self, clean_hosts: bool = True):
         """Cleans up sockets and restores hosts."""
@@ -271,7 +280,8 @@ def main():
     daemon = FocusDaemon(
         config_path=args.config,
         hosts_path=hosts_file,
-        socket_path=socket_path
+        socket_path=socket_path,
+        dev_mode=args.dev
     )
 
     def sig_handler(signum, frame):

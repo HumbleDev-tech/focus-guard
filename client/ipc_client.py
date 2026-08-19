@@ -82,6 +82,13 @@ class FocusIPCClient:
             "duration_minutes": duration_minutes
         })
 
+    def request_emergency_bypass(self, duration_minutes: int = 15) -> Dict[str, Any]:
+        """Requests an emergency bypass during night curfew."""
+        return self.send_command({
+            "action": "emergency_bypass",
+            "duration_minutes": duration_minutes
+        })
+
     def cancel_bypass(self) -> Dict[str, Any]:
         """Cancels an active bypass immediately."""
         return self.send_command({"action": "cancel_bypass"})
