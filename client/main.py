@@ -23,7 +23,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger("focus-guard.client.main")
 
-SINGLE_INSTANCE_KEY = "focus-guard-tray-instance"
+def get_instance_key(dev_mode: bool = False) -> str:
+    """Generates user-isolated local socket key for single instance check."""
+    uid = os.getuid() if hasattr(os, "getuid") else 0
+    base = f"focus-guard-tray-instance_{uid}"
+    return f"{base}_dev" if dev_mode else base
 
 
 def resolve_resource_dir() -> str:
@@ -42,10 +46,10 @@ def resolve_resource_dir() -> str:
 
 def check_single_instance(dev_mode: bool = False) -> bool:
     """
-    Checks if another instance of Focus-Guard GUI is already running.
+    Checks if another instance of Focus-Guard GUI is already running for current user.
     If running, notifies it to show its window and returns False (exit current).
     """
-    socket_key = f"{SINGLE_INSTANCE_KEY}_dev" if dev_mode else SINGLE_INSTANCE_KEY
+    socket_key = get_instance_key(dev_mode=dev_mode)
     socket = QLocalSocket()
     socket.connectToServer(socket_key)
     if socket.waitForConnected(500):
@@ -59,7 +63,7 @@ def check_single_instance(dev_mode: bool = False) -> bool:
 
 def setup_single_instance_server(tray: FocusTrayApplet, dev_mode: bool = False) -> QLocalServer:
     """Sets up local server to listen for new instance launch requests."""
-    socket_key = f"{SINGLE_INSTANCE_KEY}_dev" if dev_mode else SINGLE_INSTANCE_KEY
+    socket_key = get_instance_key(dev_mode=dev_mode)
     server = QLocalServer()
     # Remove stale server socket if present
     server.removeServer(socket_key)

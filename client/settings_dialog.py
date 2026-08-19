@@ -17,19 +17,37 @@ from PyQt6.QtCore import Qt, QTime, QTimer, pyqtSignal
 
 from client.ipc_client import FocusIPCClient
 
-AUTOSTART_PATH = os.path.expanduser("~/.config/autostart/focus-guard.desktop")
+USER_AUTOSTART_PATH = os.path.expanduser("~/.config/autostart/focus-guard.desktop")
+SYSTEM_AUTOSTART_PATH = "/etc/xdg/autostart/focus-guard.desktop"
+AUTOSTART_PATH = USER_AUTOSTART_PATH  # Backward compatibility
 
 
 def is_autostart_enabled() -> bool:
-    """Checks if autostart desktop entry exists for the current user."""
-    return os.path.exists(AUTOSTART_PATH)
+    """
+    Checks if autostart is enabled per XDG specifications.
+    User-level override (~/.config/autostart) takes precedence over system-level (/etc/xdg/autostart).
+    """
+    if os.path.exists(USER_AUTOSTART_PATH):
+        try:
+            with open(USER_AUTOSTART_PATH, "r", encoding="utf-8") as f:
+                content = f.read()
+                if "Hidden=true" in content or "X-GNOME-Autostart-enabled=false" in content:
+                    return False
+                return True
+        except Exception:
+            return False
+    # If no user override exists, check if system-wide autostart is installed
+    return os.path.exists(SYSTEM_AUTOSTART_PATH)
 
 
 def set_autostart_enabled(enabled: bool) -> bool:
-    """Enables or disables desktop autostart for the current user."""
+    """
+    Enables or disables desktop autostart conforming to XDG Desktop specifications.
+    Uses Hidden=true override when system-wide autostart is present.
+    """
     try:
+        os.makedirs(os.path.dirname(USER_AUTOSTART_PATH), exist_ok=True)
         if enabled:
-            os.makedirs(os.path.dirname(AUTOSTART_PATH), exist_ok=True)
             content = (
                 "[Desktop Entry]\n"
                 "Name=Focus-Guard\n"
@@ -40,13 +58,26 @@ def set_autostart_enabled(enabled: bool) -> bool:
                 "Type=Application\n"
                 "Categories=Utility;System;\n"
                 "StartupNotify=false\n"
+                "Hidden=false\n"
                 "X-GNOME-Autostart-enabled=true\n"
             )
-            with open(AUTOSTART_PATH, "w", encoding="utf-8") as f:
+            with open(USER_AUTOSTART_PATH, "w", encoding="utf-8") as f:
                 f.write(content)
         else:
-            if os.path.exists(AUTOSTART_PATH):
-                os.unlink(AUTOSTART_PATH)
+            if os.path.exists(SYSTEM_AUTOSTART_PATH):
+                # System autostart exists: write Hidden=true override to disable
+                content = (
+                    "[Desktop Entry]\n"
+                    "Type=Application\n"
+                    "Name=Focus-Guard\n"
+                    "Hidden=true\n"
+                    "X-GNOME-Autostart-enabled=false\n"
+                )
+                with open(USER_AUTOSTART_PATH, "w", encoding="utf-8") as f:
+                    f.write(content)
+            else:
+                if os.path.exists(USER_AUTOSTART_PATH):
+                    os.unlink(USER_AUTOSTART_PATH)
         return True
     except Exception as e:
         return False
@@ -355,6 +386,33 @@ class SettingsDialog(QDialog):
                 background-color: {accent_blue};
                 border-color: {accent_blue};
             }}
+            QFrame#settingsCard {{
+                background-color: {bg_card_inner};
+                border: 1px solid {border_color};
+                border-radius: 8px;
+            }}
+            QFrame#heroCard {{
+                background-color: {bg_card_inner};
+                border: 1px solid {border_color};
+                border-radius: 8px;
+                padding: 14px;
+            }}
+            QLabel#cardDesc {{
+                font-size: 12px;
+                color: {text_secondary};
+                background: transparent;
+                border: none;
+                padding: 0px;
+                margin-left: 24px;
+            }}
+            QLabel#fieldLabel {{
+                font-size: 12px;
+                font-weight: 500;
+                color: {text_primary};
+                background: transparent;
+                border: none;
+                padding: 0px;
+            }}
         """)
 
     def setup_header(self):
@@ -437,93 +495,112 @@ class SettingsDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(14)
 
-        # 1. System Integration Card
-        sys_card = QFrame()
-        sys_card.setStyleSheet("QFrame { border: 1px solid rgba(128,128,128,0.2); border-radius: 6px; padding: 12px; }")
-        sys_layout = QVBoxLayout(sys_card)
-        sys_layout.setSpacing(6)
-
-        self.autostart_cb = QCheckBox("Iniciar Focus-Guard automáticamente al encender el equipo")
-        self.autostart_cb.setChecked(is_autostart_enabled())
-        self.autostart_cb.toggled.connect(self.on_autostart_toggled)
-        sys_layout.addWidget(self.autostart_cb)
-        layout.addWidget(sys_card)
-
-        # 2. Curfew Card
-        curfew_card = QFrame()
-        curfew_card.setStyleSheet("QFrame { border: 1px solid rgba(128,128,128,0.2); border-radius: 6px; padding: 12px; }")
-        curfew_layout = QVBoxLayout(curfew_card)
-        curfew_layout.setSpacing(10)
-
-        self.curfew_enabled_cb = QCheckBox("Toque de Queda Nocturno (Night Curfew)")
-        curfew_layout.addWidget(self.curfew_enabled_cb)
-
-        curfew_desc = QLabel("Bloquea automáticamente el acceso durante la noche para proteger el descanso.")
-        curfew_desc.setStyleSheet("font-size: 12px; opacity: 0.7;")
-        curfew_desc.setWordWrap(True)
-        curfew_layout.addWidget(curfew_desc)
-
-        time_row = QHBoxLayout()
-        time_row.setSpacing(14)
-
-        start_box = QVBoxLayout()
-        start_box.addWidget(QLabel("Hora de Inicio:"))
-        self.curfew_start_time = QTimeEdit()
-        self.curfew_start_time.setDisplayFormat("HH:mm")
-        start_box.addWidget(self.curfew_start_time)
-        time_row.addLayout(start_box)
-
-        end_box = QVBoxLayout()
-        end_box.addWidget(QLabel("Hora de Fin:"))
-        self.curfew_end_time = QTimeEdit()
-        self.curfew_end_time.setDisplayFormat("HH:mm")
-        end_box.addWidget(self.curfew_end_time)
-        time_row.addLayout(end_box)
-
-        curfew_layout.addLayout(time_row)
-        layout.addWidget(curfew_card)
-
-        # 3. Boot Cooldown Card
+        # 1. Boot Focus Card
         boot_card = QFrame()
-        boot_card.setStyleSheet("QFrame { border: 1px solid rgba(128,128,128,0.2); border-radius: 6px; padding: 12px; }")
+        boot_card.setObjectName("settingsCard")
         boot_layout = QVBoxLayout(boot_card)
-        boot_layout.setSpacing(10)
+        boot_layout.setContentsMargins(14, 12, 14, 12)
+        boot_layout.setSpacing(6)
 
-        self.boot_enabled_cb = QCheckBox("Cooldown al Iniciar el Sistema (Boot Focus)")
+        self.boot_enabled_cb = QCheckBox("Bloqueo de Enfoque al Iniciar el Equipo (Boot Focus)")
+        self.boot_enabled_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
         boot_layout.addWidget(self.boot_enabled_cb)
 
-        boot_desc = QLabel("Aplica un bloqueo temporal al encender el equipo para evitar distracciones tempranas.")
-        boot_desc.setStyleSheet("font-size: 12px; opacity: 0.7;")
+        boot_desc = QLabel("Aplica un bloqueo temporal en los sitios distractores durante los primeros minutos tras encender el PC para iniciar tu jornada con concentración.")
+        boot_desc.setObjectName("cardDesc")
         boot_desc.setWordWrap(True)
         boot_layout.addWidget(boot_desc)
 
         dur_row = QHBoxLayout()
-        dur_row.addWidget(QLabel("Duración:"))
+        dur_row.setContentsMargins(24, 6, 0, 2)
+        dur_row.setSpacing(10)
+
+        dur_label = QLabel("Duración del bloqueo inicial:")
+        dur_label.setObjectName("fieldLabel")
+        dur_row.addWidget(dur_label)
+
         self.boot_duration_spin = QSpinBox()
         self.boot_duration_spin.setRange(5, 180)
         self.boot_duration_spin.setSingleStep(5)
         self.boot_duration_spin.setSuffix(" minutos")
+        self.boot_duration_spin.setFixedWidth(130)
         dur_row.addWidget(self.boot_duration_spin)
         dur_row.addStretch()
-        boot_layout.addLayout(dur_row)
 
+        boot_layout.addLayout(dur_row)
         layout.addWidget(boot_card)
 
-        # 4. Configurable Bypasses & Emergency Rules Card
-        bypass_card = QFrame()
-        bypass_card.setStyleSheet("QFrame { border: 1px solid rgba(128,128,128,0.2); border-radius: 6px; padding: 12px; }")
-        bypass_layout = QVBoxLayout(bypass_card)
-        bypass_layout.setSpacing(10)
+        # 2. Curfew Card
+        curfew_card = QFrame()
+        curfew_card.setObjectName("settingsCard")
+        curfew_layout = QVBoxLayout(curfew_card)
+        curfew_layout.setContentsMargins(14, 12, 14, 12)
+        curfew_layout.setSpacing(6)
 
-        self.bypasses_enabled_cb = QCheckBox("Permitir descansos temporales (Bypass de 15/30m)")
+        self.curfew_enabled_cb = QCheckBox("Toque de Queda Nocturno (Night Curfew)")
+        self.curfew_enabled_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
+        curfew_layout.addWidget(self.curfew_enabled_cb)
+
+        curfew_desc = QLabel("Bloquea automáticamente los sitios distractores durante la noche para proteger las horas de descanso y sueño.")
+        curfew_desc.setObjectName("cardDesc")
+        curfew_desc.setWordWrap(True)
+        curfew_layout.addWidget(curfew_desc)
+
+        time_row = QHBoxLayout()
+        time_row.setContentsMargins(24, 6, 0, 2)
+        time_row.setSpacing(10)
+
+        start_lbl = QLabel("Bloquear desde:")
+        start_lbl.setObjectName("fieldLabel")
+        time_row.addWidget(start_lbl)
+
+        self.curfew_start_time = QTimeEdit()
+        self.curfew_start_time.setDisplayFormat("HH:mm")
+        self.curfew_start_time.setFixedWidth(85)
+        time_row.addWidget(self.curfew_start_time)
+
+        time_row.addSpacing(16)
+
+        end_lbl = QLabel("Hasta las:")
+        end_lbl.setObjectName("fieldLabel")
+        time_row.addWidget(end_lbl)
+
+        self.curfew_end_time = QTimeEdit()
+        self.curfew_end_time.setDisplayFormat("HH:mm")
+        self.curfew_end_time.setFixedWidth(85)
+        time_row.addWidget(self.curfew_end_time)
+
+        time_row.addStretch()
+        curfew_layout.addLayout(time_row)
+        layout.addWidget(curfew_card)
+
+        # 3. Configurable Bypasses & Emergency Rules Card
+        bypass_card = QFrame()
+        bypass_card.setObjectName("settingsCard")
+        bypass_layout = QVBoxLayout(bypass_card)
+        bypass_layout.setContentsMargins(14, 12, 14, 12)
+        bypass_layout.setSpacing(6)
+
+        self.bypasses_enabled_cb = QCheckBox("Permitir descansos temporales (Pausas de 15, 30 o 45 min)")
+        self.bypasses_enabled_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
         bypass_layout.addWidget(self.bypasses_enabled_cb)
 
-        self.curfew_emerg_cb = QCheckBox("Permitir desbloqueo de emergencia durante Toque de Queda")
+        byp_desc = QLabel("Permite solicitar descansos desde el icono de la bandeja durante tus sesiones de trabajo.")
+        byp_desc.setObjectName("cardDesc")
+        byp_desc.setWordWrap(True)
+        bypass_layout.addWidget(byp_desc)
+
+        # Emergency sub-option
+        self.curfew_emerg_cb = QCheckBox("Permitir desbloqueo de emergencia durante el Toque de Queda")
+        self.curfew_emerg_cb.setStyleSheet("margin-left: 24px; font-size: 12px; font-weight: 600;")
         bypass_layout.addWidget(self.curfew_emerg_cb)
 
         phrase_row = QHBoxLayout()
-        phrase_lbl = QLabel("Frase de confirmación para emergencias:")
-        phrase_lbl.setStyleSheet("font-size: 12px; opacity: 0.8;")
+        phrase_row.setContentsMargins(48, 4, 0, 2)
+        phrase_row.setSpacing(10)
+
+        phrase_lbl = QLabel("Frase de confirmación:")
+        phrase_lbl.setObjectName("fieldLabel")
         phrase_row.addWidget(phrase_lbl)
 
         self.emergency_phrase_input = QLineEdit()
@@ -532,6 +609,32 @@ class SettingsDialog(QDialog):
         bypass_layout.addLayout(phrase_row)
 
         layout.addWidget(bypass_card)
+
+        # 4. Desktop Tray Applet Autostart Card
+        sys_card = QFrame()
+        sys_card.setObjectName("settingsCard")
+        sys_layout = QVBoxLayout(sys_card)
+        sys_layout.setContentsMargins(14, 12, 14, 12)
+        sys_layout.setSpacing(6)
+
+        self.autostart_cb = QCheckBox("Abrir icono en la barra de tareas al iniciar sesión (KDE Plasma)")
+        self.autostart_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
+        self.autostart_cb.setChecked(is_autostart_enabled())
+        self.autostart_cb.toggled.connect(self.on_autostart_toggled)
+        sys_layout.addWidget(self.autostart_cb)
+
+        sys_desc = QLabel("Inicia el icono en la bandeja del sistema al entrar a tu sesión de escritorio para consultar el estado y pedir descansos.")
+        sys_desc.setObjectName("cardDesc")
+        sys_desc.setWordWrap(True)
+        sys_layout.addWidget(sys_desc)
+
+        layout.addWidget(sys_card)
+
+        # Dynamic state linkage
+        self.boot_enabled_cb.toggled.connect(self.boot_duration_spin.setEnabled)
+        self.curfew_enabled_cb.toggled.connect(self.curfew_start_time.setEnabled)
+        self.curfew_enabled_cb.toggled.connect(self.curfew_end_time.setEnabled)
+        self.curfew_emerg_cb.toggled.connect(self.emergency_phrase_input.setEnabled)
 
         layout.addStretch()
         self.tabs.addTab(tab, "Horarios y Reglas")
@@ -544,7 +647,7 @@ class SettingsDialog(QDialog):
 
         # Hero Status Card
         self.hero_card = QFrame()
-        self.hero_card.setStyleSheet("QFrame { border: 1px solid rgba(128,128,128,0.25); border-radius: 6px; padding: 14px; }")
+        self.hero_card.setObjectName("heroCard")
         hero_layout = QVBoxLayout(self.hero_card)
         hero_layout.setSpacing(8)
 
@@ -643,15 +746,19 @@ class SettingsDialog(QDialog):
             end_parts = [int(x) for x in curfew.get("end_time", "07:00").split(":")]
             self.curfew_start_time.setTime(QTime(start_parts[0], start_parts[1]))
             self.curfew_end_time.setTime(QTime(end_parts[0], end_parts[1]))
+            self.curfew_start_time.setEnabled(self.curfew_enabled_cb.isChecked())
+            self.curfew_end_time.setEnabled(self.curfew_enabled_cb.isChecked())
 
             boot = self.config_data.get("boot_cooldown", {})
             self.boot_enabled_cb.setChecked(boot.get("enabled", True))
             self.boot_duration_spin.setValue(int(boot.get("duration_minutes", 30)))
+            self.boot_duration_spin.setEnabled(self.boot_enabled_cb.isChecked())
 
             bypasses = self.config_data.get("bypasses", {})
             self.bypasses_enabled_cb.setChecked(bypasses.get("enabled", True))
             self.curfew_emerg_cb.setChecked(bypasses.get("allow_during_curfew", False))
             self.emergency_phrase_input.setText(bypasses.get("emergency_phrase", "necesito desbloqueo de emergencia"))
+            self.emergency_phrase_input.setEnabled(self.curfew_emerg_cb.isChecked())
         else:
             self.save_feedback_lbl.setText("Servicio fuera de línea.")
 

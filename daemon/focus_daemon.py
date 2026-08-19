@@ -15,7 +15,7 @@ from typing import Dict, Any, Optional
 # Add parent directory to path so relative imports work when executed directly
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from daemon.hosts_manager import HostsManager
+from daemon.hosts_manager import HostsManager, is_valid_domain
 from daemon.scheduler import StateScheduler
 
 logging.basicConfig(
@@ -103,7 +103,7 @@ class FocusDaemon:
 
         if state_changed or (should_block and domains_changed) or force:
             domains = self.config.get("blocked_domains", [])
-            ipv4 = self.config.get("redirect_ipv4", "127.0.0.1")
+            ipv4 = self.config.get("redirect_ipv4", "0.0.0.0")
             ipv6 = self.config.get("redirect_ipv6", "::1")
 
             if should_block:
@@ -189,8 +189,79 @@ class FocusDaemon:
             if not isinstance(new_cfg, dict):
                 return {"status": "error", "error": "Invalid config data (must be a dictionary)"}
 
+            # Security: Whitelist allowed config fields and validate types
             merged_config = dict(self.config)
-            merged_config.update(new_cfg)
+
+            # 1. Blocked Domains
+            if "blocked_domains" in new_cfg:
+                raw_domains = new_cfg["blocked_domains"]
+                if not isinstance(raw_domains, list):
+                    return {"status": "error", "error": "'blocked_domains' must be a list of domain strings"}
+                valid_domains = []
+                for d in raw_domains:
+                    if isinstance(d, str) and is_valid_domain(d.strip()):
+                        valid_domains.append(d.strip().lower())
+                merged_config["blocked_domains"] = sorted(list(set(valid_domains)))
+
+            # 2. Curfew
+            if "curfew" in new_cfg:
+                curfew_in = new_cfg["curfew"]
+                if not isinstance(curfew_in, dict):
+                    return {"status": "error", "error": "'curfew' must be an object"}
+                curfew_obj = dict(merged_config.get("curfew", {}))
+                if "enabled" in curfew_in:
+                    curfew_obj["enabled"] = bool(curfew_in["enabled"])
+                for t_key in ["start_time", "end_time"]:
+                    if t_key in curfew_in:
+                        val = str(curfew_in[t_key]).strip()
+                        parts = val.split(":")
+                        if len(parts) != 2 or not (parts[0].isdigit() and parts[1].isdigit() and 0 <= int(parts[0]) <= 23 and 0 <= int(parts[1]) <= 59):
+                            return {"status": "error", "error": f"Invalid time format for '{t_key}' (expected HH:MM)"}
+                        curfew_obj[t_key] = f"{int(parts[0]):02d}:{int(parts[1]):02d}"
+                merged_config["curfew"] = curfew_obj
+
+            # 3. Boot Cooldown
+            if "boot_cooldown" in new_cfg:
+                boot_in = new_cfg["boot_cooldown"]
+                if not isinstance(boot_in, dict):
+                    return {"status": "error", "error": "'boot_cooldown' must be an object"}
+                boot_obj = dict(merged_config.get("boot_cooldown", {}))
+                if "enabled" in boot_in:
+                    boot_obj["enabled"] = bool(boot_in["enabled"])
+                if "duration_minutes" in boot_in:
+                    try:
+                        dur = int(boot_in["duration_minutes"])
+                        if dur < 1 or dur > 1440:
+                            return {"status": "error", "error": "boot_cooldown duration must be between 1 and 1440 minutes"}
+                        boot_obj["duration_minutes"] = dur
+                    except (ValueError, TypeError):
+                        return {"status": "error", "error": "Invalid boot_cooldown duration_minutes"}
+                merged_config["boot_cooldown"] = boot_obj
+
+            # 4. Bypasses
+            if "bypasses" in new_cfg:
+                byp_in = new_cfg["bypasses"]
+                if not isinstance(byp_in, dict):
+                    return {"status": "error", "error": "'bypasses' must be an object"}
+                byp_obj = dict(merged_config.get("bypasses", {}))
+                if "enabled" in byp_in:
+                    byp_obj["enabled"] = bool(byp_in["enabled"])
+                if "allow_during_curfew" in byp_in:
+                    byp_obj["allow_during_curfew"] = bool(byp_in["allow_during_curfew"])
+                if "emergency_phrase" in byp_in:
+                    phrase = str(byp_in["emergency_phrase"]).strip()[:100]
+                    byp_obj["emergency_phrase"] = phrase or "necesito desbloqueo de emergencia"
+                merged_config["bypasses"] = byp_obj
+
+            # 5. IP Redirections (Optional overrides)
+            if "redirect_ipv4" in new_cfg and isinstance(new_cfg["redirect_ipv4"], str):
+                ip4 = new_cfg["redirect_ipv4"].strip()
+                if ip4 in ("0.0.0.0", "127.0.0.1"):
+                    merged_config["redirect_ipv4"] = ip4
+            if "redirect_ipv6" in new_cfg and isinstance(new_cfg["redirect_ipv6"], str):
+                ip6 = new_cfg["redirect_ipv6"].strip()
+                if ip6 in ("::1", "::"):
+                    merged_config["redirect_ipv6"] = ip6
 
             if self._save_config(merged_config):
                 self._apply_current_state(force=True)

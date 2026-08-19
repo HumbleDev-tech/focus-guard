@@ -32,8 +32,23 @@ DOMAIN_SIBLINGS = {
 }
 
 
+DOMAIN_REGEX = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$")
+
+
+def is_valid_domain(domain: str) -> bool:
+    """Validates domain against RFC compliance and rejects CRLF / injection payloads."""
+    if not isinstance(domain, str):
+        return False
+    if any(c in domain for c in ["\n", "\r", "\t", " ", "#", "/", "\\", ":", ";"]):
+        return False
+    clean = domain.strip().lower()
+    if not clean or len(clean) > 253:
+        return False
+    return bool(DOMAIN_REGEX.match(clean))
+
+
 class HostsManager:
-    def __init__(self, hosts_path: str = "/etc/hosts", redirect_ipv4: str = "127.0.0.1", redirect_ipv6: str = "::1"):
+    def __init__(self, hosts_path: str = "/etc/hosts", redirect_ipv4: str = "0.0.0.0", redirect_ipv6: str = "::1"):
         self.hosts_path = hosts_path
         self.redirect_ipv4 = redirect_ipv4
         self.redirect_ipv6 = redirect_ipv6
@@ -48,37 +63,58 @@ class HostsManager:
         except Exception:
             return False
 
+    def _get_temp_dir(self) -> str:
+        """
+        Resolves safe temp directory on the same filesystem as hosts_path.
+        Uses /etc/focus-guard when available to comply with systemd ProtectSystem=strict.
+        """
+        if self.hosts_path.startswith("/etc") and os.path.exists("/etc/focus-guard") and os.access("/etc/focus-guard", os.W_OK):
+            return "/etc/focus-guard"
+        dir_name = os.path.dirname(self.hosts_path)
+        if dir_name and os.path.exists(dir_name) and os.access(dir_name, os.W_OK):
+            return dir_name
+        return "/tmp"
+
     def _expand_domains(self, domains: List[str]) -> List[str]:
-        """Expands domains to include www, m., l., siblings, and DoH canaries."""
+        """Expands and strictly validates domains (subdomains, siblings, DoH canary)."""
         expanded: Set[str] = set()
 
-        # Always include the DoH Canary domain
+        # Always include the DoH Canary domain if valid
         for canary in CANARY_DOH_DOMAINS:
-            expanded.add(canary)
+            if is_valid_domain(canary):
+                expanded.add(canary)
 
         for d in domains:
-            clean = d.strip().lower()
-            if not clean:
+            if not is_valid_domain(d):
+                logger.warning(f"Ignoring invalid or unsafe domain format: '{d}'")
                 continue
 
+            clean = d.strip().lower()
             expanded.add(clean)
 
             # Subdomain prefixes
             if not clean.startswith("www."):
-                expanded.add(f"www.{clean}")
+                candidate = f"www.{clean}"
+                if is_valid_domain(candidate):
+                    expanded.add(candidate)
             if not clean.startswith("m."):
-                expanded.add(f"m.{clean}")
+                candidate = f"m.{clean}"
+                if is_valid_domain(candidate):
+                    expanded.add(candidate)
             if not clean.startswith("l.") and "instagram" in clean:
-                expanded.add(f"l.{clean}")
+                candidate = f"l.{clean}"
+                if is_valid_domain(candidate):
+                    expanded.add(candidate)
 
             # Sibling domains
             if clean in DOMAIN_SIBLINGS:
                 for sib in DOMAIN_SIBLINGS[clean]:
-                    expanded.add(sib)
-                    expanded.add(f"www.{sib}")
-                    expanded.add(f"m.{sib}")
+                    if is_valid_domain(sib):
+                        expanded.add(sib)
+                        expanded.add(f"www.{sib}")
+                        expanded.add(f"m.{sib}")
 
-        return sorted(list(expanded))
+        return sorted([d for d in expanded if is_valid_domain(d)])
 
     def _generate_block_content(self, domains: List[str], redirect_ipv4: Optional[str] = None, redirect_ipv6: Optional[str] = None) -> str:
         """Generates the block section for the hosts file."""
@@ -115,9 +151,9 @@ class HostsManager:
             block_str = self._generate_block_content(domains, redirect_ipv4, redirect_ipv6)
             new_content = cleaned_content + "\n\n" + block_str if cleaned_content else block_str
 
-            # Atomic write via temporary file in the same directory
-            dir_name = os.path.dirname(self.hosts_path) or "/tmp"
-            with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False, encoding="utf-8") as tmp:
+            # Atomic write via temporary file in a safe writable directory on the same filesystem
+            temp_dir = self._get_temp_dir()
+            with tempfile.NamedTemporaryFile("w", dir=temp_dir, delete=False, encoding="utf-8") as tmp:
                 tmp.write(new_content)
                 temp_name = tmp.name
 
@@ -151,8 +187,8 @@ class HostsManager:
             )
             new_content = pattern.sub("", current_content).rstrip() + "\n"
 
-            dir_name = os.path.dirname(self.hosts_path) or "/tmp"
-            with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False, encoding="utf-8") as tmp:
+            temp_dir = self._get_temp_dir()
+            with tempfile.NamedTemporaryFile("w", dir=temp_dir, delete=False, encoding="utf-8") as tmp:
                 tmp.write(new_content)
                 temp_name = tmp.name
 

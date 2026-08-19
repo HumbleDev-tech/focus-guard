@@ -30,6 +30,6 @@
     "pinterest.com",
     "9gag.com"
   ],
-  "redirect_ipv4": "127.0.0.1",
+  "redirect_ipv4": "0.0.0.0",
   "redirect_ipv6": "::1"
 }
