@@ -1,6 +1,6 @@
 """
 Focus-Guard state machine and scheduler.
-Manages Curfew, System Uptime Boot Cooldown, Manual Locks, and Configurable Bypasses.
+Manages Curfew, Wall-Clock Boot Cooldown (with sleep/suspend awareness), Manual Locks, and Configurable Bypasses.
 """
 import os
 import time
@@ -11,15 +11,24 @@ from typing import Dict, Any, Tuple, Optional
 logger = logging.getLogger("focus-guard.scheduler")
 
 
-def get_system_uptime_seconds() -> Optional[float]:
-    """Reads system uptime from /proc/uptime if on Linux."""
+def get_real_seconds_since_boot() -> Optional[float]:
+    """
+    Calculates actual wall-clock seconds since system boot using /proc/stat 'btime'.
+    Accurate across laptop suspend/sleep cycles.
+    """
     try:
+        if os.path.exists("/proc/stat"):
+            with open("/proc/stat", "r") as f:
+                for line in f:
+                    if line.startswith("btime"):
+                        boot_epoch = float(line.split()[1])
+                        return max(0.0, time.time() - boot_epoch)
+        # Fallback to /proc/uptime if /proc/stat is unreadable
         if os.path.exists("/proc/uptime"):
             with open("/proc/uptime", "r") as f:
-                uptime_str = f.readline().split()[0]
-                return float(uptime_str)
+                return float(f.readline().split()[0])
     except Exception as e:
-        logger.debug(f"Could not read /proc/uptime: {e}")
+        logger.debug(f"Could not calculate boot time: {e}")
     return None
 
 
@@ -96,7 +105,10 @@ class StateScheduler:
         return False, 0
 
     def is_in_boot_cooldown(self, now: Optional[datetime] = None) -> Tuple[bool, int, Optional[datetime]]:
-        """Checks if system boot cooldown is active."""
+        """
+        Checks if system boot cooldown is active.
+        Uses wall-clock time from boot epoch to handle suspension correctly.
+        """
         boot_cfg = self.config.get("boot_cooldown", {})
         if not boot_cfg.get("enabled", True):
             return False, 0, None
@@ -105,11 +117,11 @@ class StateScheduler:
         duration_minutes = boot_cfg.get("duration_minutes", 30)
         cooldown_total_seconds = duration_minutes * 60
 
-        uptime = get_system_uptime_seconds() if not self.dev_mode else None
+        elapsed_since_boot = get_real_seconds_since_boot() if not self.dev_mode else None
 
-        if uptime is not None:
-            if uptime < cooldown_total_seconds:
-                remaining = max(0, int(cooldown_total_seconds - uptime))
+        if elapsed_since_boot is not None:
+            if elapsed_since_boot < cooldown_total_seconds:
+                remaining = max(0, int(cooldown_total_seconds - elapsed_since_boot))
                 target = now + timedelta(seconds=remaining)
                 return True, remaining, target
             return False, 0, None
@@ -210,7 +222,7 @@ class StateScheduler:
                 "curfew_warning_seconds": warn_secs
             }
 
-        # 4. Check Manual Lock
+        # 4. Check Manual Lock / Pomodoro Session
         if self.manual_lock:
             remaining = 0
             target_str = ""
@@ -219,16 +231,18 @@ class StateScheduler:
                     remaining = max(0, int((self.manual_lock_end_time - now).total_seconds()))
                     target_str = self.manual_lock_end_time.strftime("%H:%M:%S")
                 else:
+                    # Pomodoro session completed
                     self.manual_lock = False
                     self.manual_lock_end_time = None
 
             if self.manual_lock:
+                msg = f"Sesión de Enfoque ({remaining // 60}m restantes)" if self.manual_lock_end_time else "Modo Focus Manual activo"
                 return {
                     "state": "LOCKED",
                     "reason": "MANUAL_LOCK",
                     "remaining_seconds": remaining,
                     "target_time_str": target_str,
-                    "message": "Modo Focus Manual activo",
+                    "message": msg,
                     "can_bypass": bypasses_enabled,
                     "bypasses_enabled": bypasses_enabled,
                     "is_blocking": True,
@@ -284,16 +298,16 @@ class StateScheduler:
         return True, "No hay descanso activo."
 
     def request_lock(self, duration_minutes: int = 0) -> Tuple[bool, str]:
-        """Forces a manual lock immediately."""
+        """Forces a manual lock or timed Pomodoro session immediately."""
         self.bypass_end_time = None
         self.emergency_bypass_active = False
         self.manual_lock = True
         if duration_minutes > 0:
             self.manual_lock_end_time = datetime.now() + timedelta(minutes=duration_minutes)
-            msg = f"Bloqueado manualmente por {duration_minutes} minutos."
+            msg = f"Sesión de enfoque iniciada por {duration_minutes} minutos."
         else:
             self.manual_lock_end_time = None
-            msg = "Bloqueado manualmente."
+            msg = "Modo Focus bloqueado indefinidamente."
         logger.info(msg)
         return True, msg
 

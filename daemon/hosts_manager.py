@@ -1,134 +1,166 @@
 """
-Safe hosts file manager with atomic writes and delimited blocks.
+Focus-Guard Hosts Manager.
+Atomically manages /etc/hosts entries with strict delimiters, DoH Canary protection, and subdomain expansion.
 """
 import os
 import re
 import tempfile
 import logging
-from typing import List, Set
+from typing import List, Set, Optional
 
 logger = logging.getLogger("focus-guard.hosts")
 
-HEADER_MARKER = "### FOCUS-GUARD-BLOCK-START - DO NOT EDIT MANUALLY ###"
-FOOTER_MARKER = "### FOCUS-GUARD-BLOCK-END ###"
+BLOCK_START_DELIMITER = "### FOCUS-GUARD-BLOCK-START - DO NOT EDIT MANUALLY ###"
+BLOCK_END_DELIMITER = "### FOCUS-GUARD-BLOCK-END ###"
+
+# Backward compatibility aliases
+HEADER_MARKER = BLOCK_START_DELIMITER
+FOOTER_MARKER = BLOCK_END_DELIMITER
+
+# Mozilla DoH Canary Domain to force browsers (Firefox/Chromium) to respect local /etc/hosts
+CANARY_DOH_DOMAINS = [
+    "use-application-dns.net"
+]
+
+# Sibling domain expansions for complete coverage
+DOMAIN_SIBLINGS = {
+    "x.com": ["twitter.com", "t.co", "twimg.com"],
+    "twitter.com": ["x.com", "t.co", "twimg.com"],
+    "instagram.com": ["threads.net", "cdninstagram.com"],
+    "facebook.com": ["fb.com", "messenger.com"],
+    "youtube.com": ["youtu.be", "googlevideo.com"]
+}
 
 
 class HostsManager:
-    def __init__(self, hosts_path: str = "/etc/hosts"):
+    def __init__(self, hosts_path: str = "/etc/hosts", redirect_ipv4: str = "127.0.0.1", redirect_ipv6: str = "::1"):
         self.hosts_path = hosts_path
-
-    def _expand_domains(self, domains: List[str]) -> Set[str]:
-        """Expands domain list to include common subdomains (www, m)."""
-        expanded = set()
-        for d in domains:
-            d = d.strip().lower()
-            if not d or d.startswith("#"):
-                continue
-            expanded.add(d)
-            if not d.startswith("www."):
-                expanded.add(f"www.{d}")
-            if not d.startswith("m."):
-                expanded.add(f"m.{d}")
-        return sorted(expanded)
-
-    def _read_hosts_clean(self) -> str:
-        """Reads hosts file and strips any existing Focus-Guard block."""
-        if not os.path.exists(self.hosts_path):
-            return ""
-
-        with open(self.hosts_path, "r", encoding="utf-8", errors="replace") as f:
-            content = f.read()
-
-        # Regex to match the block including markers
-        pattern = re.compile(
-            rf"\n?{re.escape(HEADER_MARKER)}.*?{re.escape(FOOTER_MARKER)}\n?",
-            re.DOTALL
-        )
-        clean_content = re.sub(pattern, "", content).rstrip()
-        return clean_content
-
-    def _write_atomic(self, content: str) -> bool:
-        """Writes content atomically to the hosts file to avoid race conditions."""
-        hosts_dir = os.path.dirname(os.path.abspath(self.hosts_path))
-        temp_file = None
-        try:
-            # Create temp file in the same directory to allow atomic os.replace across filesystems
-            with tempfile.NamedTemporaryFile("w", dir=hosts_dir, delete=False, encoding="utf-8") as tf:
-                temp_file = tf.name
-                tf.write(content.rstrip() + "\n")
-                tf.flush()
-                os.fsync(tf.fileno())
-
-            # Preserve original permissions if possible, else 0644
-            try:
-                if os.path.exists(self.hosts_path):
-                    st = os.stat(self.hosts_path)
-                    os.chmod(temp_file, st.st_mode)
-                    os.chown(temp_file, st.st_uid, st.st_gid)
-                else:
-                    os.chmod(temp_file, 0o644)
-            except Exception as e:
-                logger.warning(f"Could not copy permissions for hosts file: {e}")
-
-            os.replace(temp_file, self.hosts_path)
-            return True
-        except Exception as e:
-            logger.error(f"Failed to write atomically to {self.hosts_path}: {e}")
-            if temp_file and os.path.exists(temp_file):
-                try:
-                    os.unlink(temp_file)
-                except Exception:
-                    pass
-            raise
-        return False
+        self.redirect_ipv4 = redirect_ipv4
+        self.redirect_ipv6 = redirect_ipv6
 
     def is_blocked(self) -> bool:
-        """Returns True if the Focus-Guard block currently exists in the hosts file."""
+        """Checks if the Focus-Guard block is currently present in the hosts file."""
         if not os.path.exists(self.hosts_path):
             return False
         try:
-            with open(self.hosts_path, "r", encoding="utf-8", errors="replace") as f:
-                content = f.read()
-            return HEADER_MARKER in content and FOOTER_MARKER in content
-        except Exception as e:
-            logger.error(f"Error checking block status: {e}")
+            with open(self.hosts_path, "r", encoding="utf-8") as f:
+                return BLOCK_START_DELIMITER in f.read()
+        except Exception:
             return False
 
-    def apply_block(self, domains: List[str], ipv4: str = "127.0.0.1", ipv6: str = "::1") -> bool:
-        """Adds or updates the blocked domains inside the Focus-Guard block."""
+    def _expand_domains(self, domains: List[str]) -> List[str]:
+        """Expands domains to include www, m., l., siblings, and DoH canaries."""
+        expanded: Set[str] = set()
+
+        # Always include the DoH Canary domain
+        for canary in CANARY_DOH_DOMAINS:
+            expanded.add(canary)
+
+        for d in domains:
+            clean = d.strip().lower()
+            if not clean:
+                continue
+
+            expanded.add(clean)
+
+            # Subdomain prefixes
+            if not clean.startswith("www."):
+                expanded.add(f"www.{clean}")
+            if not clean.startswith("m."):
+                expanded.add(f"m.{clean}")
+            if not clean.startswith("l.") and "instagram" in clean:
+                expanded.add(f"l.{clean}")
+
+            # Sibling domains
+            if clean in DOMAIN_SIBLINGS:
+                for sib in DOMAIN_SIBLINGS[clean]:
+                    expanded.add(sib)
+                    expanded.add(f"www.{sib}")
+                    expanded.add(f"m.{sib}")
+
+        return sorted(list(expanded))
+
+    def _generate_block_content(self, domains: List[str], redirect_ipv4: Optional[str] = None, redirect_ipv6: Optional[str] = None) -> str:
+        """Generates the block section for the hosts file."""
+        expanded_domains = self._expand_domains(domains)
+        if not expanded_domains:
+            return ""
+
+        ipv4 = redirect_ipv4 or self.redirect_ipv4
+        ipv6 = redirect_ipv6 or self.redirect_ipv6
+
+        lines = [BLOCK_START_DELIMITER]
+        for d in expanded_domains:
+            lines.append(f"{ipv4} {d}")
+            if ipv6:
+                lines.append(f"{ipv6} {d}")
+        lines.append(BLOCK_END_DELIMITER)
+        return "\n".join(lines) + "\n"
+
+    def apply_block(self, domains: List[str], redirect_ipv4: Optional[str] = None, redirect_ipv6: Optional[str] = None) -> bool:
+        """Atomically inserts or updates the Focus-Guard block in the hosts file."""
         try:
-            clean_base = self._read_hosts_clean()
-            expanded_domains = self._expand_domains(domains)
+            current_content = ""
+            if os.path.exists(self.hosts_path):
+                with open(self.hosts_path, "r", encoding="utf-8") as f:
+                    current_content = f.read()
 
-            if not expanded_domains:
-                logger.info("No domains to block. Removing block if present.")
-                return self.remove_block()
+            # Clean out any previous Focus-Guard block
+            pattern = re.compile(
+                rf"{re.escape(BLOCK_START_DELIMITER)}.*?{re.escape(BLOCK_END_DELIMITER)}\n?",
+                re.DOTALL
+            )
+            cleaned_content = pattern.sub("", current_content).rstrip()
 
-            block_lines = [HEADER_MARKER]
-            for domain in expanded_domains:
-                block_lines.append(f"{ipv4} {domain}")
-                block_lines.append(f"{ipv6} {domain}")
-            block_lines.append(FOOTER_MARKER)
+            block_str = self._generate_block_content(domains, redirect_ipv4, redirect_ipv6)
+            new_content = cleaned_content + "\n\n" + block_str if cleaned_content else block_str
 
-            new_block = "\n".join(block_lines)
-            new_content = f"{clean_base}\n\n{new_block}\n" if clean_base else f"{new_block}\n"
+            # Atomic write via temporary file in the same directory
+            dir_name = os.path.dirname(self.hosts_path) or "/tmp"
+            with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False, encoding="utf-8") as tmp:
+                tmp.write(new_content)
+                temp_name = tmp.name
 
-            self._write_atomic(new_content)
-            logger.info(f"Successfully blocked {len(expanded_domains)} domain entries in {self.hosts_path}")
+            # Preserve permissions
+            if os.path.exists(self.hosts_path):
+                os.chmod(temp_name, 0o644)
+
+            os.replace(temp_name, self.hosts_path)
+            logger.info(f"Successfully blocked {len(self._expand_domains(domains))} domain entries in {self.hosts_path}")
             return True
+
         except Exception as e:
-            logger.error(f"Failed to apply block: {e}")
+            logger.error(f"Failed to apply block to {self.hosts_path}: {e}")
             return False
 
     def remove_block(self) -> bool:
-        """Removes the Focus-Guard block completely, restoring clean hosts."""
+        """Atomically removes the Focus-Guard block from the hosts file."""
         try:
-            if not self.is_blocked():
+            if not os.path.exists(self.hosts_path):
                 return True
-            clean_base = self._read_hosts_clean()
-            self._write_atomic(clean_base)
+
+            with open(self.hosts_path, "r", encoding="utf-8") as f:
+                current_content = f.read()
+
+            if BLOCK_START_DELIMITER not in current_content:
+                return True
+
+            pattern = re.compile(
+                rf"{re.escape(BLOCK_START_DELIMITER)}.*?{re.escape(BLOCK_END_DELIMITER)}\n?",
+                re.DOTALL
+            )
+            new_content = pattern.sub("", current_content).rstrip() + "\n"
+
+            dir_name = os.path.dirname(self.hosts_path) or "/tmp"
+            with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False, encoding="utf-8") as tmp:
+                tmp.write(new_content)
+                temp_name = tmp.name
+
+            os.chmod(temp_name, 0o644)
+            os.replace(temp_name, self.hosts_path)
             logger.info(f"Successfully removed Focus-Guard block from {self.hosts_path}")
             return True
+
         except Exception as e:
-            logger.error(f"Failed to remove block: {e}")
+            logger.error(f"Failed to remove block from {self.hosts_path}: {e}")
             return False
