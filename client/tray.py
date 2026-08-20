@@ -74,29 +74,29 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.menu.addSeparator()
 
         # 3. Settings / Dashboard Action
-        self.settings_action = QAction("⚙️ Ajustes y Sitios Bloqueados...", self.menu)
+        self.settings_action = QAction("Panel de Control y Reglas...", self.menu)
         self.settings_action.triggered.connect(self.show_settings_dialog)
         self.menu.addAction(self.settings_action)
 
         self.menu.addSeparator()
 
         # 4. Focus Sessions (Pomodoro & Indefinite) Submenu
-        self.focus_menu = self.menu.addMenu("⚡ Iniciar Sesión de Enfoque")
+        self.focus_menu = self.menu.addMenu("Sesión de Enfoque")
         
-        self.focus_25_action = QAction("🍅 25 minutos (Pomodoro)", self.focus_menu)
+        self.focus_25_action = QAction("25 minutos (Pomodoro)", self.focus_menu)
         self.focus_25_action.triggered.connect(lambda: self.on_start_focus_session(25))
         self.focus_menu.addAction(self.focus_25_action)
 
-        self.focus_50_action = QAction("🎯 50 minutos (Trabajo Profundo)", self.focus_menu)
+        self.focus_50_action = QAction("50 minutos (Trabajo Profundo)", self.focus_menu)
         self.focus_50_action.triggered.connect(lambda: self.on_start_focus_session(50))
         self.focus_menu.addAction(self.focus_50_action)
 
-        self.focus_indef_action = QAction("🔒 Bloqueo Indefinido", self.focus_menu)
+        self.focus_indef_action = QAction("Bloqueo Indefinido", self.focus_menu)
         self.focus_indef_action.triggered.connect(lambda: self.on_start_focus_session(0))
         self.focus_menu.addAction(self.focus_indef_action)
 
         # 5. Standard Bypass Submenu
-        self.bypass_menu = self.menu.addMenu("☕ Bypass Temporal (Descanso)")
+        self.bypass_menu = self.menu.addMenu("Pausa Temporal (Descanso)")
         
         self.bypass_15_action = QAction("15 minutos", self.bypass_menu)
         self.bypass_15_action.triggered.connect(lambda: self.on_bypass_clicked(15))
@@ -111,25 +111,25 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.bypass_menu.addAction(self.bypass_45_action)
 
         self.bypass_menu.addSeparator()
-        self.cancel_bypass_action = QAction("Cancelar Descanso", self.bypass_menu)
+        self.cancel_bypass_action = QAction("Finalizar Pausa", self.bypass_menu)
         self.cancel_bypass_action.triggered.connect(self.on_cancel_bypass_clicked)
         self.bypass_menu.addAction(self.cancel_bypass_action)
 
         # 6. Emergency Bypass (for Curfew)
-        self.emergency_action = QAction("🚨 Desbloqueo de Emergencia (15m)...", self.menu)
+        self.emergency_action = QAction("Desbloqueo de Emergencia (15 min)...", self.menu)
         self.emergency_action.triggered.connect(self.on_emergency_bypass_clicked)
         self.emergency_action.setVisible(False)
         self.menu.addAction(self.emergency_action)
 
         # 7. Unlock Action
-        self.unlock_action = QAction("🔓 Desbloquear Sitios", self.menu)
+        self.unlock_action = QAction("Desbloquear Sitios", self.menu)
         self.unlock_action.triggered.connect(self.on_unlock_clicked)
         self.menu.addAction(self.unlock_action)
 
         self.menu.addSeparator()
 
         # 8. Information Action
-        self.info_action = QAction("ℹ️ Acerca de Focus-Guard", self.menu)
+        self.info_action = QAction("Acerca de Focus-Guard", self.menu)
         self.info_action.triggered.connect(self.show_info_dialog)
         self.menu.addAction(self.info_action)
 
@@ -256,19 +256,19 @@ class FocusTrayApplet(QSystemTrayIcon):
         if state == "LOCKED":
             if reason == "CURFEW":
                 self.setIcon(self.icon_curfew)
-                tooltip_txt = f"Focus-Guard • PROTEGIDO\n🌙 Toque de Queda nocturno (hasta las {target_time or '07:00'})\n⏳ {time_str or 'Protección activa'}\n🛡️ {domains_num} sitios bloqueados"
+                tooltip_txt = f"Focus-Guard — Protegido\nToque de Queda nocturno (hasta las {target_time or '07:00'})\nTiempo restante: {time_str or 'Activo'}\nSitios bloqueados: {domains_num}"
             elif reason == "BOOT_COOLDOWN":
                 self.setIcon(self.icon_boot)
-                tooltip_txt = f"Focus-Guard • PROTEGIDO\n⚡ Foco de Inicio (hasta las {target_time})\n⏳ {time_str or 'Protección activa'}\n🛡️ {domains_num} sitios bloqueados"
+                tooltip_txt = f"Focus-Guard — Protegido\nFoco de Inicio de sesión (hasta las {target_time})\nTiempo restante: {time_str or 'Activo'}\nSitios bloqueados: {domains_num}"
             else:
                 self.setIcon(self.icon_active)
-                tooltip_txt = f"Focus-Guard • PROTEGIDO\n🎯 Sesión de Enfoque Activa\n⏳ {time_str or 'Protección activa'}\n🛡️ {domains_num} sitios bloqueados"
+                tooltip_txt = f"Focus-Guard — Protegido\nSesión de Enfoque Activa\nTiempo restante: {time_str or 'Activo'}\nSitios bloqueados: {domains_num}"
         elif state == "BYPASS":
             self.setIcon(self.icon_bypass)
-            tooltip_txt = f"Focus-Guard • EN DESCANSO\n☕ Pausa temporal en curso\n⏳ {time_str or 'Pausa activa'}"
+            tooltip_txt = f"Focus-Guard — Pausa Temporal\nDescanso en curso\nTiempo restante: {time_str or 'Activo'}"
         else:
             self.setIcon(self.icon_idle)
-            tooltip_txt = f"Focus-Guard • MODO LIBRE\n🛡️ {domains_num} sitios listos para proteger"
+            tooltip_txt = f"Focus-Guard — Modo Libre\nSitios en lista: {domains_num} (Desbloqueados)"
 
         self.setToolTip(tooltip_txt)
 

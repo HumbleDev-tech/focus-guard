@@ -163,7 +163,7 @@ class EmergencyPromptDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
-        title = QLabel("🌙 Toque de Queda Nocturno Activo")
+        title = QLabel("Toque de Queda Nocturno Activo")
         title.setStyleSheet("font-size: 15px; font-weight: 700; color: #F0F6FC;")
         layout.addWidget(title)
 
@@ -198,7 +198,7 @@ class EmergencyPromptDialog(QDialog):
 
         phrase_box_layout.addStretch()
 
-        self.copy_btn = QPushButton("📋 Copiar")
+        self.copy_btn = QPushButton("Copiar Frase")
         self.copy_btn.setObjectName("secondaryBtn")
         self.copy_btn.setStyleSheet("""
             QPushButton {
@@ -235,7 +235,7 @@ class EmergencyPromptDialog(QDialog):
         cancel_btn.clicked.connect(self.reject)
         btn_row.addWidget(cancel_btn)
 
-        confirm_btn = QPushButton("Confirmar Desbloqueo (15m)")
+        confirm_btn = QPushButton("Confirmar Desbloqueo (15 min)")
         confirm_btn.setObjectName("primaryBtn")
         confirm_btn.clicked.connect(self.on_confirm)
         btn_row.addWidget(confirm_btn)
@@ -244,10 +244,9 @@ class EmergencyPromptDialog(QDialog):
 
     def on_copy_phrase(self):
         QApplication.clipboard().setText(self.phrase)
-        self.copy_btn.setText("✓ Copiado")
         if hasattr(self, "copy_btn"):
-            self.copy_btn.setText("✓ Copiado")
-            QTimer.singleShot(2000, lambda: self.copy_btn.setText("📋 Copiar"))
+            self.copy_btn.setText("Copiado")
+            QTimer.singleShot(2000, lambda: self.copy_btn.setText("Copiar Frase"))
         if hasattr(self, "input_field") and self.input_field:
             self.input_field.setFocus()
 
@@ -313,7 +312,7 @@ class ConfirmDomainRemovalDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
-        title = QLabel(f"🛡️ Protección de Enfoque Activa")
+        title = QLabel(f"Protección de Enfoque Activa")
         title.setStyleSheet("font-size: 15px; font-weight: 700; color: #F0F6FC;")
         layout.addWidget(title)
 
@@ -357,7 +356,7 @@ class ConfirmDomainRemovalDialog(QDialog):
 
             phrase_box_layout.addStretch()
 
-            self.copy_btn = QPushButton("📋 Copiar")
+            self.copy_btn = QPushButton("Copiar Frase")
             self.copy_btn.setObjectName("secondaryBtn")
             self.copy_btn.setStyleSheet("""
                 QPushButton {
@@ -406,8 +405,8 @@ class ConfirmDomainRemovalDialog(QDialog):
     def on_copy_phrase(self):
         QApplication.clipboard().setText(self.phrase)
         if hasattr(self, "copy_btn"):
-            self.copy_btn.setText("✓ Copiado")
-            QTimer.singleShot(2000, lambda: self.copy_btn.setText("📋 Copiar"))
+            self.copy_btn.setText("Copiado")
+            QTimer.singleShot(2000, lambda: self.copy_btn.setText("Copiar Frase"))
         if hasattr(self, "input_field") and self.input_field:
             self.input_field.setFocus()
 
@@ -511,10 +510,10 @@ class AboutDialog(QDialog):
             r.addWidget(v)
             return r
 
-        card_layout.addLayout(make_row("🌙 Toque de Queda Nocturno:", curfew_txt))
-        card_layout.addLayout(make_row("⚡ Cooldown al Iniciar:", boot_txt))
-        card_layout.addLayout(make_row("🛡️ Sitios Bloqueados:", f"{len(domains)} dominios"))
-        card_layout.addLayout(make_row("🔒 Nivel de Redirección:", "0.0.0.0 (Directo)"))
+        card_layout.addLayout(make_row("Toque de Queda Nocturno:", curfew_txt))
+        card_layout.addLayout(make_row("Foco de Inicio de sesión:", boot_txt))
+        card_layout.addLayout(make_row("Sitios Bloqueados:", f"{len(domains)} dominios"))
+        card_layout.addLayout(make_row("Nivel de Redirección:", "0.0.0.0 (Directo)"))
 
         layout.addWidget(card)
 
@@ -853,7 +852,7 @@ class SettingsDialog(QDialog):
         header.addStretch()
 
         # Status Pill
-        self.status_badge = QLabel("● VERIFICANDO")
+        self.status_badge = QLabel("VERIFICANDO")
         self.status_badge.setStyleSheet("""
             background-color: rgba(110, 118, 129, 0.15);
             color: #8B949E;
@@ -904,8 +903,8 @@ class SettingsDialog(QDialog):
         count_row.addStretch()
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("🔍 Filtrar sitios...")
-        self.search_input.setFixedWidth(150)
+        self.search_input.setPlaceholderText("Filtrar sitios...")
+        self.search_input.setFixedWidth(140)
         self.search_input.setStyleSheet("padding: 3px 8px; font-size: 11px; border-radius: 4px;")
         self.search_input.textChanged.connect(lambda: self.render_domains_list())
         count_row.addWidget(self.search_input)
@@ -945,7 +944,7 @@ class SettingsDialog(QDialog):
         boot_layout.setContentsMargins(16, 14, 16, 14)
         boot_layout.setSpacing(10)
 
-        self.boot_enabled_cb = QCheckBox("⚡ Bloqueo de Enfoque al Iniciar el Equipo (Boot Focus)")
+        self.boot_enabled_cb = QCheckBox("Foco al Iniciar el Equipo (Boot Focus)")
         self.boot_enabled_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
         boot_layout.addWidget(self.boot_enabled_cb)
 
@@ -1001,7 +1000,7 @@ class SettingsDialog(QDialog):
         curfew_layout.setContentsMargins(16, 14, 16, 14)
         curfew_layout.setSpacing(10)
 
-        self.curfew_enabled_cb = QCheckBox("🌙 Toque de Queda Nocturno (Night Curfew)")
+        self.curfew_enabled_cb = QCheckBox("Toque de Queda Nocturno (Night Curfew)")
         self.curfew_enabled_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
         curfew_layout.addWidget(self.curfew_enabled_cb)
 
@@ -1093,7 +1092,7 @@ class SettingsDialog(QDialog):
         curfew_layout.addLayout(sched_row)
 
         # Informative notice about desktop warning
-        curfew_notice = QLabel("🔔 Aviso inteligente: Recibirás una notificación en tu escritorio 10 minutos antes del Toque de Queda para cerrar tus pestañas con calma.")
+        curfew_notice = QLabel("Aviso: Recibirás una notificación en tu escritorio 10 minutos antes del Toque de Queda para cerrar tus pestañas con calma.")
         curfew_notice.setStyleSheet("font-size: 11px; color: #58A6FF; font-weight: 500; padding: 2px 0px;")
         curfew_notice.setWordWrap(True)
         curfew_layout.addWidget(curfew_notice)
@@ -1107,11 +1106,11 @@ class SettingsDialog(QDialog):
         bypass_layout.setContentsMargins(16, 14, 16, 14)
         bypass_layout.setSpacing(10)
 
-        self.bypasses_enabled_cb = QCheckBox("☕ Permitir descansos temporales (Pausas de 15, 30 o 45 min)")
+        self.bypasses_enabled_cb = QCheckBox("Permitir pausas temporales (Descansos de 15, 30 o 45 min)")
         self.bypasses_enabled_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
         bypass_layout.addWidget(self.bypasses_enabled_cb)
 
-        byp_desc = QLabel("Permite solicitar descansos desde el icono de la bandeja durante tus sesiones de trabajo.")
+        byp_desc = QLabel("Permite solicitar pausas de navegación desde el icono de la bandeja durante tus sesiones de trabajo.")
         byp_desc.setObjectName("cardDesc")
         byp_desc.setWordWrap(True)
         bypass_layout.addWidget(byp_desc)
@@ -1137,7 +1136,7 @@ class SettingsDialog(QDialog):
         self.emergency_phrase_input.setPlaceholderText("ej: necesito desbloqueo de emergencia")
         phrase_row.addWidget(self.emergency_phrase_input)
 
-        self.copy_phrase_btn = QPushButton("📋 Copiar")
+        self.copy_phrase_btn = QPushButton("Copiar Frase")
         self.copy_phrase_btn.setObjectName("secondaryBtn")
         self.copy_phrase_btn.setToolTip("Copiar frase al portapapeles")
         self.copy_phrase_btn.clicked.connect(self.on_copy_phrase_clicked)
@@ -1155,7 +1154,7 @@ class SettingsDialog(QDialog):
         sys_layout.setContentsMargins(16, 14, 16, 14)
         sys_layout.setSpacing(6)
 
-        self.autostart_cb = QCheckBox("🖥️ Abrir icono en la barra de tareas al iniciar sesión (KDE Plasma)")
+        self.autostart_cb = QCheckBox("Iniciar icono en la bandeja del sistema con el escritorio (KDE Plasma)")
         self.autostart_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
         self.autostart_cb.setChecked(is_autostart_enabled())
         self.autostart_cb.toggled.connect(self.on_autostart_toggled)
@@ -1247,22 +1246,22 @@ class SettingsDialog(QDialog):
         grid = QGridLayout()
         grid.setSpacing(8)
 
-        self.btn_pomodoro_25 = QPushButton("🍅 Pomodoro (25m)")
+        self.btn_pomodoro_25 = QPushButton("Pomodoro (25 min)")
         self.btn_pomodoro_25.setObjectName("secondaryBtn")
         self.btn_pomodoro_25.clicked.connect(lambda: self.start_focus_session(25))
         grid.addWidget(self.btn_pomodoro_25, 0, 0)
 
-        self.btn_pomodoro_50 = QPushButton("🎯 Deep Work (50m)")
+        self.btn_pomodoro_50 = QPushButton("Trabajo Profundo (50 min)")
         self.btn_pomodoro_50.setObjectName("secondaryBtn")
         self.btn_pomodoro_50.clicked.connect(lambda: self.start_focus_session(50))
         grid.addWidget(self.btn_pomodoro_50, 0, 1)
 
-        self.btn_primary_action = QPushButton("🔒 Bloquear Ahora")
+        self.btn_primary_action = QPushButton("Bloquear Ahora")
         self.btn_primary_action.setObjectName("primaryBtn")
         self.btn_primary_action.clicked.connect(self.on_primary_action_clicked)
         grid.addWidget(self.btn_primary_action, 1, 0)
 
-        self.btn_secondary_action = QPushButton("☕ Tomar Descanso (15m)")
+        self.btn_secondary_action = QPushButton("Pausa Temporal (15 min)")
         self.btn_secondary_action.setObjectName("secondaryBtn")
         self.btn_secondary_action.clicked.connect(self.on_secondary_action_clicked)
         grid.addWidget(self.btn_secondary_action, 1, 1)
@@ -1270,7 +1269,7 @@ class SettingsDialog(QDialog):
         act_box.addLayout(grid)
 
         # Stop manual focus button
-        self.btn_stop_focus = QPushButton("⏹️ Finalizar Sesión de Enfoque")
+        self.btn_stop_focus = QPushButton("Finalizar Sesión de Enfoque")
         self.btn_stop_focus.setObjectName("secondaryBtn")
         self.btn_stop_focus.setVisible(False)
         self.btn_stop_focus.clicked.connect(self.on_stop_focus_clicked)
@@ -1284,7 +1283,7 @@ class SettingsDialog(QDialog):
         telemetry_layout = QVBoxLayout(self.telemetry_card)
         telemetry_layout.setSpacing(6)
 
-        telem_title = QLabel("🛡️ Resumen de Reglas del Sistema")
+        telem_title = QLabel("Resumen de Configuración")
         telem_title.setStyleSheet("font-size: 12px; font-weight: 700; color: #8B949E;")
         telemetry_layout.addWidget(telem_title)
 
@@ -1405,7 +1404,7 @@ class SettingsDialog(QDialog):
         mins = total_mins % 60
         span_str = f"{hours}h {mins}m" if mins > 0 else f"{hours} horas"
 
-        self.curfew_summary_lbl.setText(f"🌙 Horario: {start_12h} hasta {end_12h} ({span_str} de descanso)")
+        self.curfew_summary_lbl.setText(f"Horario: {start_12h} hasta {end_12h} ({span_str} de descanso)")
 
     def on_autostart_toggled(self, checked: bool):
         """Manages autostart desktop file."""
@@ -1429,13 +1428,13 @@ class SettingsDialog(QDialog):
     def on_copy_phrase_clicked(self):
         phrase = self.emergency_phrase_input.text().strip() or "necesito desbloqueo de emergencia"
         QApplication.clipboard().setText(phrase)
-        self.copy_phrase_btn.setText("✓ Copiado")
-        QTimer.singleShot(2000, lambda: self.copy_phrase_btn.setText("📋 Copiar"))
+        self.copy_phrase_btn.setText("Copiado")
+        QTimer.singleShot(2000, lambda: self.copy_phrase_btn.setText("Copiar Frase"))
 
     def on_stop_focus_clicked(self):
         res = self.ipc.unlock()
         if res.get("status") == "ok":
-            self.dash_feedback_lbl.setText("✓ Sesión finalizada")
+            self.dash_feedback_lbl.setText("Sesión finalizada")
             self.refresh_live_status()
             QTimer.singleShot(2500, lambda: self.dash_feedback_lbl.setText(""))
 
@@ -1448,13 +1447,13 @@ class SettingsDialog(QDialog):
         if clean:
             if clean in self.blocked_domains:
                 self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #D29922; font-weight: 600;")
-                self.domain_preview_lbl.setText(f"ℹ️ '{clean}' ya está en tu lista")
+                self.domain_preview_lbl.setText(f"Dominio ya presente en la lista: {clean}")
             else:
                 self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #58A6FF; font-weight: 600;")
-                self.domain_preview_lbl.setText(f"➔ Se bloqueará: {clean}")
+                self.domain_preview_lbl.setText(f"Se bloqueará: {clean}")
         else:
             self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
-            self.domain_preview_lbl.setText("✕ Formato no válido (ej: youtube.com)")
+            self.domain_preview_lbl.setText("Formato de dominio no reconocido (ej: twitter.com)")
 
     def render_domains_list(self):
         self.domains_list.clear()
@@ -1475,7 +1474,7 @@ class SettingsDialog(QDialog):
         sep_color = "#21262D" if is_dark else "#E1E4E8"
 
         if total_cnt == 0:
-            # Modern Empty State
+            # Modern Minimalist Empty State
             item = QListWidgetItem()
             empty_box = QFrame()
             empty_layout = QVBoxLayout(empty_box)
@@ -1483,17 +1482,12 @@ class SettingsDialog(QDialog):
             empty_layout.setSpacing(6)
             empty_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            ico = QLabel("🛡️")
-            ico.setStyleSheet("font-size: 28px; background: transparent; border: none;")
-            ico.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            empty_layout.addWidget(ico)
-
-            title = QLabel("No hay sitios en la lista")
+            title = QLabel("Sin sitios en la lista")
             title.setStyleSheet("font-size: 13px; font-weight: 700; color: #F0F6FC; background: transparent; border: none;")
             title.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_layout.addWidget(title)
 
-            sub = QLabel("Añade arriba las webs distractoras (ej: youtube.com) para proteger tu tiempo.")
+            sub = QLabel("Ingresa dominios arriba (ej: youtube.com) para activar la protección.")
             sub.setStyleSheet("font-size: 11px; color: #8B949E; background: transparent; border: none;")
             sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_layout.addWidget(sub)
@@ -1521,10 +1515,9 @@ class SettingsDialog(QDialog):
             row_layout.setContentsMargins(12, 4, 20, 4)
             row_layout.setSpacing(10)
 
-            # Icon tag
-            ico_lbl = QLabel("🌐")
-            ico_lbl.setStyleSheet("font-size: 13px; border: none; background: transparent;")
-            row_layout.addWidget(ico_lbl)
+            dot_lbl = QLabel("•")
+            dot_lbl.setStyleSheet("font-size: 14px; font-weight: 700; color: #58A6FF; border: none; background: transparent;")
+            row_layout.addWidget(dot_lbl)
 
             name_lbl = QLabel(domain)
             name_lbl.setStyleSheet("font-weight: 600; font-size: 13px; border: none; background: transparent; color: #F0F6FC;")
@@ -1532,8 +1525,8 @@ class SettingsDialog(QDialog):
 
             row_layout.addStretch()
 
-            # Clearly visible and distinct delete icon button with generous right clearance
-            del_btn = QPushButton("✕")
+            # Elegant minimalist remove button
+            del_btn = QPushButton("×")
             del_btn.setToolTip(f"Eliminar {domain}")
             del_btn.setFixedSize(26, 26)
             del_btn.setStyleSheet("""
@@ -1541,9 +1534,9 @@ class SettingsDialog(QDialog):
                     border: 1px solid #30363D;
                     background-color: #21262D;
                     color: #8B949E;
-                    font-size: 12px;
-                    font-weight: 700;
-                    border-radius: 6px;
+                    font-size: 15px;
+                    font-weight: 600;
+                    border-radius: 4px;
                     padding: 0px;
                 }
                 QPushButton:hover {
@@ -1680,7 +1673,7 @@ class SettingsDialog(QDialog):
 
         if has_unsaved:
             self.save_btn.setEnabled(True)
-            self.save_btn.setText("● Guardar Reglas (Ctrl+S)")
+            self.save_btn.setText("Guardar Reglas (Ctrl+S)")
             self.save_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #388BFD;
@@ -1695,11 +1688,11 @@ class SettingsDialog(QDialog):
                     background-color: #1F6FEB;
                 }
             """)
-            self.save_feedback_lbl.setText("● Tienes cambios sin guardar")
+            self.save_feedback_lbl.setText("Cambios sin guardar")
             self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #D29922; font-weight: 600;")
         else:
             self.save_btn.setEnabled(False)
-            self.save_btn.setText("✓ Guardado")
+            self.save_btn.setText("Guardado")
             self.save_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #161B22;
@@ -1711,7 +1704,7 @@ class SettingsDialog(QDialog):
                     padding: 8px 18px;
                 }
             """)
-            self.save_feedback_lbl.setText("✓ Cambios sincronizados con el demonio")
+            self.save_feedback_lbl.setText("Cambios sincronizados")
             self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
 
     def refresh_live_status(self):
@@ -1754,7 +1747,7 @@ class SettingsDialog(QDialog):
 
         # 1. State: UNLOCKED / FREE TIME (Emerald Green)
         if state == "UNLOCKED":
-            self.status_badge.setText("● MODO LIBRE")
+            self.status_badge.setText("MODO LIBRE")
             self.status_badge.setStyleSheet("background-color: rgba(46, 160, 67, 0.15); color: #3FB950; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(46, 160, 67, 0.3);")
             icon_idle = os.path.join(self.resource_dir, "icon-idle.svg")
             if os.path.exists(icon_idle):
@@ -1769,7 +1762,7 @@ class SettingsDialog(QDialog):
             self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #2EA043; }")
             self.btn_stop_focus.setVisible(False)
 
-            self.btn_primary_action.setText("🔒 Bloquear Ahora")
+            self.btn_primary_action.setText("Bloquear Ahora")
             self.btn_primary_action.setEnabled(True)
             self.btn_pomodoro_25.setEnabled(True)
             self.btn_pomodoro_50.setEnabled(True)
@@ -1777,14 +1770,14 @@ class SettingsDialog(QDialog):
 
         # 2. State: BYPASS / BREAK (Amber Gold)
         elif state == "BYPASS":
-            self.status_badge.setText("● EN DESCANSO")
+            self.status_badge.setText("EN DESCANSO")
             self.status_badge.setStyleSheet("background-color: rgba(210, 153, 34, 0.15); color: #E3B341; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(210, 153, 34, 0.3);")
             icon_byp = os.path.join(self.resource_dir, "icon-bypass.svg")
             if os.path.exists(icon_byp):
                 self.header_icon_lbl.setPixmap(QIcon(icon_byp).pixmap(28, 28))
             self.dash_state_pill.setText("PAUSA TEMPORAL")
             self.dash_state_pill.setStyleSheet("border: 1px solid #D29922; color: #E3B341; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background-color: rgba(210, 153, 34, 0.12);")
-            self.dash_state_title.setText("Descanso Temporal Activo")
+            self.dash_state_title.setText("Pausa Temporal Activa")
             self.dash_countdown_lbl.setText(f"{human_time} restantes")
             self.dash_countdown_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #E3B341;")
             self.dash_desc_lbl.setText("Acceso concedido temporalmente. Los sitios se bloquearán al finalizar.")
@@ -1792,7 +1785,7 @@ class SettingsDialog(QDialog):
             self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #D29922; }")
             self.btn_stop_focus.setVisible(False)
 
-            self.btn_primary_action.setText("🔒 Terminar Descanso")
+            self.btn_primary_action.setText("Terminar Descanso")
             self.btn_primary_action.setEnabled(True)
             self.btn_pomodoro_25.setEnabled(False)
             self.btn_pomodoro_50.setEnabled(False)
@@ -1802,7 +1795,7 @@ class SettingsDialog(QDialog):
         # 3. State: LOCKED / ACTIVE PROTECTION
         elif is_blocking:
             if reason == "CURFEW":
-                self.status_badge.setText("● TOQUE DE QUEDA")
+                self.status_badge.setText("TOQUE DE QUEDA")
                 self.status_badge.setStyleSheet("background-color: rgba(137, 87, 229, 0.15); color: #D2A8FF; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(137, 87, 229, 0.3);")
                 icon_curf = os.path.join(self.resource_dir, "icon-curfew.svg")
                 if os.path.exists(icon_curf):
@@ -1816,20 +1809,20 @@ class SettingsDialog(QDialog):
                 self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #8957E5; }")
                 self.btn_stop_focus.setVisible(False)
 
-                self.btn_primary_action.setText("🔒 Bloqueo Nocturno")
+                self.btn_primary_action.setText("Bloqueo Nocturno")
                 self.btn_primary_action.setEnabled(False)
                 self.btn_pomodoro_25.setEnabled(False)
                 self.btn_pomodoro_50.setEnabled(False)
 
                 if self.curfew_emerg_cb.isChecked():
-                    self.btn_secondary_action.setText("🚨 Desbloqueo Emergencia")
+                    self.btn_secondary_action.setText("Desbloqueo de Emergencia")
                     self.btn_secondary_action.setEnabled(True)
                 else:
                     self.btn_secondary_action.setText("Descanso Desactivado")
                     self.btn_secondary_action.setEnabled(False)
 
             elif reason == "BOOT_COOLDOWN":
-                self.status_badge.setText("● FOCO DE INICIO")
+                self.status_badge.setText("FOCO DE INICIO")
                 self.status_badge.setStyleSheet("background-color: rgba(56, 139, 253, 0.15); color: #58A6FF; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(56, 139, 253, 0.3);")
                 icon_bt = os.path.join(self.resource_dir, "icon-boot.svg")
                 if os.path.exists(icon_bt):
@@ -1844,19 +1837,19 @@ class SettingsDialog(QDialog):
                 self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #388BFD; }")
                 self.btn_stop_focus.setVisible(False)
 
-                self.btn_primary_action.setText("🔒 Inicio Activo")
+                self.btn_primary_action.setText("Inicio Activo")
                 self.btn_primary_action.setEnabled(False)
                 self.btn_pomodoro_25.setEnabled(False)
                 self.btn_pomodoro_50.setEnabled(False)
 
                 if bypasses_enabled:
-                    self.btn_secondary_action.setText("☕ Tomar Descanso (15m)")
+                    self.btn_secondary_action.setText("Pausa Temporal (15 min)")
                     self.btn_secondary_action.setEnabled(True)
                 else:
                     self.btn_secondary_action.setEnabled(False)
 
             elif reason == "MANUAL_LOCK":
-                self.status_badge.setText("● ENFOQUE ACTIVO")
+                self.status_badge.setText("ENFOQUE ACTIVO")
                 self.status_badge.setStyleSheet("background-color: rgba(56, 139, 253, 0.15); color: #58A6FF; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(56, 139, 253, 0.3);")
                 icon_act = os.path.join(self.resource_dir, "icon-active.svg")
                 if os.path.exists(icon_act):
@@ -1870,13 +1863,13 @@ class SettingsDialog(QDialog):
                 self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #388BFD; }")
                 self.btn_stop_focus.setVisible(True)
 
-                self.btn_primary_action.setText("🔒 Enfoque en Curso")
+                self.btn_primary_action.setText("Enfoque en Curso")
                 self.btn_primary_action.setEnabled(False)
                 self.btn_pomodoro_25.setEnabled(False)
                 self.btn_pomodoro_50.setEnabled(False)
 
                 if bypasses_enabled:
-                    self.btn_secondary_action.setText("☕ Tomar Descanso (15m)")
+                    self.btn_secondary_action.setText("Pausa Temporal (15 min)")
                     self.btn_secondary_action.setEnabled(True)
                 else:
                     self.btn_secondary_action.setEnabled(False)
