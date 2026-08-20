@@ -12,10 +12,10 @@ from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit,
     QListWidget, QListWidgetItem, QTabWidget, QWidget, QCheckBox,
     QTimeEdit, QSpinBox, QFrame, QProgressBar, QGridLayout, QApplication,
-    QScrollArea, QAbstractItemView
+    QScrollArea, QAbstractItemView, QToolTip
 )
 from PyQt6.QtGui import QIcon, QPalette, QKeySequence, QShortcut
-from PyQt6.QtCore import Qt, QTime, QTimer, pyqtSignal, QSize
+from PyQt6.QtCore import Qt, QTime, QTimer, pyqtSignal, QSize, QObject, QEvent
 
 from client.ipc_client import FocusIPCClient
 
@@ -628,6 +628,23 @@ class UnsavedChangesDialog(QDialog):
         self.reject()
 
 
+class UniversalToolTipFilter(QObject):
+    """Enables tooltips to display across all widgets, including disabled ones."""
+    def eventFilter(self, watched, event):
+        if event.type() == QEvent.Type.ToolTip:
+            gpos = event.globalPos()
+            if isinstance(watched, QWidget):
+                win = watched.window()
+                if win:
+                    for child in reversed(win.findChildren(QWidget)):
+                        if child.isVisible() and child.rect().contains(child.mapFromGlobal(gpos)):
+                            tip = child.toolTip()
+                            if tip:
+                                QToolTip.showText(gpos, tip, child)
+                                return True
+        return super().eventFilter(watched, event)
+
+
 class SettingsDialog(QDialog):
     config_saved = pyqtSignal()
 
@@ -643,6 +660,12 @@ class SettingsDialog(QDialog):
         self.resize(680, 660)
 
         self.apply_theme_styles()
+
+        # Tooltip filter for disabled widgets
+        self.tooltip_filter = UniversalToolTipFilter(self)
+        app_inst = QApplication.instance()
+        if app_inst:
+            app_inst.installEventFilter(self.tooltip_filter)
 
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(20, 20, 20, 20)
@@ -672,6 +695,7 @@ class SettingsDialog(QDialog):
 
         # Load initial config
         self.load_configuration()
+        self.refresh_live_status()
 
         # Live poll timer
         self.poll_timer = QTimer(self)
@@ -714,7 +738,15 @@ class SettingsDialog(QDialog):
             QDialog {{
                 background-color: {bg_window};
                 color: {text_primary};
-                font-family: system-ui, -apple-system, sans-serif;
+            }}
+            QToolTip {{
+                background-color: {bg_card};
+                color: {text_primary};
+                border: 1px solid {border_color};
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 11.5px;
+                font-weight: 500;
             }}
             QTabWidget::pane {{
                 border: 1px solid {border_color};
@@ -1927,9 +1959,13 @@ class SettingsDialog(QDialog):
             self.dash_desc_lbl.setText("Inicia el servicio focus-guard para habilitar la protección.")
             self.dash_progress_bar.setValue(0)
             self.btn_primary_action.setEnabled(False)
+            self.btn_primary_action.setToolTip("El servicio focus-guard está fuera de línea.")
             self.btn_pomodoro_25.setEnabled(False)
+            self.btn_pomodoro_25.setToolTip("El servicio focus-guard está fuera de línea.")
             self.btn_pomodoro_50.setEnabled(False)
+            self.btn_pomodoro_50.setToolTip("El servicio focus-guard está fuera de línea.")
             self.btn_secondary_action.setEnabled(False)
+            self.btn_secondary_action.setToolTip("El servicio focus-guard está fuera de línea.")
             return
 
         state = res.get("state", "UNLOCKED")
