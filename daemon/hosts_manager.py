@@ -134,6 +134,51 @@ class HostsManager:
         lines.append(BLOCK_END_DELIMITER)
         return "\n".join(lines) + "\n"
 
+    def _write_hosts_content(self, new_content: str) -> bool:
+        """
+        Safely writes content to hosts file.
+        Attempts atomic os.replace via tempfile first; if EXDEV (bind mount in systemd) occurs,
+        falls back to direct in-place write with r+ and fsync.
+        """
+        temp_name = None
+        try:
+            temp_dir = self._get_temp_dir()
+            with tempfile.NamedTemporaryFile("w", dir=temp_dir, delete=False, encoding="utf-8") as tmp:
+                tmp.write(new_content)
+                temp_name = tmp.name
+
+            if os.path.exists(self.hosts_path):
+                os.chmod(temp_name, 0o644)
+
+            os.replace(temp_name, self.hosts_path)
+            return True
+        except OSError as e:
+            # Handle [Errno 18] EXDEV (Invalid cross-device link from systemd bind mounts) or Read-only FS
+            if temp_name and os.path.exists(temp_name):
+                try:
+                    os.unlink(temp_name)
+                except Exception:
+                    pass
+
+            # Fallback: In-place direct atomic write with fsync
+            try:
+                with open(self.hosts_path, "w", encoding="utf-8") as f:
+                    f.write(new_content)
+                    f.flush()
+                    os.fsync(f.fileno())
+                return True
+            except Exception as direct_err:
+                logger.error(f"In-place write to {self.hosts_path} failed: {direct_err}")
+                return False
+        except Exception as e:
+            if temp_name and os.path.exists(temp_name):
+                try:
+                    os.unlink(temp_name)
+                except Exception:
+                    pass
+            logger.error(f"Failed to write {self.hosts_path}: {e}")
+            return False
+
     def apply_block(self, domains: List[str], redirect_ipv4: Optional[str] = None, redirect_ipv6: Optional[str] = None) -> bool:
         """Atomically inserts or updates the Focus-Guard block in the hosts file."""
         try:
@@ -152,19 +197,10 @@ class HostsManager:
             block_str = self._generate_block_content(domains, redirect_ipv4, redirect_ipv6)
             new_content = cleaned_content + "\n\n" + block_str if cleaned_content else block_str
 
-            # Atomic write via temporary file in a safe writable directory on the same filesystem
-            temp_dir = self._get_temp_dir()
-            with tempfile.NamedTemporaryFile("w", dir=temp_dir, delete=False, encoding="utf-8") as tmp:
-                tmp.write(new_content)
-                temp_name = tmp.name
-
-            # Preserve permissions
-            if os.path.exists(self.hosts_path):
-                os.chmod(temp_name, 0o644)
-
-            os.replace(temp_name, self.hosts_path)
-            logger.info(f"Successfully blocked {len(self._expand_domains(domains))} domain entries in {self.hosts_path}")
-            return True
+            if self._write_hosts_content(new_content):
+                logger.info(f"Successfully blocked {len(self._expand_domains(domains))} domain entries in {self.hosts_path}")
+                return True
+            return False
 
         except Exception as e:
             logger.error(f"Failed to apply block to {self.hosts_path}: {e}")
@@ -188,15 +224,10 @@ class HostsManager:
             )
             new_content = pattern.sub("", current_content).rstrip() + "\n"
 
-            temp_dir = self._get_temp_dir()
-            with tempfile.NamedTemporaryFile("w", dir=temp_dir, delete=False, encoding="utf-8") as tmp:
-                tmp.write(new_content)
-                temp_name = tmp.name
-
-            os.chmod(temp_name, 0o644)
-            os.replace(temp_name, self.hosts_path)
-            logger.info(f"Successfully removed Focus-Guard block from {self.hosts_path}")
-            return True
+            if self._write_hosts_content(new_content):
+                logger.info(f"Successfully removed Focus-Guard block from {self.hosts_path}")
+                return True
+            return False
 
         except Exception as e:
             logger.error(f"Failed to remove block from {self.hosts_path}: {e}")
