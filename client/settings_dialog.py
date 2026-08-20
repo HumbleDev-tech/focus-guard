@@ -657,15 +657,15 @@ class SettingsDialog(QDialog):
                 border: none;
                 background: transparent;
                 width: 6px;
-                margin: 0px;
+                margin: 4px 2px 4px 0px;
             }}
             QScrollBar::handle:vertical {{
-                background: {border_color};
+                background: #30363D;
                 min-height: 24px;
                 border-radius: 3px;
             }}
             QScrollBar::handle:vertical:hover {{
-                background: {accent_blue};
+                background: #58A6FF;
             }}
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
                 height: 0px;
@@ -1048,6 +1048,16 @@ class SettingsDialog(QDialog):
         self.curfew_enabled_cb.toggled.connect(self.curfew_end_time.setEnabled)
         self.curfew_emerg_cb.toggled.connect(self.emergency_phrase_input.setEnabled)
 
+        # Unsaved changes dirty state listeners
+        self.boot_enabled_cb.toggled.connect(self.check_for_unsaved_changes)
+        self.boot_duration_spin.valueChanged.connect(self.check_for_unsaved_changes)
+        self.curfew_enabled_cb.toggled.connect(self.check_for_unsaved_changes)
+        self.curfew_start_time.timeChanged.connect(self.check_for_unsaved_changes)
+        self.curfew_end_time.timeChanged.connect(self.check_for_unsaved_changes)
+        self.bypasses_enabled_cb.toggled.connect(self.check_for_unsaved_changes)
+        self.curfew_emerg_cb.toggled.connect(self.check_for_unsaved_changes)
+        self.emergency_phrase_input.textChanged.connect(self.check_for_unsaved_changes)
+
         layout.addStretch()
         scroll.setWidget(container)
 
@@ -1215,6 +1225,8 @@ class SettingsDialog(QDialog):
             self.curfew_emerg_cb.setChecked(bypasses.get("allow_during_curfew", False))
             self.emergency_phrase_input.setText(bypasses.get("emergency_phrase", "necesito desbloqueo de emergencia"))
             self.emergency_phrase_input.setEnabled(self.curfew_emerg_cb.isChecked())
+
+            self.check_for_unsaved_changes()
         else:
             self.save_feedback_lbl.setText("Servicio fuera de línea.")
 
@@ -1289,7 +1301,7 @@ class SettingsDialog(QDialog):
             """)
 
             row_layout = QHBoxLayout(row)
-            row_layout.setContentsMargins(10, 4, 10, 4)
+            row_layout.setContentsMargins(12, 4, 20, 4)
             row_layout.setSpacing(10)
 
             # Icon tag
@@ -1303,7 +1315,7 @@ class SettingsDialog(QDialog):
 
             row_layout.addStretch()
 
-            # Clearly visible and distinct delete icon button
+            # Clearly visible and distinct delete icon button with generous right clearance
             del_btn = QPushButton("✕")
             del_btn.setToolTip(f"Eliminar {domain}")
             del_btn.setFixedSize(26, 26)
@@ -1411,14 +1423,79 @@ class SettingsDialog(QDialog):
 
         res = self.ipc.save_config(updated_config)
         if res.get("status") == "ok":
-            self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
-            self.save_feedback_lbl.setText("✓ Reglas guardadas y aplicadas.")
             self.config_data = updated_config
             self.config_saved.emit()
-            QTimer.singleShot(3000, lambda: self.save_feedback_lbl.setText("✓ Cambios sincronizados con el demonio"))
+            self.check_for_unsaved_changes()
+            self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
+            self.save_feedback_lbl.setText("✓ Reglas guardadas y sincronizadas")
+            QTimer.singleShot(3000, lambda: self.check_for_unsaved_changes())
         else:
             self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
             self.save_feedback_lbl.setText(f"Error: {res.get('error', 'No se pudo guardar')}")
+
+    def check_for_unsaved_changes(self):
+        """Dynamically evaluates if form inputs differ from saved config and updates button state."""
+        if not hasattr(self, "config_data") or not self.config_data:
+            return
+
+        curfew = self.config_data.get("curfew", {})
+        boot = self.config_data.get("boot_cooldown", {})
+        bypasses = self.config_data.get("bypasses", {})
+
+        curfew_changed = (
+            self.curfew_enabled_cb.isChecked() != curfew.get("enabled", True) or
+            self.curfew_start_time.time().toString("HH:mm") != curfew.get("start_time", "23:15") or
+            self.curfew_end_time.time().toString("HH:mm") != curfew.get("end_time", "07:00")
+        )
+
+        boot_changed = (
+            self.boot_enabled_cb.isChecked() != boot.get("enabled", True) or
+            self.boot_duration_spin.value() != int(boot.get("duration_minutes", 30))
+        )
+
+        bypasses_changed = (
+            self.bypasses_enabled_cb.isChecked() != bypasses.get("enabled", True) or
+            self.curfew_emerg_cb.isChecked() != bypasses.get("allow_during_curfew", False) or
+            self.emergency_phrase_input.text().strip() != bypasses.get("emergency_phrase", "necesito desbloqueo de emergencia").strip()
+        )
+
+        has_unsaved = curfew_changed or boot_changed or bypasses_changed
+
+        if has_unsaved:
+            self.save_btn.setEnabled(True)
+            self.save_btn.setText("● Guardar Reglas (Ctrl+S)")
+            self.save_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #388BFD;
+                    color: #FFFFFF;
+                    font-weight: 700;
+                    font-size: 12px;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 8px 18px;
+                }
+                QPushButton:hover {
+                    background-color: #1F6FEB;
+                }
+            """)
+            self.save_feedback_lbl.setText("● Tienes cambios sin guardar")
+            self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #D29922; font-weight: 600;")
+        else:
+            self.save_btn.setEnabled(False)
+            self.save_btn.setText("✓ Guardado")
+            self.save_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #161B22;
+                    color: #6E7681;
+                    font-weight: 600;
+                    font-size: 12px;
+                    border: 1px solid #30363D;
+                    border-radius: 6px;
+                    padding: 8px 18px;
+                }
+            """)
+            self.save_feedback_lbl.setText("✓ Cambios sincronizados con el demonio")
+            self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
 
     def refresh_live_status(self):
         res = self.ipc.get_status()
