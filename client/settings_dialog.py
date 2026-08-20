@@ -529,6 +529,105 @@ class AboutDialog(QDialog):
         layout.addLayout(btn_row)
 
 
+class UnsavedChangesDialog(QDialog):
+    """Modern modal asking to save unsaved rule changes before closing."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.action = "cancel"  # 'save', 'discard', 'cancel'
+        self.setWindowTitle("Cambios sin guardar")
+        self.setFixedWidth(420)
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #161B22;
+                border: 1px solid #30363D;
+                border-radius: 8px;
+            }
+            QLabel {
+                color: #F0F6FC;
+            }
+            QPushButton {
+                border-radius: 6px;
+                padding: 7px 14px;
+                font-weight: 600;
+                font-size: 12px;
+            }
+            QPushButton#primaryBtn {
+                background-color: #388BFD;
+                color: #FFFFFF;
+                border: none;
+            }
+            QPushButton#primaryBtn:hover {
+                background-color: #1F6FEB;
+            }
+            QPushButton#dangerBtn {
+                background-color: #21262D;
+                color: #F85149;
+                border: 1px solid #30363D;
+            }
+            QPushButton#dangerBtn:hover {
+                background-color: #DA3633;
+                color: #FFFFFF;
+                border-color: #F85149;
+            }
+            QPushButton#secondaryBtn {
+                background-color: #21262D;
+                color: #8B949E;
+                border: 1px solid #30363D;
+            }
+            QPushButton#secondaryBtn:hover {
+                color: #F0F6FC;
+                border-color: #8B949E;
+            }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        title = QLabel("¿Guardar cambios antes de salir?")
+        title.setStyleSheet("font-size: 15px; font-weight: 700; color: #F0F6FC;")
+        layout.addWidget(title)
+
+        desc = QLabel("Has modificado horarios o reglas del sistema. Si sales sin guardar, los cambios se descartarán.")
+        desc.setStyleSheet("font-size: 12px; color: #8B949E; line-height: 1.4;")
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+
+        cancel_btn = QPushButton("Cancelar")
+        cancel_btn.setObjectName("secondaryBtn")
+        cancel_btn.clicked.connect(self.on_cancel)
+        btn_row.addWidget(cancel_btn)
+
+        btn_row.addStretch()
+
+        discard_btn = QPushButton("Descartar")
+        discard_btn.setObjectName("dangerBtn")
+        discard_btn.clicked.connect(self.on_discard)
+        btn_row.addWidget(discard_btn)
+
+        save_btn = QPushButton("Guardar y Salir")
+        save_btn.setObjectName("primaryBtn")
+        save_btn.clicked.connect(self.on_save)
+        btn_row.addWidget(save_btn)
+
+        layout.addLayout(btn_row)
+
+    def on_save(self):
+        self.action = "save"
+        self.accept()
+
+    def on_discard(self):
+        self.action = "discard"
+        self.accept()
+
+    def on_cancel(self):
+        self.action = "cancel"
+        self.reject()
+
+
 class SettingsDialog(QDialog):
     config_saved = pyqtSignal()
 
@@ -684,6 +783,11 @@ class SettingsDialog(QDialog):
             QPushButton#primaryBtn:hover {{
                 background-color: {accent_blue_hover};
             }}
+            QPushButton#primaryBtn:disabled {{
+                background-color: #161B22;
+                color: #484F58;
+                border: 1px solid #21262D;
+            }}
             QPushButton#secondaryBtn {{
                 background-color: {bg_card_inner};
                 color: {text_primary};
@@ -692,6 +796,11 @@ class SettingsDialog(QDialog):
             QPushButton#secondaryBtn:hover {{
                 border-color: {accent_blue};
                 background-color: {bg_card};
+            }}
+            QPushButton#secondaryBtn:disabled {{
+                background-color: #0D1117;
+                color: #484F58;
+                border: 1px solid #21262D;
             }}
             QPushButton#stepBtn {{
                 background-color: {bg_card_inner};
@@ -1343,8 +1452,15 @@ class SettingsDialog(QDialog):
 
         close_btn = QPushButton("Cerrar (Esc)")
         close_btn.setObjectName("secondaryBtn")
-        close_btn.clicked.connect(self.accept)
+        close_btn.clicked.connect(self.close)
         bottom.addWidget(close_btn)
+
+        self.discard_btn = QPushButton("Descartar")
+        self.discard_btn.setObjectName("secondaryBtn")
+        self.discard_btn.setToolTip("Revertir y descartar las modificaciones no guardadas")
+        self.discard_btn.clicked.connect(self.on_discard_clicked)
+        self.discard_btn.setVisible(False)
+        bottom.addWidget(self.discard_btn)
 
         self.save_btn = QPushButton("Guardar Reglas (Ctrl+S)")
         self.save_btn.setObjectName("primaryBtn")
@@ -1665,10 +1781,41 @@ class SettingsDialog(QDialog):
             self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
             self.save_feedback_lbl.setText(f"Error: {res.get('error', 'No se pudo guardar')}")
 
-    def check_for_unsaved_changes(self):
-        """Dynamically evaluates if form inputs differ from saved config and updates button state."""
+    def on_discard_clicked(self):
+        """Reverts modified fields to the active loaded configuration."""
         if not hasattr(self, "config_data") or not self.config_data:
             return
+
+        curfew = self.config_data.get("curfew", {})
+        self.curfew_enabled_cb.setChecked(curfew.get("enabled", True))
+        start_parts = [int(x) for x in curfew.get("start_time", "23:15").split(":")]
+        end_parts = [int(x) for x in curfew.get("end_time", "07:00").split(":")]
+        self.curfew_start_time.setTime(QTime(start_parts[0], start_parts[1]))
+        self.curfew_end_time.setTime(QTime(end_parts[0], end_parts[1]))
+        self.curfew_start_time.setEnabled(self.curfew_enabled_cb.isChecked())
+        self.curfew_end_time.setEnabled(self.curfew_enabled_cb.isChecked())
+        self.update_curfew_summary()
+
+        boot = self.config_data.get("boot_cooldown", {})
+        self.boot_enabled_cb.setChecked(boot.get("enabled", True))
+        self.boot_duration_spin.setValue(int(boot.get("duration_minutes", 30)))
+        self.boot_duration_spin.setEnabled(self.boot_enabled_cb.isChecked())
+
+        bypasses = self.config_data.get("bypasses", {})
+        self.bypasses_enabled_cb.setChecked(bypasses.get("enabled", True))
+        self.curfew_emerg_cb.setChecked(bypasses.get("allow_during_curfew", False))
+        self.emergency_phrase_input.setText(bypasses.get("emergency_phrase", "necesito desbloqueo de emergencia"))
+        self.emergency_phrase_input.setEnabled(self.curfew_emerg_cb.isChecked())
+
+        self.check_for_unsaved_changes()
+        self.save_feedback_lbl.setText("Cambios descartados")
+        self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
+        QTimer.singleShot(2500, lambda: self.check_for_unsaved_changes())
+
+    def has_unsaved_changes(self) -> bool:
+        """Dynamically evaluates if form inputs differ from saved config."""
+        if not hasattr(self, "config_data") or not self.config_data:
+            return False
 
         curfew = self.config_data.get("curfew", {})
         boot = self.config_data.get("boot_cooldown", {})
@@ -1691,9 +1838,45 @@ class SettingsDialog(QDialog):
             self.emergency_phrase_input.text().strip() != bypasses.get("emergency_phrase", "necesito desbloqueo de emergencia").strip()
         )
 
-        has_unsaved = curfew_changed or boot_changed or bypasses_changed
+        return curfew_changed or boot_changed or bypasses_changed
+
+    def closeEvent(self, event):
+        """Intercepts window close to prompt user about unsaved changes."""
+        if self.has_unsaved_changes():
+            dlg = UnsavedChangesDialog(parent=self)
+            dlg.exec()
+            if dlg.action == "save":
+                self.on_save_clicked()
+                event.accept()
+            elif dlg.action == "discard":
+                event.accept()
+            else:
+                event.ignore()
+        else:
+            event.accept()
+
+    def reject(self):
+        """Intercepts Escape key to prompt user about unsaved changes."""
+        if self.has_unsaved_changes():
+            dlg = UnsavedChangesDialog(parent=self)
+            dlg.exec()
+            if dlg.action == "save":
+                self.on_save_clicked()
+                super().reject()
+            elif dlg.action == "discard":
+                super().reject()
+            else:
+                return
+        else:
+            super().reject()
+
+    def check_for_unsaved_changes(self):
+        """Updates save and discard buttons and feedback according to current unsaved state."""
+        has_unsaved = self.has_unsaved_changes()
 
         if has_unsaved:
+            if hasattr(self, "discard_btn"):
+                self.discard_btn.setVisible(True)
             self.save_btn.setEnabled(True)
             self.save_btn.setText("Guardar Reglas (Ctrl+S)")
             self.save_btn.setStyleSheet("""
@@ -1713,6 +1896,8 @@ class SettingsDialog(QDialog):
             self.save_feedback_lbl.setText("Cambios sin guardar")
             self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #D29922; font-weight: 600;")
         else:
+            if hasattr(self, "discard_btn"):
+                self.discard_btn.setVisible(False)
             self.save_btn.setEnabled(False)
             self.save_btn.setText("Guardado")
             self.save_btn.setStyleSheet("""
@@ -1786,9 +1971,14 @@ class SettingsDialog(QDialog):
 
             self.btn_primary_action.setText("Bloquear Ahora")
             self.btn_primary_action.setEnabled(True)
+            self.btn_primary_action.setToolTip("Activar bloqueo manual de sitios distractores.")
             self.btn_pomodoro_25.setEnabled(True)
+            self.btn_pomodoro_25.setToolTip("Iniciar sesión de concentración de 25 minutos.")
             self.btn_pomodoro_50.setEnabled(True)
+            self.btn_pomodoro_50.setToolTip("Iniciar sesión de trabajo profundo de 50 minutos.")
+            self.btn_secondary_action.setText("Pausa Temporal (15 min)")
             self.btn_secondary_action.setEnabled(False)
+            self.btn_secondary_action.setToolTip("Las pausas temporales solo están disponibles cuando hay un bloqueo activo.")
 
         # 2. State: BYPASS / BREAK (Amber Gold)
         elif state == "BYPASS":
@@ -1809,10 +1999,14 @@ class SettingsDialog(QDialog):
 
             self.btn_primary_action.setText("Terminar Descanso")
             self.btn_primary_action.setEnabled(True)
+            self.btn_primary_action.setToolTip("Finalizar la pausa y reactivar el bloqueo inmediatamente.")
             self.btn_pomodoro_25.setEnabled(False)
+            self.btn_pomodoro_25.setToolTip("No disponible durante una pausa temporal.")
             self.btn_pomodoro_50.setEnabled(False)
+            self.btn_pomodoro_50.setToolTip("No disponible durante una pausa temporal.")
             self.btn_secondary_action.setText("Pausa en Curso")
             self.btn_secondary_action.setEnabled(False)
+            self.btn_secondary_action.setToolTip("La pausa temporal ya está activa.")
 
         # 3. State: LOCKED / ACTIVE PROTECTION
         elif is_blocking:
@@ -1833,15 +2027,20 @@ class SettingsDialog(QDialog):
 
                 self.btn_primary_action.setText("Bloqueo Nocturno")
                 self.btn_primary_action.setEnabled(False)
+                self.btn_primary_action.setToolTip("El Toque de Queda está activo y protege tus horas de descanso.")
                 self.btn_pomodoro_25.setEnabled(False)
+                self.btn_pomodoro_25.setToolTip("Las sesiones de enfoque no se pueden iniciar durante el Toque de Queda.")
                 self.btn_pomodoro_50.setEnabled(False)
+                self.btn_pomodoro_50.setToolTip("Las sesiones de enfoque no se pueden iniciar durante el Toque de Queda.")
 
                 if self.curfew_emerg_cb.isChecked():
                     self.btn_secondary_action.setText("Desbloqueo de Emergencia")
                     self.btn_secondary_action.setEnabled(True)
+                    self.btn_secondary_action.setToolTip("Solicitar 15 minutos de emergencia mediante frase de seguridad.")
                 else:
                     self.btn_secondary_action.setText("Descanso Desactivado")
                     self.btn_secondary_action.setEnabled(False)
+                    self.btn_secondary_action.setToolTip("Los descansos nocturnos están deshabilitados. Puedes habilitar la opción de emergencia en Horarios y Reglas.")
 
             elif reason == "BOOT_COOLDOWN":
                 self.status_badge.setText("FOCO DE INICIO")
@@ -1861,14 +2060,20 @@ class SettingsDialog(QDialog):
 
                 self.btn_primary_action.setText("Inicio Activo")
                 self.btn_primary_action.setEnabled(False)
+                self.btn_primary_action.setToolTip("La protección de inicio de sesión está activa.")
                 self.btn_pomodoro_25.setEnabled(False)
+                self.btn_pomodoro_25.setToolTip("El equipo se encuentra en período de foco de arranque.")
                 self.btn_pomodoro_50.setEnabled(False)
+                self.btn_pomodoro_50.setToolTip("El equipo se encuentra en período de foco de arranque.")
 
                 if bypasses_enabled:
                     self.btn_secondary_action.setText("Pausa Temporal (15 min)")
                     self.btn_secondary_action.setEnabled(True)
+                    self.btn_secondary_action.setToolTip("Solicitar 15 minutos de descanso temporal.")
                 else:
+                    self.btn_secondary_action.setText("Descanso Desactivado")
                     self.btn_secondary_action.setEnabled(False)
+                    self.btn_secondary_action.setToolTip("Las pausas temporales están desactivadas en la configuración.")
 
             elif reason == "MANUAL_LOCK":
                 self.status_badge.setText("ENFOQUE ACTIVO")
@@ -1884,17 +2089,24 @@ class SettingsDialog(QDialog):
                 self.dash_progress_bar.setValue(100)
                 self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #388BFD; }")
                 self.btn_stop_focus.setVisible(True)
+                self.btn_stop_focus.setToolTip("Finalizar la sesión de enfoque actual y desbloquear los sitios.")
 
                 self.btn_primary_action.setText("Enfoque en Curso")
                 self.btn_primary_action.setEnabled(False)
+                self.btn_primary_action.setToolTip("Ya hay una sesión de concentración manual en curso.")
                 self.btn_pomodoro_25.setEnabled(False)
+                self.btn_pomodoro_25.setToolTip("Ya hay una sesión de concentración activa.")
                 self.btn_pomodoro_50.setEnabled(False)
+                self.btn_pomodoro_50.setToolTip("Ya hay una sesión de concentración activa.")
 
                 if bypasses_enabled:
                     self.btn_secondary_action.setText("Pausa Temporal (15 min)")
                     self.btn_secondary_action.setEnabled(True)
+                    self.btn_secondary_action.setToolTip("Solicitar 15 minutos de pausa temporal.")
                 else:
+                    self.btn_secondary_action.setText("Descanso Desactivado")
                     self.btn_secondary_action.setEnabled(False)
+                    self.btn_secondary_action.setToolTip("Las pausas temporales están desactivadas en la configuración.")
 
             if rem > 0:
                 self.dash_countdown_lbl.setText(f"{human_time}")
