@@ -166,11 +166,11 @@ class FocusTrayApplet(QSystemTrayIcon):
         mins = (seconds % 3600) // 60
         secs = seconds % 60
         if hours > 0:
-            return f"{hours}h {mins}m {secs}s restantes"
+            return f"{hours}h {mins}m {secs}s"
         elif mins > 0:
-            return f"{mins}m {secs}s restantes"
+            return f"{mins}m {secs}s"
         else:
-            return f"{secs}s restantes"
+            return f"{secs}s"
 
     def refresh_status(self):
         """Fetches status from daemon and updates UI and notifications."""

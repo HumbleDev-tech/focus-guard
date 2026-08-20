@@ -655,12 +655,20 @@ class SettingsDialog(QDialog):
                 border: 1px solid {border_color};
                 border-radius: 6px;
                 padding: 4px 8px;
+                font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
                 font-size: 13px;
                 font-weight: 700;
                 min-height: 24px;
             }}
             QTimeEdit:focus, QSpinBox:focus {{
                 border: 1px solid {accent_blue};
+            }}
+            QTimeEdit::up-button, QTimeEdit::down-button,
+            QSpinBox::up-button, QSpinBox::down-button {{
+                width: 0px;
+                height: 0px;
+                border: none;
+                background: transparent;
             }}
             QPushButton {{
                 border-radius: 6px;
@@ -771,18 +779,26 @@ class SettingsDialog(QDialog):
                 color: {text_primary};
                 font-size: 13px;
                 font-weight: 600;
-                spacing: 8px;
+                spacing: 10px;
             }}
             QCheckBox::indicator {{
                 width: 16px;
                 height: 16px;
                 border-radius: 4px;
                 border: 1px solid {border_color};
-                background: {bg_input};
+                background-color: {bg_input};
+            }}
+            QCheckBox::indicator:hover {{
+                border-color: {accent_blue};
             }}
             QCheckBox::indicator:checked {{
                 background-color: {accent_blue};
                 border-color: {accent_blue};
+                image: url({os.path.join(self.resource_dir, 'checkbox-check.svg')});
+            }}
+            QCheckBox::indicator:disabled {{
+                background-color: {bg_card_inner};
+                border-color: {border_subtle};
             }}
             QFrame#settingsCard {{
                 background-color: {bg_card_inner};
@@ -1217,7 +1233,13 @@ class SettingsDialog(QDialog):
         hero_layout.addLayout(top_row)
 
         self.dash_countdown_lbl = QLabel("Calculando tiempo...")
-        self.dash_countdown_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #2EA043;")
+        self.dash_countdown_lbl.setStyleSheet("""
+            font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", "Cascadia Code", "Fira Code", monospace;
+            font-size: 22px;
+            font-weight: 700;
+            color: #2EA043;
+            letter-spacing: -0.5px;
+        """)
         hero_layout.addWidget(self.dash_countdown_lbl)
 
         # Visual progress bar
@@ -1756,7 +1778,7 @@ class SettingsDialog(QDialog):
             self.dash_state_pill.setStyleSheet("border: 1px solid #2EA043; color: #3FB950; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background-color: rgba(46, 160, 67, 0.12);")
             self.dash_state_title.setText("Modo Libre (Navegación Abierta)")
             self.dash_countdown_lbl.setText("Sitios Desbloqueados")
-            self.dash_countdown_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #3FB950;")
+            self.dash_countdown_lbl.setStyleSheet("font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: #3FB950;")
             self.dash_desc_lbl.setText("El bloqueo no está activo. Puedes iniciar una sesión de enfoque cuando gustes.")
             self.dash_progress_bar.setValue(0)
             self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #2EA043; }")
@@ -1778,8 +1800,8 @@ class SettingsDialog(QDialog):
             self.dash_state_pill.setText("PAUSA TEMPORAL")
             self.dash_state_pill.setStyleSheet("border: 1px solid #D29922; color: #E3B341; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background-color: rgba(210, 153, 34, 0.12);")
             self.dash_state_title.setText("Pausa Temporal Activa")
-            self.dash_countdown_lbl.setText(f"{human_time} restantes")
-            self.dash_countdown_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #E3B341;")
+            self.dash_countdown_lbl.setText(f"{human_time}")
+            self.dash_countdown_lbl.setStyleSheet("font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; color: #E3B341;")
             self.dash_desc_lbl.setText("Acceso concedido temporalmente. Los sitios se bloquearán al finalizar.")
             self.dash_progress_bar.setValue(max(5, min(100, int((rem / 900) * 100))))
             self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #D29922; }")
@@ -1804,7 +1826,7 @@ class SettingsDialog(QDialog):
                 self.dash_state_pill.setStyleSheet("border: 1px solid #8957E5; color: #D2A8FF; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background-color: rgba(137, 87, 229, 0.12);")
                 self.dash_state_title.setText("Toque de Queda Nocturno")
                 self.dash_desc_lbl.setText(f"Protección nocturna activa hasta las {target}.")
-                self.dash_countdown_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #D2A8FF;")
+                self.dash_countdown_lbl.setStyleSheet("font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; color: #D2A8FF;")
                 self.dash_progress_bar.setValue(100)
                 self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #8957E5; }")
                 self.btn_stop_focus.setVisible(False)
@@ -1831,7 +1853,7 @@ class SettingsDialog(QDialog):
                 self.dash_state_pill.setStyleSheet("border: 1px solid #388BFD; color: #58A6FF; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background-color: rgba(56, 139, 253, 0.12);")
                 self.dash_state_title.setText("Cooldown de Arranque")
                 self.dash_desc_lbl.setText(f"Protección de inicio activa hasta las {target}.")
-                self.dash_countdown_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #58A6FF;")
+                self.dash_countdown_lbl.setStyleSheet("font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; color: #58A6FF;")
                 total_boot = max(1, self.config_data.get("boot_cooldown", {}).get("duration_minutes", 30) * 60)
                 self.dash_progress_bar.setValue(max(5, min(100, int((rem / total_boot) * 100))))
                 self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #388BFD; }")
@@ -1858,7 +1880,7 @@ class SettingsDialog(QDialog):
                 self.dash_state_pill.setStyleSheet("border: 1px solid #388BFD; color: #58A6FF; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background-color: rgba(56, 139, 253, 0.12);")
                 self.dash_state_title.setText("Modo Focus / Pomodoro")
                 self.dash_desc_lbl.setText("Sesión de concentración manual en curso.")
-                self.dash_countdown_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #58A6FF;")
+                self.dash_countdown_lbl.setStyleSheet("font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; color: #58A6FF;")
                 self.dash_progress_bar.setValue(100)
                 self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #388BFD; }")
                 self.btn_stop_focus.setVisible(True)
@@ -1875,7 +1897,7 @@ class SettingsDialog(QDialog):
                     self.btn_secondary_action.setEnabled(False)
 
             if rem > 0:
-                self.dash_countdown_lbl.setText(f"{human_time} restantes")
+                self.dash_countdown_lbl.setText(f"{human_time}")
             else:
                 self.dash_countdown_lbl.setText("Protección Activa")
 
