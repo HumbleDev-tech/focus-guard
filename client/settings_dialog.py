@@ -441,21 +441,13 @@ class SettingsDialog(QDialog):
                 color: {text_primary};
                 border: 1px solid {border_color};
                 border-radius: 6px;
-                padding: 6px 10px;
+                padding: 4px 8px;
                 font-size: 13px;
-                font-weight: 600;
-                min-height: 22px;
+                font-weight: 700;
+                min-height: 24px;
             }}
             QTimeEdit:focus, QSpinBox:focus {{
                 border: 1px solid {accent_blue};
-            }}
-            QTimeEdit::up-button, QTimeEdit::down-button, QSpinBox::up-button, QSpinBox::down-button {{
-                width: 18px;
-                background-color: {bg_card_inner};
-                border-left: 1px solid {border_color};
-            }}
-            QTimeEdit::up-button:hover, QTimeEdit::down-button:hover, QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
-                background-color: {accent_blue};
             }}
             QPushButton {{
                 border-radius: 6px;
@@ -479,6 +471,47 @@ class SettingsDialog(QDialog):
             QPushButton#secondaryBtn:hover {{
                 border-color: {accent_blue};
                 background-color: {bg_card};
+            }}
+            QPushButton#stepBtn {{
+                background-color: {bg_card_inner};
+                color: {text_primary};
+                border: 1px solid {border_color};
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: 700;
+                padding: 0px;
+                min-width: 28px;
+                max-width: 28px;
+                min-height: 26px;
+                max-height: 26px;
+            }}
+            QPushButton#stepBtn:hover {{
+                background-color: {accent_blue};
+                color: #FFFFFF;
+                border-color: {accent_blue};
+            }}
+            QPushButton#presetChipSmall {{
+                background-color: {bg_input};
+                color: {text_secondary};
+                border: 1px solid {border_subtle};
+                border-radius: 12px;
+                padding: 3px 10px;
+                font-size: 11px;
+                font-weight: 600;
+            }}
+            QPushButton#presetChipSmall:hover {{
+                border-color: {accent_blue};
+                color: {accent_blue};
+                background-color: {bg_card_inner};
+            }}
+            QLabel#summaryPill {{
+                font-size: 11.5px;
+                color: #58A6FF;
+                background-color: rgba(56, 139, 253, 0.08);
+                border: 1px solid rgba(56, 139, 253, 0.25);
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-weight: 600;
             }}
             QPushButton:disabled {{
                 opacity: 0.45;
@@ -680,7 +713,7 @@ class SettingsDialog(QDialog):
         boot_card.setObjectName("settingsCard")
         boot_layout = QVBoxLayout(boot_card)
         boot_layout.setContentsMargins(16, 14, 16, 14)
-        boot_layout.setSpacing(8)
+        boot_layout.setSpacing(10)
 
         self.boot_enabled_cb = QCheckBox("⚡ Bloqueo de Enfoque al Iniciar el Equipo (Boot Focus)")
         self.boot_enabled_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
@@ -693,20 +726,41 @@ class SettingsDialog(QDialog):
 
         dur_row = QHBoxLayout()
         dur_row.setContentsMargins(0, 4, 0, 0)
-        dur_row.setSpacing(10)
+        dur_row.setSpacing(6)
 
-        dur_label = QLabel("Duración del bloqueo inicial:")
+        dur_label = QLabel("Duración inicial:")
         dur_label.setObjectName("fieldLabel")
         dur_row.addWidget(dur_label)
+
+        step_minus = QPushButton("−")
+        step_minus.setObjectName("stepBtn")
+        step_minus.setToolTip("Disminuir 5 minutos")
+        step_minus.clicked.connect(lambda: self.step_boot_duration(-5))
+        dur_row.addWidget(step_minus)
 
         self.boot_duration_spin = QSpinBox()
         self.boot_duration_spin.setRange(5, 180)
         self.boot_duration_spin.setSingleStep(5)
-        self.boot_duration_spin.setSuffix(" minutos")
-        self.boot_duration_spin.setFixedWidth(130)
+        self.boot_duration_spin.setSuffix(" min")
+        self.boot_duration_spin.setFixedWidth(80)
+        self.boot_duration_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
         dur_row.addWidget(self.boot_duration_spin)
-        dur_row.addStretch()
 
+        step_plus = QPushButton("+")
+        step_plus.setObjectName("stepBtn")
+        step_plus.setToolTip("Aumentar 5 minutos")
+        step_plus.clicked.connect(lambda: self.step_boot_duration(5))
+        dur_row.addWidget(step_plus)
+
+        dur_row.addSpacing(10)
+
+        for m in [15, 30, 45, 60]:
+            pill = QPushButton(f"{m}m")
+            pill.setObjectName("presetChipSmall")
+            pill.clicked.connect(lambda _, mins=m: self.boot_duration_spin.setValue(mins))
+            dur_row.addWidget(pill)
+
+        dur_row.addStretch()
         boot_layout.addLayout(dur_row)
         layout.addWidget(boot_card)
 
@@ -715,7 +769,7 @@ class SettingsDialog(QDialog):
         curfew_card.setObjectName("settingsCard")
         curfew_layout = QVBoxLayout(curfew_card)
         curfew_layout.setContentsMargins(16, 14, 16, 14)
-        curfew_layout.setSpacing(8)
+        curfew_layout.setSpacing(10)
 
         self.curfew_enabled_cb = QCheckBox("🌙 Toque de Queda Nocturno (Night Curfew)")
         self.curfew_enabled_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
@@ -728,16 +782,30 @@ class SettingsDialog(QDialog):
 
         time_row = QHBoxLayout()
         time_row.setContentsMargins(0, 4, 0, 0)
-        time_row.setSpacing(10)
+        time_row.setSpacing(6)
 
         start_lbl = QLabel("Bloquear desde:")
         start_lbl.setObjectName("fieldLabel")
         time_row.addWidget(start_lbl)
 
+        start_minus = QPushButton("−")
+        start_minus.setObjectName("stepBtn")
+        start_minus.setToolTip("Restar 15 minutos")
+        start_minus.clicked.connect(lambda: self.step_curfew_start(-15))
+        time_row.addWidget(start_minus)
+
         self.curfew_start_time = QTimeEdit()
         self.curfew_start_time.setDisplayFormat("HH:mm")
-        self.curfew_start_time.setFixedWidth(85)
+        self.curfew_start_time.setFixedWidth(75)
+        self.curfew_start_time.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.curfew_start_time.timeChanged.connect(self.update_curfew_summary)
         time_row.addWidget(self.curfew_start_time)
+
+        start_plus = QPushButton("+")
+        start_plus.setObjectName("stepBtn")
+        start_plus.setToolTip("Sumar 15 minutos")
+        start_plus.clicked.connect(lambda: self.step_curfew_start(15))
+        time_row.addWidget(start_plus)
 
         time_row.addSpacing(14)
 
@@ -745,13 +813,54 @@ class SettingsDialog(QDialog):
         end_lbl.setObjectName("fieldLabel")
         time_row.addWidget(end_lbl)
 
+        end_minus = QPushButton("−")
+        end_minus.setObjectName("stepBtn")
+        end_minus.setToolTip("Restar 15 minutos")
+        end_minus.clicked.connect(lambda: self.step_curfew_end(-15))
+        time_row.addWidget(end_minus)
+
         self.curfew_end_time = QTimeEdit()
         self.curfew_end_time.setDisplayFormat("HH:mm")
-        self.curfew_end_time.setFixedWidth(85)
+        self.curfew_end_time.setFixedWidth(75)
+        self.curfew_end_time.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.curfew_end_time.timeChanged.connect(self.update_curfew_summary)
         time_row.addWidget(self.curfew_end_time)
+
+        end_plus = QPushButton("+")
+        end_plus.setObjectName("stepBtn")
+        end_plus.setToolTip("Sumar 15 minutos")
+        end_plus.clicked.connect(lambda: self.step_curfew_end(15))
+        time_row.addWidget(end_plus)
 
         time_row.addStretch()
         curfew_layout.addLayout(time_row)
+
+        # Dynamic human summary pill
+        self.curfew_summary_lbl = QLabel("")
+        self.curfew_summary_lbl.setObjectName("summaryPill")
+        curfew_layout.addWidget(self.curfew_summary_lbl)
+
+        # Quick schedule preset pills
+        sched_row = QHBoxLayout()
+        sched_row.setSpacing(6)
+        sched_lbl = QLabel("Horarios habituales:")
+        sched_lbl.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
+        sched_row.addWidget(sched_lbl)
+
+        curfew_presets = [
+            ("23:00 ➔ 07:00", (23, 0), (7, 0)),
+            ("23:30 ➔ 07:30", (23, 30), (7, 30)),
+            ("00:00 ➔ 08:00", (0, 0), (8, 0)),
+            ("01:00 ➔ 07:00", (1, 0), (7, 0))
+        ]
+        for p_title, p_start, p_end in curfew_presets:
+            p_btn = QPushButton(p_title)
+            p_btn.setObjectName("presetChipSmall")
+            p_btn.clicked.connect(lambda _, s=p_start, e=p_end: self.set_curfew_times(s, e))
+            sched_row.addWidget(p_btn)
+
+        sched_row.addStretch()
+        curfew_layout.addLayout(sched_row)
         layout.addWidget(curfew_card)
 
         # 3. Configurable Bypasses & Emergency Rules Card
@@ -976,6 +1085,7 @@ class SettingsDialog(QDialog):
             self.curfew_end_time.setTime(QTime(end_parts[0], end_parts[1]))
             self.curfew_start_time.setEnabled(self.curfew_enabled_cb.isChecked())
             self.curfew_end_time.setEnabled(self.curfew_enabled_cb.isChecked())
+            self.update_curfew_summary()
 
             boot = self.config_data.get("boot_cooldown", {})
             self.boot_enabled_cb.setChecked(boot.get("enabled", True))
@@ -989,6 +1099,49 @@ class SettingsDialog(QDialog):
             self.emergency_phrase_input.setEnabled(self.curfew_emerg_cb.isChecked())
         else:
             self.save_feedback_lbl.setText("Servicio fuera de línea.")
+
+    def step_boot_duration(self, delta: int):
+        """Increments or decrements boot focus duration by delta minutes."""
+        val = max(5, min(180, self.boot_duration_spin.value() + delta))
+        self.boot_duration_spin.setValue(val)
+
+    def step_curfew_start(self, delta_minutes: int):
+        """Steps curfew start time by minutes."""
+        t = self.curfew_start_time.time().addSecs(delta_minutes * 60)
+        self.curfew_start_time.setTime(t)
+
+    def step_curfew_end(self, delta_minutes: int):
+        """Steps curfew end time by minutes."""
+        t = self.curfew_end_time.time().addSecs(delta_minutes * 60)
+        self.curfew_end_time.setTime(t)
+
+    def set_curfew_times(self, start_tuple, end_tuple):
+        """Sets curfew start and end from preset."""
+        self.curfew_start_time.setTime(QTime(start_tuple[0], start_tuple[1]))
+        self.curfew_end_time.setTime(QTime(end_tuple[0], end_tuple[1]))
+        self.update_curfew_summary()
+
+    def update_curfew_summary(self):
+        """Calculates and displays a human-friendly description of curfew."""
+        start = self.curfew_start_time.time()
+        end = self.curfew_end_time.time()
+
+        start_12h = start.toString("h:mm AP")
+        end_12h = end.toString("h:mm AP")
+
+        start_mins = start.hour() * 60 + start.minute()
+        end_mins = end.hour() * 60 + end.minute()
+
+        if end_mins <= start_mins:
+            total_mins = (1440 - start_mins) + end_mins
+        else:
+            total_mins = end_mins - start_mins
+
+        hours = total_mins // 60
+        mins = total_mins % 60
+        span_str = f"{hours}h {mins}m" if mins > 0 else f"{hours} horas"
+
+        self.curfew_summary_lbl.setText(f"🌙 Horario: {start_12h} hasta {end_12h} ({span_str} de descanso)")
 
     def on_autostart_toggled(self, checked: bool):
         """Manages autostart desktop file."""
