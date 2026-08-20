@@ -172,22 +172,58 @@ class EmergencyPromptDialog(QDialog):
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
+        phrase_container = QFrame()
+        phrase_container.setStyleSheet("""
+            QFrame {
+                background-color: #161B22;
+                border: 1px solid #30363D;
+                border-radius: 6px;
+            }
+        """)
+        phrase_box_layout = QHBoxLayout(phrase_container)
+        phrase_box_layout.setContentsMargins(10, 6, 8, 6)
+        phrase_box_layout.setSpacing(10)
+
         phrase_box = QLabel(self.phrase)
         phrase_box.setStyleSheet("""
-            background-color: #161B22;
-            border: 1px solid #30363D;
-            border-radius: 6px;
-            padding: 10px 14px;
+            background: transparent;
+            border: none;
             font-family: monospace;
-            font-size: 12px;
+            font-size: 12.5px;
             font-weight: 600;
             color: #58A6FF;
         """)
-        phrase_box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        layout.addWidget(phrase_box)
+        phrase_box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
+        phrase_box_layout.addWidget(phrase_box)
+
+        phrase_box_layout.addStretch()
+
+        self.copy_btn = QPushButton("📋 Copiar")
+        self.copy_btn.setObjectName("secondaryBtn")
+        self.copy_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #21262D;
+                border: 1px solid #30363D;
+                color: #F0F6FC;
+                font-size: 11px;
+                font-weight: 600;
+                border-radius: 4px;
+                padding: 4px 10px;
+            }
+            QPushButton:hover {
+                background-color: #30363D;
+                color: #58A6FF;
+                border-color: #58A6FF;
+            }
+        """)
+        self.copy_btn.setToolTip("Copiar frase al portapapeles")
+        self.copy_btn.clicked.connect(self.on_copy_phrase)
+        phrase_box_layout.addWidget(self.copy_btn)
+
+        layout.addWidget(phrase_container)
 
         self.input_field = QLineEdit()
-        self.input_field.setPlaceholderText("Escribe la frase exactamente aquí...")
+        self.input_field.setPlaceholderText("Escribe o pega la frase exactamente aquí...")
         self.input_field.returnPressed.connect(self.on_confirm)
         layout.addWidget(self.input_field)
 
@@ -206,7 +242,20 @@ class EmergencyPromptDialog(QDialog):
 
         layout.addLayout(btn_row)
 
+    def on_copy_phrase(self):
+        QApplication.clipboard().setText(self.phrase)
+        self.copy_btn.setText("✓ Copiado")
+        if hasattr(self, "copy_btn"):
+            self.copy_btn.setText("✓ Copiado")
+            QTimer.singleShot(2000, lambda: self.copy_btn.setText("📋 Copiar"))
+        if hasattr(self, "input_field") and self.input_field:
+            self.input_field.setFocus()
+
     def on_confirm(self):
+        if not self.phrase or not self.input_field:
+            self.confirmed = True
+            self.accept()
+            return
         entered = self.input_field.text().strip().lower()
         if entered == self.phrase.lower():
             self.confirmed = True
@@ -282,22 +331,58 @@ class ConfirmDomainRemovalDialog(QDialog):
             instruction.setWordWrap(True)
             layout.addWidget(instruction)
 
+            phrase_container = QFrame()
+            phrase_container.setStyleSheet("""
+                QFrame {
+                    background-color: #161B22;
+                    border: 1px solid #30363D;
+                    border-radius: 6px;
+                }
+            """)
+            phrase_box_layout = QHBoxLayout(phrase_container)
+            phrase_box_layout.setContentsMargins(10, 6, 8, 6)
+            phrase_box_layout.setSpacing(10)
+
             phrase_box = QLabel(self.phrase)
             phrase_box.setStyleSheet("""
-                background-color: #161B22;
-                border: 1px solid #30363D;
-                border-radius: 6px;
-                padding: 8px 12px;
+                background: transparent;
+                border: none;
                 font-family: monospace;
-                font-size: 12px;
+                font-size: 12.5px;
                 font-weight: 600;
                 color: #58A6FF;
             """)
-            phrase_box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            layout.addWidget(phrase_box)
+            phrase_box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
+            phrase_box_layout.addWidget(phrase_box)
+
+            phrase_box_layout.addStretch()
+
+            self.copy_btn = QPushButton("📋 Copiar")
+            self.copy_btn.setObjectName("secondaryBtn")
+            self.copy_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #21262D;
+                    border: 1px solid #30363D;
+                    color: #F0F6FC;
+                    font-size: 11px;
+                    font-weight: 600;
+                    border-radius: 4px;
+                    padding: 4px 10px;
+                }
+                QPushButton:hover {
+                    background-color: #30363D;
+                    color: #58A6FF;
+                    border-color: #58A6FF;
+                }
+            """)
+            self.copy_btn.setToolTip("Copiar frase al portapapeles")
+            self.copy_btn.clicked.connect(self.on_copy_phrase)
+            phrase_box_layout.addWidget(self.copy_btn)
+
+            layout.addWidget(phrase_container)
 
             self.input_field = QLineEdit()
-            self.input_field.setPlaceholderText("Escribe la frase exactamente aquí...")
+            self.input_field.setPlaceholderText("Escribe o pega la frase exactamente aquí...")
             self.input_field.returnPressed.connect(self.on_confirm)
             layout.addWidget(self.input_field)
         else:
@@ -317,6 +402,14 @@ class ConfirmDomainRemovalDialog(QDialog):
         btn_row.addWidget(del_btn)
 
         layout.addLayout(btn_row)
+
+    def on_copy_phrase(self):
+        QApplication.clipboard().setText(self.phrase)
+        if hasattr(self, "copy_btn"):
+            self.copy_btn.setText("✓ Copiado")
+            QTimer.singleShot(2000, lambda: self.copy_btn.setText("📋 Copiar"))
+        if hasattr(self, "input_field") and self.input_field:
+            self.input_field.setFocus()
 
     def on_confirm(self):
         if self.input_field:
@@ -473,6 +566,11 @@ class SettingsDialog(QDialog):
         # 4. Keyboard Shortcuts
         QShortcut(QKeySequence("Ctrl+S"), self, self.on_save_clicked)
         QShortcut(QKeySequence("Escape"), self, self.close)
+        QShortcut(QKeySequence("Ctrl+1"), self, lambda: self.tabs.setCurrentIndex(0))
+        QShortcut(QKeySequence("Ctrl+2"), self, lambda: self.tabs.setCurrentIndex(1))
+        QShortcut(QKeySequence("Ctrl+3"), self, lambda: self.tabs.setCurrentIndex(2))
+        QShortcut(QKeySequence("Ctrl+N"), self, self.focus_domain_input)
+        QShortcut(QKeySequence("Ctrl+F"), self, self.focus_search_or_domain_input)
 
         # Load initial config
         self.load_configuration()
@@ -773,15 +871,16 @@ class SettingsDialog(QDialog):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout.setSpacing(8)
 
         # 1. Direct Input Row
         top_row = QHBoxLayout()
         top_row.setSpacing(8)
 
         self.domain_input = QLineEdit()
-        self.domain_input.setPlaceholderText("Ingresa un dominio a bloquear (ej: twitter.com)...")
+        self.domain_input.setPlaceholderText("Ingresa un dominio a bloquear (ej: twitter.com o enlace)...")
         self.domain_input.returnPressed.connect(self.on_add_domain_clicked)
+        self.domain_input.textChanged.connect(self.on_domain_input_changed)
         top_row.addWidget(self.domain_input)
 
         add_btn = QPushButton("Añadir")
@@ -790,20 +889,33 @@ class SettingsDialog(QDialog):
         top_row.addWidget(add_btn)
         layout.addLayout(top_row)
 
-        # 2. Header with counter and inline auto-save feedback
+        # Live preview chip
+        self.domain_preview_lbl = QLabel("")
+        self.domain_preview_lbl.setStyleSheet("font-size: 11px; font-weight: 600; padding-left: 2px;")
+        layout.addWidget(self.domain_preview_lbl)
+
+        # 2. Header with counter, search filter and inline auto-save feedback
         count_row = QHBoxLayout()
+        count_row.setSpacing(10)
         self.domains_count_lbl = QLabel("Sitios Bloqueados")
         self.domains_count_lbl.setStyleSheet("font-size: 12px; font-weight: 600; color: #8B949E;")
         count_row.addWidget(self.domains_count_lbl)
 
         count_row.addStretch()
 
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("🔍 Filtrar sitios...")
+        self.search_input.setFixedWidth(150)
+        self.search_input.setStyleSheet("padding: 3px 8px; font-size: 11px; border-radius: 4px;")
+        self.search_input.textChanged.connect(lambda: self.render_domains_list())
+        count_row.addWidget(self.search_input)
+
         self.domain_auto_feedback_lbl = QLabel("")
         self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
         count_row.addWidget(self.domain_auto_feedback_lbl)
         layout.addLayout(count_row)
 
-        # 4. Clean List with Fluid Rows
+        # 3. Clean List with Fluid Rows
         self.domains_list = QListWidget()
         self.domains_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
         self.domains_list.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
@@ -979,6 +1091,13 @@ class SettingsDialog(QDialog):
 
         sched_row.addStretch()
         curfew_layout.addLayout(sched_row)
+
+        # Informative notice about desktop warning
+        curfew_notice = QLabel("🔔 Aviso inteligente: Recibirás una notificación en tu escritorio 10 minutos antes del Toque de Queda para cerrar tus pestañas con calma.")
+        curfew_notice.setStyleSheet("font-size: 11px; color: #58A6FF; font-weight: 500; padding: 2px 0px;")
+        curfew_notice.setWordWrap(True)
+        curfew_layout.addWidget(curfew_notice)
+
         layout.addWidget(curfew_card)
 
         # 3. Configurable Bypasses & Emergency Rules Card
@@ -1008,7 +1127,7 @@ class SettingsDialog(QDialog):
         emerg_layout.addWidget(self.curfew_emerg_cb)
 
         phrase_row = QHBoxLayout()
-        phrase_row.setSpacing(10)
+        phrase_row.setSpacing(8)
 
         phrase_lbl = QLabel("Frase de confirmación:")
         phrase_lbl.setObjectName("fieldLabel")
@@ -1017,6 +1136,13 @@ class SettingsDialog(QDialog):
         self.emergency_phrase_input = QLineEdit()
         self.emergency_phrase_input.setPlaceholderText("ej: necesito desbloqueo de emergencia")
         phrase_row.addWidget(self.emergency_phrase_input)
+
+        self.copy_phrase_btn = QPushButton("📋 Copiar")
+        self.copy_phrase_btn.setObjectName("secondaryBtn")
+        self.copy_phrase_btn.setToolTip("Copiar frase al portapapeles")
+        self.copy_phrase_btn.clicked.connect(self.on_copy_phrase_clicked)
+        phrase_row.addWidget(self.copy_phrase_btn)
+
         emerg_layout.addLayout(phrase_row)
 
         bypass_layout.addWidget(emerg_container)
@@ -1142,6 +1268,14 @@ class SettingsDialog(QDialog):
         grid.addWidget(self.btn_secondary_action, 1, 1)
 
         act_box.addLayout(grid)
+
+        # Stop manual focus button
+        self.btn_stop_focus = QPushButton("⏹️ Finalizar Sesión de Enfoque")
+        self.btn_stop_focus.setObjectName("secondaryBtn")
+        self.btn_stop_focus.setVisible(False)
+        self.btn_stop_focus.clicked.connect(self.on_stop_focus_clicked)
+        act_box.addWidget(self.btn_stop_focus)
+
         layout.addLayout(act_box)
 
         # 3. Telemetry / Active Rules Summary Card (Fills empty space)
@@ -1278,15 +1412,98 @@ class SettingsDialog(QDialog):
         set_autostart_enabled(checked)
 
 
+    def focus_domain_input(self):
+        self.tabs.setCurrentIndex(0)
+        self.domain_input.setFocus()
+        self.domain_input.selectAll()
+
+    def focus_search_or_domain_input(self):
+        self.tabs.setCurrentIndex(0)
+        if hasattr(self, "search_input") and self.search_input.isVisible():
+            self.search_input.setFocus()
+            self.search_input.selectAll()
+        else:
+            self.domain_input.setFocus()
+            self.domain_input.selectAll()
+
+    def on_copy_phrase_clicked(self):
+        phrase = self.emergency_phrase_input.text().strip() or "necesito desbloqueo de emergencia"
+        QApplication.clipboard().setText(phrase)
+        self.copy_phrase_btn.setText("✓ Copiado")
+        QTimer.singleShot(2000, lambda: self.copy_phrase_btn.setText("📋 Copiar"))
+
+    def on_stop_focus_clicked(self):
+        res = self.ipc.unlock()
+        if res.get("status") == "ok":
+            self.dash_feedback_lbl.setText("✓ Sesión finalizada")
+            self.refresh_live_status()
+            QTimer.singleShot(2500, lambda: self.dash_feedback_lbl.setText(""))
+
+    def on_domain_input_changed(self, text: str):
+        raw = text.strip()
+        if not raw:
+            self.domain_preview_lbl.setText("")
+            return
+        clean = sanitize_domain(raw)
+        if clean:
+            if clean in self.blocked_domains:
+                self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #D29922; font-weight: 600;")
+                self.domain_preview_lbl.setText(f"ℹ️ '{clean}' ya está en tu lista")
+            else:
+                self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #58A6FF; font-weight: 600;")
+                self.domain_preview_lbl.setText(f"➔ Se bloqueará: {clean}")
+        else:
+            self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
+            self.domain_preview_lbl.setText("✕ Formato no válido (ej: youtube.com)")
+
     def render_domains_list(self):
         self.domains_list.clear()
-        self.domains_count_lbl.setText(f"Sitios Bloqueados ({len(self.blocked_domains)})")
+        total_cnt = len(self.blocked_domains)
+        filter_text = self.search_input.text().strip().lower() if hasattr(self, "search_input") else ""
+        filtered_domains = [d for d in self.blocked_domains if (not filter_text or filter_text in d.lower())]
+
+        if filter_text:
+            self.domains_count_lbl.setText(f"Sitios ({len(filtered_domains)} de {total_cnt})")
+        else:
+            self.domains_count_lbl.setText(f"Sitios Bloqueados ({total_cnt})")
+
+        if hasattr(self, "search_input"):
+            self.search_input.setVisible(total_cnt > 5)
 
         is_dark = self.is_dark_mode()
         hover_bg = "rgba(255,255,255,0.04)" if is_dark else "rgba(0,0,0,0.04)"
         sep_color = "#21262D" if is_dark else "#E1E4E8"
 
-        for domain in sorted(self.blocked_domains):
+        if total_cnt == 0:
+            # Modern Empty State
+            item = QListWidgetItem()
+            empty_box = QFrame()
+            empty_layout = QVBoxLayout(empty_box)
+            empty_layout.setContentsMargins(20, 36, 20, 36)
+            empty_layout.setSpacing(6)
+            empty_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            ico = QLabel("🛡️")
+            ico.setStyleSheet("font-size: 28px; background: transparent; border: none;")
+            ico.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            empty_layout.addWidget(ico)
+
+            title = QLabel("No hay sitios en la lista")
+            title.setStyleSheet("font-size: 13px; font-weight: 700; color: #F0F6FC; background: transparent; border: none;")
+            title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            empty_layout.addWidget(title)
+
+            sub = QLabel("Añade arriba las webs distractoras (ej: youtube.com) para proteger tu tiempo.")
+            sub.setStyleSheet("font-size: 11px; color: #8B949E; background: transparent; border: none;")
+            sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            empty_layout.addWidget(sub)
+
+            item.setSizeHint(empty_box.sizeHint())
+            self.domains_list.addItem(item)
+            self.domains_list.setItemWidget(item, empty_box)
+            return
+
+        for domain in sorted(filtered_domains):
             item = QListWidgetItem()
             row = QFrame()
             row.setStyleSheet(f"""
@@ -1535,21 +1752,22 @@ class SettingsDialog(QDialog):
         boot_str = f"{boot.get('duration_minutes', 30)}m (Activo)" if (reason == "BOOT_COOLDOWN") else (f"{boot.get('duration_minutes', 30)}m" if boot.get('enabled') else "Desactivado")
         self.telem_boot_lbl.setText(f"• Cooldown de Inicio: {boot_str}")
 
-        # Inverted Guard Logic
+        # 1. State: UNLOCKED / FREE TIME (Emerald Green)
         if state == "UNLOCKED":
             self.status_badge.setText("● MODO LIBRE")
-            self.status_badge.setStyleSheet("background-color: rgba(248, 81, 73, 0.15); color: #F85149; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(248, 81, 73, 0.3);")
+            self.status_badge.setStyleSheet("background-color: rgba(46, 160, 67, 0.15); color: #3FB950; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(46, 160, 67, 0.3);")
             icon_idle = os.path.join(self.resource_dir, "icon-idle.svg")
             if os.path.exists(icon_idle):
                 self.header_icon_lbl.setPixmap(QIcon(icon_idle).pixmap(28, 28))
-            self.dash_state_pill.setText("DESPROTEGIDO")
-            self.dash_state_pill.setStyleSheet("border: 1px solid #F85149; color: #F85149; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px;")
-            self.dash_state_title.setText("Modo Libre (Sin Bloqueo)")
+            self.dash_state_pill.setText("MODO LIBRE")
+            self.dash_state_pill.setStyleSheet("border: 1px solid #2EA043; color: #3FB950; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background-color: rgba(46, 160, 67, 0.12);")
+            self.dash_state_title.setText("Modo Libre (Navegación Abierta)")
             self.dash_countdown_lbl.setText("Sitios Desbloqueados")
-            self.dash_countdown_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #F85149;")
+            self.dash_countdown_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #3FB950;")
             self.dash_desc_lbl.setText("El bloqueo no está activo. Puedes iniciar una sesión de enfoque cuando gustes.")
             self.dash_progress_bar.setValue(0)
-            self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #F85149; }")
+            self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #2EA043; }")
+            self.btn_stop_focus.setVisible(False)
 
             self.btn_primary_action.setText("🔒 Bloquear Ahora")
             self.btn_primary_action.setEnabled(True)
@@ -1557,20 +1775,22 @@ class SettingsDialog(QDialog):
             self.btn_pomodoro_50.setEnabled(True)
             self.btn_secondary_action.setEnabled(False)
 
+        # 2. State: BYPASS / BREAK (Amber Gold)
         elif state == "BYPASS":
             self.status_badge.setText("● EN DESCANSO")
-            self.status_badge.setStyleSheet("background-color: rgba(210, 153, 34, 0.15); color: #D29922; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(210, 153, 34, 0.3);")
+            self.status_badge.setStyleSheet("background-color: rgba(210, 153, 34, 0.15); color: #E3B341; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(210, 153, 34, 0.3);")
             icon_byp = os.path.join(self.resource_dir, "icon-bypass.svg")
             if os.path.exists(icon_byp):
                 self.header_icon_lbl.setPixmap(QIcon(icon_byp).pixmap(28, 28))
             self.dash_state_pill.setText("PAUSA TEMPORAL")
-            self.dash_state_pill.setStyleSheet("border: 1px solid #D29922; color: #D29922; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px;")
+            self.dash_state_pill.setStyleSheet("border: 1px solid #D29922; color: #E3B341; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background-color: rgba(210, 153, 34, 0.12);")
             self.dash_state_title.setText("Descanso Temporal Activo")
             self.dash_countdown_lbl.setText(f"{human_time} restantes")
-            self.dash_countdown_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #D29922;")
+            self.dash_countdown_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #E3B341;")
             self.dash_desc_lbl.setText("Acceso concedido temporalmente. Los sitios se bloquearán al finalizar.")
             self.dash_progress_bar.setValue(max(5, min(100, int((rem / 900) * 100))))
             self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #D29922; }")
+            self.btn_stop_focus.setVisible(False)
 
             self.btn_primary_action.setText("🔒 Terminar Descanso")
             self.btn_primary_action.setEnabled(True)
@@ -1579,21 +1799,23 @@ class SettingsDialog(QDialog):
             self.btn_secondary_action.setText("Pausa en Curso")
             self.btn_secondary_action.setEnabled(False)
 
+        # 3. State: LOCKED / ACTIVE PROTECTION
         elif is_blocking:
-            self.status_badge.setText("● PROTEGIDO")
-            self.status_badge.setStyleSheet("background-color: rgba(46, 160, 67, 0.15); color: #2EA043; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(46, 160, 67, 0.3);")
-            self.dash_state_pill.setText("ENFOQUE ACTIVO")
-            self.dash_state_pill.setStyleSheet("border: 1px solid #2EA043; color: #2EA043; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px;")
-            self.dash_countdown_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #2EA043;")
-            self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #2EA043; }")
-
             if reason == "CURFEW":
+                self.status_badge.setText("● TOQUE DE QUEDA")
+                self.status_badge.setStyleSheet("background-color: rgba(137, 87, 229, 0.15); color: #D2A8FF; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(137, 87, 229, 0.3);")
                 icon_curf = os.path.join(self.resource_dir, "icon-curfew.svg")
                 if os.path.exists(icon_curf):
                     self.header_icon_lbl.setPixmap(QIcon(icon_curf).pixmap(28, 28))
+                self.dash_state_pill.setText("NOCHE PROTEGIDA")
+                self.dash_state_pill.setStyleSheet("border: 1px solid #8957E5; color: #D2A8FF; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background-color: rgba(137, 87, 229, 0.12);")
                 self.dash_state_title.setText("Toque de Queda Nocturno")
                 self.dash_desc_lbl.setText(f"Protección nocturna activa hasta las {target}.")
+                self.dash_countdown_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #D2A8FF;")
                 self.dash_progress_bar.setValue(100)
+                self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #8957E5; }")
+                self.btn_stop_focus.setVisible(False)
+
                 self.btn_primary_action.setText("🔒 Bloqueo Nocturno")
                 self.btn_primary_action.setEnabled(False)
                 self.btn_pomodoro_25.setEnabled(False)
@@ -1607,13 +1829,20 @@ class SettingsDialog(QDialog):
                     self.btn_secondary_action.setEnabled(False)
 
             elif reason == "BOOT_COOLDOWN":
+                self.status_badge.setText("● FOCO DE INICIO")
+                self.status_badge.setStyleSheet("background-color: rgba(56, 139, 253, 0.15); color: #58A6FF; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(56, 139, 253, 0.3);")
                 icon_bt = os.path.join(self.resource_dir, "icon-boot.svg")
                 if os.path.exists(icon_bt):
                     self.header_icon_lbl.setPixmap(QIcon(icon_bt).pixmap(28, 28))
+                self.dash_state_pill.setText("BOOT FOCUS")
+                self.dash_state_pill.setStyleSheet("border: 1px solid #388BFD; color: #58A6FF; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background-color: rgba(56, 139, 253, 0.12);")
                 self.dash_state_title.setText("Cooldown de Arranque")
                 self.dash_desc_lbl.setText(f"Protección de inicio activa hasta las {target}.")
+                self.dash_countdown_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #58A6FF;")
                 total_boot = max(1, self.config_data.get("boot_cooldown", {}).get("duration_minutes", 30) * 60)
                 self.dash_progress_bar.setValue(max(5, min(100, int((rem / total_boot) * 100))))
+                self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #388BFD; }")
+                self.btn_stop_focus.setVisible(False)
 
                 self.btn_primary_action.setText("🔒 Inicio Activo")
                 self.btn_primary_action.setEnabled(False)
@@ -1627,16 +1856,24 @@ class SettingsDialog(QDialog):
                     self.btn_secondary_action.setEnabled(False)
 
             elif reason == "MANUAL_LOCK":
+                self.status_badge.setText("● ENFOQUE ACTIVO")
+                self.status_badge.setStyleSheet("background-color: rgba(56, 139, 253, 0.15); color: #58A6FF; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(56, 139, 253, 0.3);")
                 icon_act = os.path.join(self.resource_dir, "icon-active.svg")
                 if os.path.exists(icon_act):
                     self.header_icon_lbl.setPixmap(QIcon(icon_act).pixmap(28, 28))
-                self.dash_state_title.setText("Modo Focus Manual")
-                self.dash_desc_lbl.setText("Protección activada manualmente.")
+                self.dash_state_pill.setText("ENFOQUE MANUAL")
+                self.dash_state_pill.setStyleSheet("border: 1px solid #388BFD; color: #58A6FF; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background-color: rgba(56, 139, 253, 0.12);")
+                self.dash_state_title.setText("Modo Focus / Pomodoro")
+                self.dash_desc_lbl.setText("Sesión de concentración manual en curso.")
+                self.dash_countdown_lbl.setStyleSheet("font-size: 20px; font-weight: 800; color: #58A6FF;")
                 self.dash_progress_bar.setValue(100)
-                self.btn_primary_action.setText("🔓 Desbloquear Sitios")
-                self.btn_primary_action.setEnabled(True)
-                self.btn_pomodoro_25.setEnabled(True)
-                self.btn_pomodoro_50.setEnabled(True)
+                self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #388BFD; }")
+                self.btn_stop_focus.setVisible(True)
+
+                self.btn_primary_action.setText("🔒 Enfoque en Curso")
+                self.btn_primary_action.setEnabled(False)
+                self.btn_pomodoro_25.setEnabled(False)
+                self.btn_pomodoro_50.setEnabled(False)
 
                 if bypasses_enabled:
                     self.btn_secondary_action.setText("☕ Tomar Descanso (15m)")

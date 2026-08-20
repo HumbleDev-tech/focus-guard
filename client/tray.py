@@ -251,26 +251,25 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.last_reason = reason
         self.last_is_blocking = is_blocking
 
-        # 3. State-Specific Icon & Tooltip
+        # 3. State-Specific Icon & Rich Formatted Tooltip
+        domains_num = res.get("domains_count", 0)
         if state == "LOCKED":
             if reason == "CURFEW":
                 self.setIcon(self.icon_curfew)
-                tooltip_txt = f"Focus-Guard: Toque de Queda (Protegido)\n{message}"
+                tooltip_txt = f"Focus-Guard • PROTEGIDO\n🌙 Toque de Queda nocturno (hasta las {target_time or '07:00'})\n⏳ {time_str or 'Protección activa'}\n🛡️ {domains_num} sitios bloqueados"
             elif reason == "BOOT_COOLDOWN":
                 self.setIcon(self.icon_boot)
-                tooltip_txt = f"Focus-Guard: Cooldown de Arranque (Protegido)\n{message}"
+                tooltip_txt = f"Focus-Guard • PROTEGIDO\n⚡ Foco de Inicio (hasta las {target_time})\n⏳ {time_str or 'Protección activa'}\n🛡️ {domains_num} sitios bloqueados"
             else:
                 self.setIcon(self.icon_active)
-                tooltip_txt = f"Focus-Guard: Focus Manual (Protegido)\n{message}"
+                tooltip_txt = f"Focus-Guard • PROTEGIDO\n🎯 Sesión de Enfoque Activa\n⏳ {time_str or 'Protección activa'}\n🛡️ {domains_num} sitios bloqueados"
         elif state == "BYPASS":
             self.setIcon(self.icon_bypass)
-            tooltip_txt = f"Focus-Guard: Descanso Temporal (Pausa)\n{message}"
+            tooltip_txt = f"Focus-Guard • EN DESCANSO\n☕ Pausa temporal en curso\n⏳ {time_str or 'Pausa activa'}"
         else:
             self.setIcon(self.icon_idle)
-            tooltip_txt = f"Focus-Guard: Apagado / Modo Libre\n{message}"
+            tooltip_txt = f"Focus-Guard • MODO LIBRE\n🛡️ {domains_num} sitios listos para proteger"
 
-        if time_str:
-            tooltip_txt += f"\n{time_str}"
         self.setToolTip(tooltip_txt)
 
         # 4. Context-Aware Menu Items
