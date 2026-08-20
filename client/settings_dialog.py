@@ -1077,10 +1077,10 @@ class SettingsDialog(QDialog):
         sched_row.addWidget(sched_lbl)
 
         curfew_presets = [
-            ("23:00 ➔ 07:00", (23, 0), (7, 0)),
-            ("23:30 ➔ 07:30", (23, 30), (7, 30)),
-            ("00:00 ➔ 08:00", (0, 0), (8, 0)),
-            ("01:00 ➔ 07:00", (1, 0), (7, 0))
+            ("23:00 a 07:00", (23, 0), (7, 0)),
+            ("23:30 a 07:30", (23, 30), (7, 30)),
+            ("00:00 a 08:00", (0, 0), (8, 0)),
+            ("01:00 a 07:00", (1, 0), (7, 0))
         ]
         for p_title, p_start, p_end in curfew_presets:
             p_btn = QPushButton(p_title)
@@ -1313,7 +1313,7 @@ class SettingsDialog(QDialog):
         bottom = QHBoxLayout()
         bottom.setSpacing(10)
 
-        self.save_feedback_lbl = QLabel("✓ Cambios sincronizados con el demonio")
+        self.save_feedback_lbl = QLabel("Cambios sincronizados con el demonio")
         self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
         bottom.addWidget(self.save_feedback_lbl)
 
@@ -1604,7 +1604,7 @@ class SettingsDialog(QDialog):
             self.config_data = updated_config
             self.config_saved.emit()
             self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
-            self.domain_auto_feedback_lbl.setText(f"✓ {feedback_text}")
+            self.domain_auto_feedback_lbl.setText(feedback_text)
             QTimer.singleShot(2500, lambda: self.domain_auto_feedback_lbl.setText(""))
 
     def on_save_clicked(self):
@@ -1637,7 +1637,7 @@ class SettingsDialog(QDialog):
             self.config_saved.emit()
             self.check_for_unsaved_changes()
             self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
-            self.save_feedback_lbl.setText("✓ Reglas guardadas y sincronizadas")
+            self.save_feedback_lbl.setText("Reglas guardadas y sincronizadas")
             QTimer.singleShot(3000, lambda: self.check_for_unsaved_changes())
         else:
             self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
@@ -1882,7 +1882,7 @@ class SettingsDialog(QDialog):
     def start_focus_session(self, minutes: int):
         """Starts a timed focus session (Pomodoro)."""
         self.ipc.lock_now(duration_minutes=minutes)
-        self.dash_feedback_lbl.setText(f"✓ Sesión de enfoque de {minutes} minutos iniciada.")
+        self.dash_feedback_lbl.setText(f"Sesión de enfoque de {minutes} minutos iniciada.")
         QTimer.singleShot(3000, lambda: self.dash_feedback_lbl.setText(""))
         self.refresh_live_status()
 
@@ -1893,13 +1893,13 @@ class SettingsDialog(QDialog):
 
         if state == "UNLOCKED":
             self.ipc.lock_now()
-            self.dash_feedback_lbl.setText("✓ Modo Focus activado.")
+            self.dash_feedback_lbl.setText("Modo Focus activado.")
         elif state == "BYPASS":
             self.ipc.cancel_bypass()
-            self.dash_feedback_lbl.setText("✓ Descanso finalizado. Modo Focus reactivado.")
+            self.dash_feedback_lbl.setText("Descanso finalizado. Modo Focus reactivado.")
         elif reason == "MANUAL_LOCK":
             self.ipc.unlock_now()
-            self.dash_feedback_lbl.setText("✓ Sitios desbloqueados.")
+            self.dash_feedback_lbl.setText("Sitios desbloqueados.")
 
         QTimer.singleShot(3000, lambda: self.dash_feedback_lbl.setText(""))
         self.refresh_live_status()
@@ -1914,13 +1914,13 @@ class SettingsDialog(QDialog):
             if dialog.exec() == QDialog.DialogCode.Accepted and dialog.confirmed:
                 emerg_res = self.ipc.request_emergency_bypass(15)
                 if emerg_res.get("status") == "ok":
-                    self.dash_feedback_lbl.setText("✓ Desbloqueo de emergencia concedido por 15 minutos.")
+                    self.dash_feedback_lbl.setText("Desbloqueo de emergencia concedido por 15 minutos.")
                 else:
                     self.dash_feedback_lbl.setText("No se pudo activar el desbloqueo.")
         else:
             bypass_res = self.ipc.request_bypass(15)
             if bypass_res.get("status") == "ok":
-                self.dash_feedback_lbl.setText("✓ Descanso de 15 minutos activado.")
+                self.dash_feedback_lbl.setText("Descanso de 15 minutos activado.")
             else:
                 self.dash_feedback_lbl.setText(bypass_res.get("message", "No se pudo activar."))
 

@@ -136,7 +136,7 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.menu.addSeparator()
 
         # 10. Quit Action
-        self.quit_action = QAction("🚪 Salir", self.menu)
+        self.quit_action = QAction("Cerrar Focus-Guard", self.menu)
         self.quit_action.triggered.connect(QApplication.instance().quit)
         self.menu.addAction(self.quit_action)
 
