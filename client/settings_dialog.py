@@ -12,10 +12,10 @@ from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit,
     QListWidget, QListWidgetItem, QTabWidget, QWidget, QCheckBox,
     QTimeEdit, QSpinBox, QFrame, QProgressBar, QGridLayout, QApplication,
-    QScrollArea
+    QScrollArea, QAbstractItemView
 )
 from PyQt6.QtGui import QIcon, QPalette, QKeySequence, QShortcut
-from PyQt6.QtCore import Qt, QTime, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, QTime, QTimer, pyqtSignal, QSize
 
 from client.ipc_client import FocusIPCClient
 
@@ -213,6 +213,122 @@ class EmergencyPromptDialog(QDialog):
             self.accept()
         else:
             self.input_field.setStyleSheet("border: 1px solid #F85149;")
+
+
+class ConfirmDomainRemovalDialog(QDialog):
+    """Friction modal to prevent impulsive deletion of blocked sites during active protection."""
+    def __init__(self, domain: str, reason_str: str, phrase: str, parent=None):
+        super().__init__(parent)
+        self.domain = domain
+        self.phrase = phrase.strip()
+        self.confirmed = False
+
+        self.setWindowTitle("Protección contra Impulsos")
+        self.setMinimumWidth(440)
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #0D1117;
+                color: #F0F6FC;
+                font-family: system-ui, -apple-system, sans-serif;
+            }
+            QLineEdit {
+                background-color: #161B22;
+                color: #F0F6FC;
+                border: 1px solid #30363D;
+                border-radius: 6px;
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+            QPushButton#dangerBtn {
+                background-color: #DA3633;
+                color: #FFFFFF;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: 600;
+            }
+            QPushButton#dangerBtn:hover {
+                background-color: #F85149;
+            }
+            QPushButton#secondaryBtn {
+                background-color: #161B22;
+                color: #F0F6FC;
+                border: 1px solid #30363D;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: 600;
+            }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        title = QLabel(f"🛡️ Protección de Enfoque Activa")
+        title.setStyleSheet("font-size: 15px; font-weight: 700; color: #F0F6FC;")
+        layout.addWidget(title)
+
+        desc = QLabel(
+            f"El escudo de protección está activo actualmente (<b>{reason_str}</b>). "
+            f"Eliminar <b>{self.domain}</b> ahora desbloqueará el sitio de forma inmediata."
+        )
+        desc.setStyleSheet("font-size: 12px; color: #8B949E; line-height: 1.4;")
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        if self.phrase:
+            instruction = QLabel("Para confirmar que no es un impulso y eliminar el sitio, escribe la frase de seguridad:")
+            instruction.setStyleSheet("font-size: 12px; color: #F0F6FC; font-weight: 500;")
+            instruction.setWordWrap(True)
+            layout.addWidget(instruction)
+
+            phrase_box = QLabel(self.phrase)
+            phrase_box.setStyleSheet("""
+                background-color: #161B22;
+                border: 1px solid #30363D;
+                border-radius: 6px;
+                padding: 8px 12px;
+                font-family: monospace;
+                font-size: 12px;
+                font-weight: 600;
+                color: #58A6FF;
+            """)
+            phrase_box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            layout.addWidget(phrase_box)
+
+            self.input_field = QLineEdit()
+            self.input_field.setPlaceholderText("Escribe la frase exactamente aquí...")
+            self.input_field.returnPressed.connect(self.on_confirm)
+            layout.addWidget(self.input_field)
+        else:
+            self.input_field = None
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+
+        cancel_btn = QPushButton("Cancelar")
+        cancel_btn.setObjectName("secondaryBtn")
+        cancel_btn.clicked.connect(self.reject)
+        btn_row.addWidget(cancel_btn)
+
+        del_btn = QPushButton(f"Eliminar {self.domain}")
+        del_btn.setObjectName("dangerBtn")
+        del_btn.clicked.connect(self.on_confirm)
+        btn_row.addWidget(del_btn)
+
+        layout.addLayout(btn_row)
+
+    def on_confirm(self):
+        if self.input_field:
+            entered = self.input_field.text().strip().lower()
+            if entered == self.phrase.lower():
+                self.confirmed = True
+                self.accept()
+            else:
+                self.input_field.setStyleSheet("border: 1px solid #F85149; background-color: #161B22; color: #F0F6FC; border-radius: 6px; padding: 8px 12px;")
+        else:
+            self.confirmed = True
+            self.accept()
 
 
 class AboutDialog(QDialog):
@@ -690,6 +806,8 @@ class SettingsDialog(QDialog):
         # 4. Clean List with Fluid Rows
         self.domains_list = QListWidget()
         self.domains_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
+        self.domains_list.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+        self.domains_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         layout.addWidget(self.domains_list)
 
         self.tabs.addTab(tab, "Sitios Bloqueados")
@@ -1164,7 +1282,6 @@ class SettingsDialog(QDialog):
                     background-color: transparent;
                     border-bottom: 1px solid {sep_color};
                     border-radius: 4px;
-                    padding: 4px 8px;
                 }}
                 QFrame:hover {{
                     background-color: {hover_bg};
@@ -1172,7 +1289,7 @@ class SettingsDialog(QDialog):
             """)
 
             row_layout = QHBoxLayout(row)
-            row_layout.setContentsMargins(8, 5, 8, 5)
+            row_layout.setContentsMargins(10, 4, 10, 4)
             row_layout.setSpacing(10)
 
             # Icon tag
@@ -1186,28 +1303,30 @@ class SettingsDialog(QDialog):
 
             row_layout.addStretch()
 
-            # Compact delete icon button
+            # Clearly visible and distinct delete icon button
             del_btn = QPushButton("✕")
             del_btn.setToolTip(f"Eliminar {domain}")
-            del_btn.setFixedSize(24, 24)
+            del_btn.setFixedSize(26, 26)
             del_btn.setStyleSheet("""
                 QPushButton {
-                    border: none;
-                    background: transparent;
+                    border: 1px solid #30363D;
+                    background-color: #21262D;
+                    color: #8B949E;
                     font-size: 12px;
                     font-weight: 700;
-                    color: #8B949E;
-                    border-radius: 12px;
+                    border-radius: 6px;
+                    padding: 0px;
                 }
                 QPushButton:hover {
                     color: #FFFFFF;
-                    background-color: #F85149;
+                    background-color: #DA3633;
+                    border-color: #F85149;
                 }
             """)
             del_btn.clicked.connect(lambda _, d=domain: self.on_remove_domain(d))
             row_layout.addWidget(del_btn)
 
-            item.setSizeHint(row.sizeHint())
+            item.setSizeHint(QSize(0, 42))
             self.domains_list.addItem(item)
             self.domains_list.setItemWidget(item, row)
 
@@ -1234,10 +1353,24 @@ class SettingsDialog(QDialog):
         self.auto_save_domains(feedback_text=f"'{domain}' añadido y guardado")
 
     def on_remove_domain(self, domain: str):
-        if domain in self.blocked_domains:
-            self.blocked_domains.remove(domain)
-            self.render_domains_list()
-            self.auto_save_domains(feedback_text=f"'{domain}' eliminado")
+        if domain not in self.blocked_domains:
+            return
+
+        # Check if active protection is running (Curfew, Boot Cooldown, or Manual Lock)
+        status_res = self.ipc.get_status()
+        is_blocking = status_res.get("is_blocking", False) if status_res.get("status") == "ok" else False
+        reason_msg = status_res.get("message", "Bloqueo activo")
+
+        if is_blocking:
+            phrase = self.config_data.get("bypasses", {}).get("emergency_phrase", "necesito desbloqueo de emergencia")
+            dlg = ConfirmDomainRemovalDialog(domain=domain, reason_str=reason_msg, phrase=phrase, parent=self)
+            dlg.exec()
+            if not dlg.confirmed:
+                return
+
+        self.blocked_domains.remove(domain)
+        self.render_domains_list()
+        self.auto_save_domains(feedback_text=f"'{domain}' eliminado")
 
     def auto_save_domains(self, feedback_text: str = "Guardado"):
         """Silently auto-saves domain modifications to daemon."""
