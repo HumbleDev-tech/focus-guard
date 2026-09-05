@@ -17,9 +17,10 @@ from client.theme import apply_dialog_theme
 
 class AboutDialog(QDialog):
     """Sleek modern About dialog matching KDE Plasma 6 dark aesthetic."""
-    def __init__(self, resource_dir: str, config: Dict[str, Any], parent=None):
+    def __init__(self, resource_dir: str, config: Dict[str, Any] | None = None, parent=None):
         super().__init__(parent)
         self.resource_dir = resource_dir
+        self.config = config or {}
         self.setWindowTitle("Acerca de Focus-Guard")
         self.setFixedSize(480, 420)
         apply_dialog_theme(self, resource_dir=resource_dir)
@@ -61,9 +62,9 @@ class AboutDialog(QDialog):
         card_layout = QVBoxLayout(card)
         card_layout.setSpacing(8)
 
-        curfew = config.get("curfew", {})
-        boot = config.get("boot_cooldown", {})
-        domains = config.get("blocked_domains", [])
+        curfew = self.config.get("curfew", {})
+        boot = self.config.get("boot_cooldown", {})
+        domains = self.config.get("blocked_domains", [])
 
         curfew_txt = f"{curfew.get('start_time', '23:15')} a {curfew.get('end_time', '07:00')}" if curfew.get('enabled') else "Desactivado"
         boot_txt = f"{boot.get('duration_minutes', 30)} minutos" if boot.get('enabled') else "Desactivado"
