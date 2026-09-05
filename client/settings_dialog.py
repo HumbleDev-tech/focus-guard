@@ -106,6 +106,7 @@ class SettingsDialog(QDialog):
         self.setup_selective_tab()
         self.setup_rules_tab()
         self.setup_dashboard_tab()
+        self.tabs.currentChanged.connect(self.on_tab_changed)
         self.main_layout.addWidget(self.tabs)
 
         # 3. Bottom Bar
@@ -325,7 +326,7 @@ class SettingsDialog(QDialog):
         split_layout = QHBoxLayout()
         split_layout.setSpacing(12)
 
-        # LEFT COLUMN (55%): Minimalist Domain Picker
+        # LEFT COLUMN (55%): Minimalist Domain Picker & On-the-fly Adder
         sites_card = QFrame()
         sites_card.setObjectName("settingsCard")
         sites_layout = QVBoxLayout(sites_card)
@@ -343,7 +344,27 @@ class SettingsDialog(QDialog):
         col_top.addWidget(self.sel_count_lbl)
         sites_layout.addLayout(col_top)
 
-        # Search filter and bulk buttons
+        # Quick Add Site Row directly in this tab
+        add_row = QHBoxLayout()
+        add_row.setSpacing(6)
+
+        self.sel_add_input = QLineEdit()
+        self.sel_add_input.setPlaceholderText("Añadir sitio y seleccionar (ej: instagram.com)...")
+        self.sel_add_input.returnPressed.connect(self.on_sel_add_domain_clicked)
+        add_row.addWidget(self.sel_add_input)
+
+        sel_add_btn = QPushButton("Añadir")
+        sel_add_btn.setObjectName("primaryBtn")
+        sel_add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        sel_add_btn.clicked.connect(self.on_sel_add_domain_clicked)
+        add_row.addWidget(sel_add_btn)
+        sites_layout.addLayout(add_row)
+
+        self.sel_add_feedback_lbl = QLabel("")
+        self.sel_add_feedback_lbl.setStyleSheet("font-size: 11px; font-weight: 600;")
+        sites_layout.addWidget(self.sel_add_feedback_lbl)
+
+        # Search filter, bulk actions, and refresh button
         toolbar_row = QHBoxLayout()
         toolbar_row.setSpacing(6)
 
@@ -364,6 +385,13 @@ class SettingsDialog(QDialog):
         desel_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         desel_all_btn.clicked.connect(self.on_deselect_all_selective)
         toolbar_row.addWidget(desel_all_btn)
+
+        refresh_btn = QPushButton("Actualizar")
+        refresh_btn.setObjectName("presetChipSmall")
+        refresh_btn.setToolTip("Recargar lista desde la configuración activa")
+        refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        refresh_btn.clicked.connect(self.on_refresh_selective_list)
+        toolbar_row.addWidget(refresh_btn)
         sites_layout.addLayout(toolbar_row)
 
         self.sel_domains_list = QListWidget()
@@ -380,81 +408,78 @@ class SettingsDialog(QDialog):
         ctrl_card.setObjectName("settingsCard")
         ctrl_layout = QVBoxLayout(ctrl_card)
         ctrl_layout.setContentsMargins(14, 14, 14, 14)
-        ctrl_layout.setSpacing(10)
+        ctrl_layout.setSpacing(12)
 
-        ctrl_title = QLabel("2. Tiempo de Enfoque")
+        ctrl_title = QLabel("2. Duración del Bloqueo")
         ctrl_title.setStyleSheet("font-size: 12px; font-weight: 700; color: #F0F6FC;" if self.is_dark_mode() else "font-size: 12px; font-weight: 700; color: #1F2328;")
         ctrl_layout.addWidget(ctrl_title)
 
-        ctrl_sub = QLabel("Intervalos predefinidos o personalizados:")
-        ctrl_sub.setObjectName("cardDesc")
-        ctrl_layout.addWidget(ctrl_sub)
+        ctrl_desc = QLabel("Define el tiempo durante el cual permanecerán bloqueados los sitios marcados.")
+        ctrl_desc.setStyleSheet("font-size: 11.5px; color: #8B949E; line-height: 1.3;")
+        ctrl_desc.setWordWrap(True)
+        ctrl_layout.addWidget(ctrl_desc)
 
-        # Presets Matrix
-        grid = QGridLayout()
-        grid.setSpacing(6)
-        presets = [
-            ("15 min", 15),
-            ("25 min (Pomodoro)", 25),
-            ("45 min", 45),
-            ("60 min", 60)
-        ]
-        self.sel_preset_buttons = {}
-        row_idx = 0
-        col_idx = 0
-        for p_label, p_val in presets:
-            btn = QPushButton(p_label)
-            btn.setObjectName("presetCardBtn")
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.clicked.connect(lambda _, v=p_val: self.sel_duration_spin.setValue(v))
-            self.sel_preset_buttons[p_val] = btn
-            grid.addWidget(btn, row_idx, col_idx)
-            col_idx += 1
-            if col_idx > 1:
-                col_idx = 0
-                row_idx += 1
-        ctrl_layout.addLayout(grid)
+        # Duration Selector Box
+        dur_box = QFrame()
+        dur_box.setStyleSheet("""
+            QFrame {
+                background-color: #161B22;
+                border: 1px solid #30363D;
+                border-radius: 8px;
+                padding: 10px;
+            }
+        """)
+        dur_box_layout = QVBoxLayout(dur_box)
+        dur_box_layout.setSpacing(8)
 
-        # 120m long session chip
-        btn_120 = QPushButton("120 min (2 horas)")
-        btn_120.setObjectName("presetCardBtn")
-        btn_120.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_120.clicked.connect(lambda: self.sel_duration_spin.setValue(120))
-        self.sel_preset_buttons[120] = btn_120
-        ctrl_layout.addWidget(btn_120)
+        dur_box_title = QLabel("Tiempo a bloquear:")
+        dur_box_title.setStyleSheet("font-size: 11px; font-weight: 600; color: #8B949E;")
+        dur_box_layout.addWidget(dur_box_title)
 
-        # Stepper Row
         stepper_row = QHBoxLayout()
         stepper_row.setSpacing(6)
-        stepper_lbl = QLabel("Ajuste manual:")
-        stepper_lbl.setObjectName("fieldLabel")
-        stepper_row.addWidget(stepper_lbl)
 
-        step_minus = QPushButton("−")
+        step_minus = QPushButton("−5m")
         step_minus.setObjectName("stepBtn")
         step_minus.setCursor(Qt.CursorShape.PointingHandCursor)
+        step_minus.setFixedWidth(46)
         step_minus.clicked.connect(lambda: self.step_selective_duration(-5))
         stepper_row.addWidget(step_minus)
 
         self.sel_duration_spin = QSpinBox()
-        self.sel_duration_spin.setRange(5, 480)
+        self.sel_duration_spin.setRange(1, 1440)
         self.sel_duration_spin.setSingleStep(5)
         self.sel_duration_spin.setValue(25)
         self.sel_duration_spin.setSuffix(" min")
-        self.sel_duration_spin.setFixedWidth(85)
         self.sel_duration_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.sel_duration_spin.setStyleSheet("""
+            QSpinBox {
+                font-size: 15px;
+                font-weight: 700;
+                color: #58A6FF;
+                background-color: #0D1117;
+                border: 1px solid #30363D;
+                border-radius: 6px;
+                padding: 6px 12px;
+            }
+            QSpinBox:focus {
+                border-color: #388BFD;
+            }
+        """)
         self.sel_duration_spin.valueChanged.connect(self.update_selective_summary)
         stepper_row.addWidget(self.sel_duration_spin)
 
-        step_plus = QPushButton("+")
+        step_plus = QPushButton("+5m")
         step_plus.setObjectName("stepBtn")
         step_plus.setCursor(Qt.CursorShape.PointingHandCursor)
+        step_plus.setFixedWidth(46)
         step_plus.clicked.connect(lambda: self.step_selective_duration(5))
         stepper_row.addWidget(step_plus)
-        stepper_row.addStretch()
-        ctrl_layout.addLayout(stepper_row)
 
-        # Live Forecast Card
+        dur_box_layout.addLayout(stepper_row)
+        ctrl_layout.addWidget(dur_box)
+
+        # Session Forecast Card
         self.sel_summary_card = QFrame()
         self.sel_summary_card.setObjectName("previewCard")
         sum_layout = QVBoxLayout(self.sel_summary_card)
@@ -474,9 +499,28 @@ class SettingsDialog(QDialog):
         ctrl_layout.addStretch()
 
         # Action Button
-        self.sel_start_btn = QPushButton("Bloquear Sitios Seleccionados")
+        self.sel_start_btn = QPushButton("Iniciar Bloqueo (25 min)")
         self.sel_start_btn.setObjectName("primaryBtn")
-        self.sel_start_btn.setMinimumHeight(38)
+        self.sel_start_btn.setMinimumHeight(42)
+        self.sel_start_btn.setStyleSheet("""
+            QPushButton#primaryBtn {
+                background-color: #388BFD;
+                color: #FFFFFF;
+                font-size: 13px;
+                font-weight: 700;
+                border: none;
+                border-radius: 6px;
+                padding: 10px 16px;
+            }
+            QPushButton#primaryBtn:hover {
+                background-color: #1F6FEB;
+            }
+            QPushButton#primaryBtn:disabled {
+                background-color: #21262D;
+                color: #6E7681;
+                border: 1px solid #30363D;
+            }
+        """)
         self.sel_start_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.sel_start_btn.clicked.connect(self.on_start_selective_lock)
         ctrl_layout.addWidget(self.sel_start_btn)
@@ -1201,9 +1245,11 @@ class SettingsDialog(QDialog):
         if res.get("status") == "ok":
             self.config_data = updated_config
             self.config_saved.emit()
-            self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
-            self.domain_auto_feedback_lbl.setText(feedback_text)
-            QTimer.singleShot(2500, lambda: self.domain_auto_feedback_lbl.setText(""))
+            if hasattr(self, "domain_auto_feedback_lbl"):
+                self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
+                self.domain_auto_feedback_lbl.setText(feedback_text)
+                QTimer.singleShot(2500, lambda: self.domain_auto_feedback_lbl.setText(""))
+            self.render_selective_domains_list()
 
     def render_selective_domains_list(self):
         """Populates the selective blocking domains list with minimalist tiles."""
@@ -1390,6 +1436,46 @@ class SettingsDialog(QDialog):
                     self.apply_domain_tile_style(frame, False)
         self.update_selective_summary()
 
+    def on_sel_add_domain_clicked(self):
+        raw = self.sel_add_input.text().strip()
+        if not raw:
+            return
+        domain = sanitize_domain(raw)
+        if not domain:
+            self.sel_add_feedback_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
+            self.sel_add_feedback_lbl.setText("Formato no válido (ej: twitter.com)")
+            QTimer.singleShot(3000, lambda: self.sel_add_feedback_lbl.setText(""))
+            return
+
+        if domain not in self.blocked_domains:
+            self.blocked_domains.append(domain)
+            self.auto_save_domains()
+            self.render_domains_list()
+
+        self.selected_selective_domains.add(domain)
+        self.sel_add_input.clear()
+        self.render_selective_domains_list()
+        self.sel_add_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
+        self.sel_add_feedback_lbl.setText(f"Añadido y seleccionado: {domain}")
+        QTimer.singleShot(3000, lambda: self.sel_add_feedback_lbl.setText(""))
+
+    def on_refresh_selective_list(self):
+        res = self.ipc.get_config()
+        if res.get("status") == "ok":
+            self.config_data = res.get("config", {})
+            self.blocked_domains = list(self.config_data.get("blocked_domains", []))
+        self.render_selective_domains_list()
+        self.render_domains_list()
+        self.sel_add_feedback_lbl.setStyleSheet("font-size: 11px; color: #58A6FF; font-weight: 600;")
+        self.sel_add_feedback_lbl.setText("Lista sincronizada")
+        QTimer.singleShot(2500, lambda: self.sel_add_feedback_lbl.setText(""))
+
+    def on_tab_changed(self, index: int):
+        if index == 0:
+            self.render_domains_list()
+        elif index == 1:
+            self.render_selective_domains_list()
+
     def update_selective_summary(self):
         if not hasattr(self, "sel_count_lbl"):
             return
@@ -1402,20 +1488,10 @@ class SettingsDialog(QDialog):
         target_dt = datetime.now() + timedelta(minutes=dur)
         target_str = target_dt.strftime("%H:%M")
 
-        # Update preset button visual highlights
-        if hasattr(self, "sel_preset_buttons"):
-            for p_val, btn in self.sel_preset_buttons.items():
-                if p_val == dur:
-                    btn.setObjectName("presetCardBtnSelected")
-                else:
-                    btn.setObjectName("presetCardBtn")
-                btn.style().unpolish(btn)
-                btn.style().polish(btn)
-
         if count == 0:
             self.sel_summary_title.setText("Parámetros de Sesión")
             self.sel_summary_title.setStyleSheet("font-size: 11px; font-weight: 700; color: #8B949E;")
-            self.sel_summary_lbl.setText("Ningún sitio seleccionado. Marca al menos un dominio para continuar.")
+            self.sel_summary_lbl.setText("Marca al menos un sitio de la lista izquierda para iniciar el bloqueo.")
             self.sel_start_btn.setEnabled(False)
             self.sel_start_btn.setText("Selecciona sitios para iniciar")
             self.sel_start_btn.setToolTip("Selecciona al menos un sitio para activar el bloqueo.")
@@ -1424,16 +1500,16 @@ class SettingsDialog(QDialog):
             self.sel_summary_title.setText("Parámetros de Sesión")
             self.sel_summary_title.setStyleSheet("font-size: 11px; font-weight: 700; color: #58A6FF;")
             self.sel_summary_lbl.setText(
-                f"• Sitios seleccionados: <b>{count}</b><br>"
-                f"• Duración: <b>{dur} minutos</b><br>"
-                f"• Finalización estimada: <b>{target_str}</b>"
+                f"• Sitios seleccionados: <b>{count} {plural}</b><br>"
+                f"• Tiempo de bloqueo: <b>{dur} min</b><br>"
+                f"• Finalizará a las: <b>{target_str}</b>"
             )
             # Check if active lock is running
             res = self.ipc.get_status()
             is_selective = res.get("is_selective", False) if res.get("status") == "ok" else False
             if not is_selective:
                 self.sel_start_btn.setEnabled(True)
-                self.sel_start_btn.setText(f"Bloquear {count} {plural} ({dur} min)")
+                self.sel_start_btn.setText(f"Iniciar Bloqueo ({dur} min)")
                 self.sel_start_btn.setToolTip(f"Iniciar bloqueo selectivo de {count} {plural} por {dur} minutos.")
 
     def on_start_selective_lock(self):
