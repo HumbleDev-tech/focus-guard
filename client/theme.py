@@ -17,6 +17,10 @@ DARK_THEME = {
     "accent_blue": "#388BFD",
     "accent_blue_hover": "#1F6FEB",
     "tab_bg": "#111419",
+    "danger": "#DA3633",
+    "danger_hover": "#F85149",
+    "success": "#2EA043",
+    "warning": "#D29922",
 }
 
 LIGHT_THEME = {
@@ -31,6 +35,10 @@ LIGHT_THEME = {
     "accent_blue": "#0969DA",
     "accent_blue_hover": "#0550AE",
     "tab_bg": "#EAECEF",
+    "danger": "#CF222E",
+    "danger_hover": "#A40E26",
+    "success": "#1A7F37",
+    "warning": "#9A6700",
 }
 
 
@@ -320,4 +328,94 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             background-color: #2EA043;
             border-radius: 3px;
         }}
+        QPushButton#dangerBtn {{
+            background-color: {c['danger']};
+            color: #FFFFFF;
+            border: none;
+        }}
+        QPushButton#dangerBtn:hover {{
+            background-color: {c['danger_hover']};
+        }}
+        QPushButton#dangerBtn:disabled {{
+            background-color: {c['bg_card_inner']};
+            color: #484F58;
+            border: 1px solid {c['border_color']};
+        }}
+        QPushButton#removeBtn {{
+            background-color: {c['bg_card_inner']};
+            color: {c['text_secondary']};
+            border: 1px solid {c['border_color']};
+            border-radius: 4px;
+            font-size: 15px;
+            font-weight: 600;
+            padding: 0px;
+            min-width: 26px;
+            max-width: 26px;
+            min-height: 26px;
+            max-height: 26px;
+        }}
+        QPushButton#removeBtn:hover {{
+            background-color: {c['danger']};
+            border-color: {c['danger']};
+            color: #FFFFFF;
+        }}
+        QFrame#innerCard {{
+            background-color: {c['bg_card_inner']};
+            border: 1px solid {c['border_color']};
+            border-radius: 8px;
+            padding: 10px;
+        }}
+        QFrame#infoCard {{
+            background-color: {c['bg_card_inner']};
+            border: 1px solid {c['border_color']};
+            border-radius: 8px;
+            padding: 14px;
+        }}
+        QLabel#sectionHeader {{
+            font-size: 13px;
+            font-weight: 700;
+            color: {c['text_primary']};
+            background: transparent;
+            border: none;
+            padding: 0px;
+        }}
+        QLabel#statusBadge {{
+            background-color: rgba(110, 118, 129, 0.15);
+            color: {c['text_secondary']};
+            border: 1px solid {c['border_color']};
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 12px;
+        }}
+        QLabel#codePhrase {{
+            font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: {c['accent_blue']};
+            background: transparent;
+            border: none;
+        }}
     """
+
+
+def apply_dialog_theme(dialog, is_dark: bool = True, resource_dir: str = "") -> None:
+    """Applies unified theme stylesheet to any modal QDialog."""
+    if not resource_dir and hasattr(dialog, "resource_dir") and dialog.resource_dir:
+        resource_dir = dialog.resource_dir
+    elif not resource_dir and dialog.parent() and hasattr(dialog.parent(), "resource_dir"):
+        resource_dir = dialog.parent().resource_dir
+    if not resource_dir:
+        candidates = [
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "../resources")),
+            "/usr/share/focus-guard/resources",
+            "/usr/local/share/focus-guard/resources",
+            os.path.expanduser("~/.local/share/focus-guard/resources")
+        ]
+        for candidate in candidates:
+            if os.path.exists(candidate) and os.path.exists(os.path.join(candidate, "icon-active.svg")):
+                resource_dir = candidate
+                break
+        if not resource_dir:
+            resource_dir = candidates[0]
+    dialog.setStyleSheet(get_theme_stylesheet(is_dark, resource_dir))

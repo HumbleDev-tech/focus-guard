@@ -152,9 +152,9 @@ class SettingsDialog(QDialog):
         title_box = QVBoxLayout()
         title_box.setSpacing(1)
         title_lbl = QLabel("Focus-Guard")
-        title_lbl.setStyleSheet("font-size: 16px; font-weight: 700; color: #F0F6FC;")
+        title_lbl.setStyleSheet("font-size: 16px; font-weight: 700;")
         sub_lbl = QLabel("Panel de Control y Reglas")
-        sub_lbl.setStyleSheet("font-size: 12px; color: #8B949E;")
+        sub_lbl.setObjectName("cardDesc")
         title_box.addWidget(title_lbl)
         title_box.addWidget(sub_lbl)
         header.addLayout(title_box)
@@ -163,15 +163,7 @@ class SettingsDialog(QDialog):
 
         # Status Pill
         self.status_badge = QLabel("VERIFICANDO")
-        self.status_badge.setStyleSheet("""
-            background-color: rgba(110, 118, 129, 0.15);
-            color: #8B949E;
-            border: 1px solid #30363D;
-            font-size: 11px;
-            font-weight: 700;
-            padding: 4px 10px;
-            border-radius: 12px;
-        """)
+        self.status_badge.setObjectName("statusBadge")
         header.addWidget(self.status_badge)
 
         self.main_layout.addLayout(header)
@@ -207,7 +199,7 @@ class SettingsDialog(QDialog):
         count_row = QHBoxLayout()
         count_row.setSpacing(10)
         self.domains_count_lbl = QLabel("Sitios Bloqueados")
-        self.domains_count_lbl.setStyleSheet("font-size: 12px; font-weight: 600; color: #8F98A0;")
+        self.domains_count_lbl.setObjectName("fieldLabel")
         count_row.addWidget(self.domains_count_lbl)
 
         count_row.addStretch()
@@ -215,7 +207,6 @@ class SettingsDialog(QDialog):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Filtrar sitios...")
         self.search_input.setFixedWidth(140)
-        self.search_input.setStyleSheet("padding: 3px 8px; font-size: 11px; border-radius: 4px;")
         self.search_input.textChanged.connect(lambda: self.render_domains_list())
         count_row.addWidget(self.search_input)
 
@@ -256,16 +247,16 @@ class SettingsDialog(QDialog):
         hdr_info = QVBoxLayout()
         hdr_info.setSpacing(2)
         hdr_title = QLabel("Bloqueo Selectivo")
-        hdr_title.setStyleSheet("font-size: 13px; font-weight: 700; color: #58A6FF;" if self.is_dark_mode() else "font-size: 13px; font-weight: 700; color: #0969DA;")
+        hdr_title.setObjectName("sectionHeader")
         hdr_sub = QLabel("Aislamiento temporal de distracciones bajo demanda.")
-        hdr_sub.setStyleSheet("font-size: 11px; color: #8B949E;" if self.is_dark_mode() else "font-size: 11px; color: #656D76;")
+        hdr_sub.setObjectName("cardDesc")
         hdr_info.addWidget(hdr_title)
         hdr_info.addWidget(hdr_sub)
         header_layout.addLayout(hdr_info)
         header_layout.addStretch()
 
         self.sel_status_badge = QLabel("EN ESPERA")
-        self.sel_status_badge.setStyleSheet("font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid #30363D; color: #8B949E; background-color: rgba(110, 118, 129, 0.15);")
+        self.sel_status_badge.setObjectName("statusBadge")
         header_layout.addWidget(self.sel_status_badge)
         main_layout.addWidget(header_frame)
 
@@ -330,17 +321,17 @@ class SettingsDialog(QDialog):
         sites_card = QFrame()
         sites_card.setObjectName("settingsCard")
         sites_layout = QVBoxLayout(sites_card)
-        sites_layout.setContentsMargins(14, 14, 14, 14)
+        sites_layout.setContentsMargins(16, 14, 16, 14)
         sites_layout.setSpacing(10)
 
         col_top = QHBoxLayout()
         col_title = QLabel("1. Selección de Sitios")
-        col_title.setStyleSheet("font-size: 12px; font-weight: 700; color: #F0F6FC;" if self.is_dark_mode() else "font-size: 12px; font-weight: 700; color: #1F2328;")
+        col_title.setObjectName("sectionHeader")
         col_top.addWidget(col_title)
         col_top.addStretch()
 
         self.sel_count_lbl = QLabel("0 seleccionados")
-        self.sel_count_lbl.setStyleSheet("font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 12px; background-color: rgba(56, 139, 253, 0.12); color: #58A6FF; border: 1px solid #30363D;")
+        self.sel_count_lbl.setObjectName("statusBadge")
         col_top.addWidget(self.sel_count_lbl)
         sites_layout.addLayout(col_top)
 
@@ -370,7 +361,7 @@ class SettingsDialog(QDialog):
 
         self.sel_search_input = QLineEdit()
         self.sel_search_input.setPlaceholderText("Filtrar sitios...")
-        self.sel_search_input.setStyleSheet("padding: 4px 8px; font-size: 11.5px; border-radius: 4px;")
+        self.sel_search_input.setFixedWidth(140)
         self.sel_search_input.textChanged.connect(lambda: self.render_selective_domains_list())
         toolbar_row.addWidget(self.sel_search_input)
 
@@ -407,42 +398,35 @@ class SettingsDialog(QDialog):
         ctrl_card = QFrame()
         ctrl_card.setObjectName("settingsCard")
         ctrl_layout = QVBoxLayout(ctrl_card)
-        ctrl_layout.setContentsMargins(14, 14, 14, 14)
+        ctrl_layout.setContentsMargins(16, 14, 16, 14)
         ctrl_layout.setSpacing(12)
 
         ctrl_title = QLabel("2. Duración del Bloqueo")
-        ctrl_title.setStyleSheet("font-size: 12px; font-weight: 700; color: #F0F6FC;" if self.is_dark_mode() else "font-size: 12px; font-weight: 700; color: #1F2328;")
+        ctrl_title.setObjectName("sectionHeader")
         ctrl_layout.addWidget(ctrl_title)
 
         ctrl_desc = QLabel("Define el tiempo durante el cual permanecerán bloqueados los sitios marcados.")
-        ctrl_desc.setStyleSheet("font-size: 11.5px; color: #8B949E; line-height: 1.3;")
+        ctrl_desc.setObjectName("cardDesc")
         ctrl_desc.setWordWrap(True)
         ctrl_layout.addWidget(ctrl_desc)
 
         # Duration Selector Box
         dur_box = QFrame()
-        dur_box.setStyleSheet("""
-            QFrame {
-                background-color: #161B22;
-                border: 1px solid #30363D;
-                border-radius: 8px;
-                padding: 10px;
-            }
-        """)
+        dur_box.setObjectName("innerCard")
         dur_box_layout = QVBoxLayout(dur_box)
         dur_box_layout.setSpacing(8)
 
         dur_box_title = QLabel("Tiempo a bloquear:")
-        dur_box_title.setStyleSheet("font-size: 11px; font-weight: 600; color: #8B949E;")
+        dur_box_title.setObjectName("fieldLabel")
         dur_box_layout.addWidget(dur_box_title)
 
         stepper_row = QHBoxLayout()
         stepper_row.setSpacing(6)
 
-        step_minus = QPushButton("−5m")
+        step_minus = QPushButton("−")
         step_minus.setObjectName("stepBtn")
+        step_minus.setToolTip("Disminuir 5 minutos")
         step_minus.setCursor(Qt.CursorShape.PointingHandCursor)
-        step_minus.setFixedWidth(46)
         step_minus.clicked.connect(lambda: self.step_selective_duration(-5))
         stepper_row.addWidget(step_minus)
 
@@ -451,31 +435,29 @@ class SettingsDialog(QDialog):
         self.sel_duration_spin.setSingleStep(5)
         self.sel_duration_spin.setValue(25)
         self.sel_duration_spin.setSuffix(" min")
+        self.sel_duration_spin.setFixedWidth(80)
         self.sel_duration_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.sel_duration_spin.setStyleSheet("""
-            QSpinBox {
-                font-size: 15px;
-                font-weight: 700;
-                color: #58A6FF;
-                background-color: #0D1117;
-                border: 1px solid #30363D;
-                border-radius: 6px;
-                padding: 6px 12px;
-            }
-            QSpinBox:focus {
-                border-color: #388BFD;
-            }
-        """)
         self.sel_duration_spin.valueChanged.connect(self.update_selective_summary)
         stepper_row.addWidget(self.sel_duration_spin)
 
-        step_plus = QPushButton("+5m")
+        step_plus = QPushButton("+")
         step_plus.setObjectName("stepBtn")
+        step_plus.setToolTip("Aumentar 5 minutos")
         step_plus.setCursor(Qt.CursorShape.PointingHandCursor)
-        step_plus.setFixedWidth(46)
         step_plus.clicked.connect(lambda: self.step_selective_duration(5))
         stepper_row.addWidget(step_plus)
 
+        stepper_row.addSpacing(10)
+
+        for m in [15, 25, 45, 60]:
+            pill = QPushButton(f"{m}m")
+            pill.setObjectName("presetChipSmall")
+            pill.setToolTip(f"Fijar duración a {m} minutos")
+            pill.setCursor(Qt.CursorShape.PointingHandCursor)
+            pill.clicked.connect(lambda _, mins=m: self.sel_duration_spin.setValue(mins))
+            stepper_row.addWidget(pill)
+
+        stepper_row.addStretch()
         dur_box_layout.addLayout(stepper_row)
         ctrl_layout.addWidget(dur_box)
 
@@ -491,7 +473,7 @@ class SettingsDialog(QDialog):
         sum_layout.addWidget(self.sel_summary_title)
 
         self.sel_summary_lbl = QLabel("")
-        self.sel_summary_lbl.setStyleSheet("font-size: 11px; color: #8B949E;" if self.is_dark_mode() else "font-size: 11px; color: #30363D;")
+        self.sel_summary_lbl.setObjectName("cardDesc")
         self.sel_summary_lbl.setWordWrap(True)
         sum_layout.addWidget(self.sel_summary_lbl)
 
@@ -501,26 +483,7 @@ class SettingsDialog(QDialog):
         # Action Button
         self.sel_start_btn = QPushButton("Iniciar Bloqueo (25 min)")
         self.sel_start_btn.setObjectName("primaryBtn")
-        self.sel_start_btn.setMinimumHeight(42)
-        self.sel_start_btn.setStyleSheet("""
-            QPushButton#primaryBtn {
-                background-color: #388BFD;
-                color: #FFFFFF;
-                font-size: 13px;
-                font-weight: 700;
-                border: none;
-                border-radius: 6px;
-                padding: 10px 16px;
-            }
-            QPushButton#primaryBtn:hover {
-                background-color: #1F6FEB;
-            }
-            QPushButton#primaryBtn:disabled {
-                background-color: #21262D;
-                color: #6E7681;
-                border: 1px solid #30363D;
-            }
-        """)
+        self.sel_start_btn.setMinimumHeight(40)
         self.sel_start_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.sel_start_btn.clicked.connect(self.on_start_selective_lock)
         ctrl_layout.addWidget(self.sel_start_btn)
@@ -828,12 +791,12 @@ class SettingsDialog(QDialog):
 
         top_row = QHBoxLayout()
         self.dash_state_title = QLabel("Estado Actual")
-        self.dash_state_title.setStyleSheet("font-size: 13px; font-weight: 700; color: #F0F6FC;")
+        self.dash_state_title.setObjectName("sectionHeader")
         top_row.addWidget(self.dash_state_title)
         top_row.addStretch()
 
         self.dash_state_pill = QLabel("ESTADO")
-        self.dash_state_pill.setStyleSheet("font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; border: 1px solid #30363D; color: #8B949E;")
+        self.dash_state_pill.setObjectName("statusBadge")
         top_row.addWidget(self.dash_state_pill)
         hero_layout.addLayout(top_row)
 
@@ -856,7 +819,7 @@ class SettingsDialog(QDialog):
         hero_layout.addWidget(self.dash_progress_bar)
 
         self.dash_desc_lbl = QLabel("")
-        self.dash_desc_lbl.setStyleSheet("font-size: 12px; color: #8B949E;")
+        self.dash_desc_lbl.setObjectName("cardDesc")
         self.dash_desc_lbl.setWordWrap(True)
         hero_layout.addWidget(self.dash_desc_lbl)
 
@@ -867,7 +830,7 @@ class SettingsDialog(QDialog):
         act_box.setSpacing(8)
         
         act_title = QLabel("Sesiones de Enfoque y Control")
-        act_title.setStyleSheet("font-size: 13px; font-weight: 700; color: #F0F6FC;")
+        act_title.setObjectName("sectionHeader")
         act_box.addWidget(act_title)
 
         grid = QGridLayout()
@@ -911,19 +874,19 @@ class SettingsDialog(QDialog):
         telemetry_layout.setSpacing(6)
 
         telem_title = QLabel("Resumen de Configuración")
-        telem_title.setStyleSheet("font-size: 12px; font-weight: 700; color: #8B949E;")
+        telem_title.setObjectName("sectionHeader")
         telemetry_layout.addWidget(telem_title)
 
         self.telem_domains_lbl = QLabel("• Sitios protegidos: Calculando...")
-        self.telem_domains_lbl.setStyleSheet("font-size: 12px; color: #F0F6FC;")
+        self.telem_domains_lbl.setObjectName("fieldLabel")
         telemetry_layout.addWidget(self.telem_domains_lbl)
 
         self.telem_curfew_lbl = QLabel("• Toque de Queda: 23:15 a 07:00")
-        self.telem_curfew_lbl.setStyleSheet("font-size: 12px; color: #F0F6FC;")
+        self.telem_curfew_lbl.setObjectName("fieldLabel")
         telemetry_layout.addWidget(self.telem_curfew_lbl)
 
         self.telem_boot_lbl = QLabel("• Cooldown de Inicio: 30 minutos")
-        self.telem_boot_lbl.setStyleSheet("font-size: 12px; color: #F0F6FC;")
+        self.telem_boot_lbl.setObjectName("fieldLabel")
         telemetry_layout.addWidget(self.telem_boot_lbl)
 
         layout.addWidget(self.telemetry_card)
@@ -941,7 +904,7 @@ class SettingsDialog(QDialog):
         bottom.setSpacing(10)
 
         self.save_feedback_lbl = QLabel("Cambios sincronizados con el demonio")
-        self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
+        self.save_feedback_lbl.setObjectName("cardDesc")
         bottom.addWidget(self.save_feedback_lbl)
 
         bottom.addStretch()
@@ -1167,23 +1130,8 @@ class SettingsDialog(QDialog):
             # Elegant minimalist remove button
             del_btn = QPushButton("×")
             del_btn.setToolTip(f"Eliminar {domain}")
-            del_btn.setFixedSize(26, 26)
-            del_btn.setStyleSheet("""
-                QPushButton {
-                    border: 1px solid #30363D;
-                    background-color: #21262D;
-                    color: #8B949E;
-                    font-size: 15px;
-                    font-weight: 600;
-                    border-radius: 4px;
-                    padding: 0px;
-                }
-                QPushButton:hover {
-                    color: #FFFFFF;
-                    background-color: #DA3633;
-                    border-color: #F85149;
-                }
-            """)
+            del_btn.setObjectName("removeBtn")
+            del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             del_btn.clicked.connect(lambda _, d=domain: self.on_remove_domain(d))
             row_layout.addWidget(del_btn)
 

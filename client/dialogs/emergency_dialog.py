@@ -9,6 +9,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer
 
+from client.theme import apply_dialog_theme
+
 
 class EmergencyPromptDialog(QDialog):
     """Custom dialog for emergency unlock verification without broken HTML."""
@@ -19,82 +21,29 @@ class EmergencyPromptDialog(QDialog):
 
         self.setWindowTitle("Desbloqueo de Emergencia")
         self.setMinimumWidth(440)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #0D1117;
-                color: #F0F6FC;
-                font-family: system-ui, -apple-system, sans-serif;
-            }
-            QLineEdit {
-                background-color: #161B22;
-                color: #F0F6FC;
-                border: 1px solid #30363D;
-                border-radius: 6px;
-                padding: 8px 12px;
-                font-size: 13px;
-            }
-            QLineEdit:focus {
-                border-color: #388BFD;
-            }
-            QPushButton#primaryBtn {
-                background-color: #388BFD;
-                color: #FFFFFF;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 600;
-            }
-            QPushButton#primaryBtn:hover {
-                background-color: #1F6FEB;
-            }
-            QPushButton#secondaryBtn {
-                background-color: #161B22;
-                color: #F0F6FC;
-                border: 1px solid #30363D;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 600;
-            }
-            QPushButton#secondaryBtn:hover {
-                background-color: #21262D;
-                border-color: #58A6FF;
-            }
-        """)
+        apply_dialog_theme(self)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
         title = QLabel("Toque de Queda Nocturno Activo")
-        title.setStyleSheet("font-size: 15px; font-weight: 700; color: #F0F6FC;")
+        title.setObjectName("sectionHeader")
         layout.addWidget(title)
 
         desc = QLabel("Para confirmar una excepción de trabajo real, escribe la frase de confirmación:")
-        desc.setStyleSheet("font-size: 12px; color: #8B949E;")
+        desc.setObjectName("cardDesc")
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
         phrase_container = QFrame()
-        phrase_container.setStyleSheet("""
-            QFrame {
-                background-color: #161B22;
-                border: 1px solid #30363D;
-                border-radius: 6px;
-            }
-        """)
+        phrase_container.setObjectName("innerCard")
         phrase_box_layout = QHBoxLayout(phrase_container)
         phrase_box_layout.setContentsMargins(10, 6, 8, 6)
         phrase_box_layout.setSpacing(10)
 
         phrase_box = QLabel(self.phrase)
-        phrase_box.setStyleSheet("""
-            background: transparent;
-            border: none;
-            font-family: monospace;
-            font-size: 12.5px;
-            font-weight: 600;
-            color: #58A6FF;
-        """)
+        phrase_box.setObjectName("codePhrase")
         phrase_box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
         phrase_box_layout.addWidget(phrase_box)
 
@@ -102,22 +51,7 @@ class EmergencyPromptDialog(QDialog):
 
         self.copy_btn = QPushButton("Copiar Frase")
         self.copy_btn.setObjectName("secondaryBtn")
-        self.copy_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #21262D;
-                border: 1px solid #30363D;
-                color: #F0F6FC;
-                font-size: 11px;
-                font-weight: 600;
-                border-radius: 4px;
-                padding: 4px 10px;
-            }
-            QPushButton:hover {
-                background-color: #30363D;
-                color: #58A6FF;
-                border-color: #58A6FF;
-            }
-        """)
+        self.copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.copy_btn.setToolTip("Copiar frase al portapapeles")
         self.copy_btn.clicked.connect(self.on_copy_phrase)
         phrase_box_layout.addWidget(self.copy_btn)
@@ -134,11 +68,13 @@ class EmergencyPromptDialog(QDialog):
 
         cancel_btn = QPushButton("Cancelar")
         cancel_btn.setObjectName("secondaryBtn")
+        cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         cancel_btn.clicked.connect(self.reject)
         btn_row.addWidget(cancel_btn)
 
         confirm_btn = QPushButton("Confirmar Desbloqueo (15 min)")
         confirm_btn.setObjectName("primaryBtn")
+        confirm_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         confirm_btn.clicked.connect(self.on_confirm)
         btn_row.addWidget(confirm_btn)
 
@@ -162,4 +98,5 @@ class EmergencyPromptDialog(QDialog):
             self.confirmed = True
             self.accept()
         else:
-            self.input_field.setStyleSheet("border: 1px solid #F85149;")
+            self.input_field.setStyleSheet("border: 1px solid #DA3633;")
+
