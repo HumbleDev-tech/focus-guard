@@ -41,6 +41,8 @@ class StateScheduler:
         self.manual_lock: bool = False
         self.manual_lock_end_time: Optional[datetime] = None
         self.emergency_bypass_active: bool = False
+        self.selective_domains: List[str] = []
+        self.selective_end_time: Optional[datetime] = None
 
     def update_config(self, config: Dict[str, Any]):
         """Updates internal configuration."""
@@ -146,12 +148,27 @@ class StateScheduler:
             self.emergency_bypass_active = False
             return False, 0, None
 
+    def is_in_selective_lock(self, now: Optional[datetime] = None) -> Tuple[bool, int, Optional[datetime], List[str]]:
+        """Checks if a selective domain lock is active."""
+        if not self.selective_end_time or not self.selective_domains:
+            return False, 0, None, []
+
+        now = now or datetime.now()
+        if now < self.selective_end_time:
+            remaining = max(0, int((self.selective_end_time - now).total_seconds()))
+            return True, remaining, self.selective_end_time, list(self.selective_domains)
+        else:
+            self.selective_domains = []
+            self.selective_end_time = None
+            return False, 0, None, []
+
     def evaluate_state(self, now: Optional[datetime] = None) -> Dict[str, Any]:
         """Evaluates rules in strict priority."""
         now = now or datetime.now()
         bypasses_cfg = self.config.get("bypasses", {})
         bypasses_enabled = bypasses_cfg.get("enabled", True)
         allow_during_curfew = bypasses_cfg.get("allow_during_curfew", False)
+        all_domains = self.config.get("blocked_domains", [])
 
         # 1. Curfew check
         in_curfew, curfew_remaining, curfew_target = self.is_in_curfew(now)
@@ -167,6 +184,9 @@ class StateScheduler:
                     "can_bypass": True,
                     "bypasses_enabled": bypasses_enabled,
                     "is_blocking": False,
+                    "is_selective": False,
+                    "selective_domains": [],
+                    "domains_to_block": [],
                     "in_curfew": True
                 }
 
@@ -182,6 +202,9 @@ class StateScheduler:
                 "can_bypass": allow_during_curfew,
                 "bypasses_enabled": bypasses_enabled,
                 "is_blocking": True,
+                "is_selective": False,
+                "selective_domains": [],
+                "domains_to_block": all_domains,
                 "in_curfew": True
             }
 
@@ -199,6 +222,9 @@ class StateScheduler:
                 "can_bypass": True,
                 "bypasses_enabled": bypasses_enabled,
                 "is_blocking": False,
+                "is_selective": False,
+                "selective_domains": [],
+                "domains_to_block": [],
                 "in_curfew": False,
                 "curfew_warning": curfew_warn,
                 "curfew_warning_seconds": warn_secs
@@ -217,6 +243,9 @@ class StateScheduler:
                 "can_bypass": bypasses_enabled,
                 "bypasses_enabled": bypasses_enabled,
                 "is_blocking": True,
+                "is_selective": False,
+                "selective_domains": [],
+                "domains_to_block": all_domains,
                 "in_curfew": False,
                 "curfew_warning": curfew_warn,
                 "curfew_warning_seconds": warn_secs
@@ -246,12 +275,37 @@ class StateScheduler:
                     "can_bypass": bypasses_enabled,
                     "bypasses_enabled": bypasses_enabled,
                     "is_blocking": True,
+                    "is_selective": False,
+                    "selective_domains": [],
+                    "domains_to_block": all_domains,
                     "in_curfew": False,
                     "curfew_warning": curfew_warn,
                     "curfew_warning_seconds": warn_secs
                 }
 
-        # 5. Free Time
+        # 5. Check Selective Lock
+        in_sel, sel_rem, sel_target, sel_domains = self.is_in_selective_lock(now)
+        if in_sel:
+            target_str = sel_target.strftime("%H:%M:%S") if sel_target else ""
+            mins_left = max(1, sel_rem // 60) if sel_rem >= 60 else "<1"
+            return {
+                "state": "LOCKED",
+                "reason": "SELECTIVE_LOCK",
+                "remaining_seconds": sel_rem,
+                "target_time_str": target_str,
+                "message": f"Bloqueo selectivo ({len(sel_domains)} sitios, {mins_left}m restantes)",
+                "can_bypass": bypasses_enabled,
+                "bypasses_enabled": bypasses_enabled,
+                "is_blocking": True,
+                "is_selective": True,
+                "selective_domains": sel_domains,
+                "domains_to_block": sel_domains,
+                "in_curfew": False,
+                "curfew_warning": curfew_warn,
+                "curfew_warning_seconds": warn_secs
+            }
+
+        # 6. Free Time
         return {
             "state": "UNLOCKED",
             "reason": "FREE_TIME",
@@ -261,10 +315,43 @@ class StateScheduler:
             "can_bypass": False,
             "bypasses_enabled": bypasses_enabled,
             "is_blocking": False,
+            "is_selective": False,
+            "selective_domains": [],
+            "domains_to_block": [],
             "in_curfew": False,
             "curfew_warning": curfew_warn,
             "curfew_warning_seconds": warn_secs
         }
+
+    def request_selective_lock(self, domains: List[str], duration_minutes: int) -> Tuple[bool, str]:
+        """Locks a specific subset of domains for a set duration."""
+        if not domains:
+            return False, "Debes seleccionar al menos un dominio."
+
+        if duration_minutes <= 0 or duration_minutes > 1440:
+            return False, "La duración debe ser entre 1 y 1440 minutos."
+
+        now = datetime.now()
+        in_curfew, _, _ = self.is_in_curfew(now)
+        if in_curfew:
+            return False, "El Toque de Queda nocturno ya bloquea todos los sitios."
+
+        self.selective_domains = sorted(list(set(domains)))
+        self.selective_end_time = now + timedelta(minutes=duration_minutes)
+        self.bypass_end_time = None
+        self.emergency_bypass_active = False
+        logger.info(f"Selective lock started for {len(self.selective_domains)} domains for {duration_minutes} minutes")
+        return True, f"Bloqueo selectivo activado para {len(self.selective_domains)} sitios durante {duration_minutes} minutos."
+
+    def cancel_selective_lock(self) -> Tuple[bool, str]:
+        """Cancels any active selective lock."""
+        if self.selective_end_time is not None:
+            count = len(self.selective_domains)
+            self.selective_domains = []
+            self.selective_end_time = None
+            logger.info("Selective lock cancelled by user.")
+            return True, f"Bloqueo selectivo de {count} sitios cancelado."
+        return True, "No hay bloqueo selectivo activo."
 
     def request_bypass(self, duration_minutes: int, force: bool = False) -> Tuple[bool, str]:
         """Requests a temporary bypass."""
@@ -285,6 +372,8 @@ class StateScheduler:
         self.emergency_bypass_active = force and in_curfew
         self.manual_lock = False
         self.manual_lock_end_time = None
+        self.selective_domains = []
+        self.selective_end_time = None
         logger.info(f"Bypass granted for {duration_minutes} minutes")
         return True, f"Bypass activado por {duration_minutes} minutos."
 
@@ -301,6 +390,8 @@ class StateScheduler:
         """Forces a manual lock or timed Pomodoro session immediately."""
         self.bypass_end_time = None
         self.emergency_bypass_active = False
+        self.selective_domains = []
+        self.selective_end_time = None
         self.manual_lock = True
         if duration_minutes > 0:
             self.manual_lock_end_time = datetime.now() + timedelta(minutes=duration_minutes)
@@ -326,5 +417,8 @@ class StateScheduler:
         self.manual_lock_end_time = None
         self.bypass_end_time = None
         self.emergency_bypass_active = False
+        self.selective_domains = []
+        self.selective_end_time = None
         logger.info("Manual lock cleared.")
         return True, "Sitios desbloqueados."
+

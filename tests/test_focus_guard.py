@@ -181,6 +181,34 @@ class TestScheduler(unittest.TestCase):
         self.assertTrue(ok_c)
         self.assertFalse(sched.is_in_bypass()[0])
 
+    def test_selective_lock(self):
+        cfg = dict(self.config)
+        cfg["curfew"] = {"enabled": False}
+        cfg["boot_cooldown"] = {"enabled": False}
+        sched = StateScheduler(cfg, dev_mode=True)
+
+        # Initially free time
+        st = sched.evaluate_state()
+        self.assertEqual(st["state"], "UNLOCKED")
+
+        # Selective lock
+        ok, msg = sched.request_selective_lock(["reddit.com", "instagram.com"], 30)
+        self.assertTrue(ok)
+        self.assertTrue(sched.is_in_selective_lock()[0])
+
+        st = sched.evaluate_state()
+        self.assertEqual(st["state"], "LOCKED")
+        self.assertEqual(st["reason"], "SELECTIVE_LOCK")
+        self.assertTrue(st["is_selective"])
+        self.assertEqual(st["domains_to_block"], ["instagram.com", "reddit.com"])
+
+        # Cancel selective lock
+        ok_c, _ = sched.cancel_selective_lock()
+        self.assertTrue(ok_c)
+        self.assertFalse(sched.is_in_selective_lock()[0])
+        st = sched.evaluate_state()
+        self.assertEqual(st["state"], "UNLOCKED")
+
 
 class TestIPCAndSecurityValidation(unittest.TestCase):
     @classmethod
@@ -258,6 +286,40 @@ class TestIPCAndSecurityValidation(unittest.TestCase):
         self.assertEqual(res_lock.get("status"), "ok")
         res_cancel = client.cancel_bypass()
         self.assertEqual(res_cancel.get("status"), "ok")
+
+    def test_ipc_selective_lock_and_hosts_update(self):
+        client = FocusIPCClient(socket_path=self.sock_path)
+        # 1. Unlock first to start from clear state
+        client.unlock_now()
+
+        # 2. Start selective lock with only reddit.com
+        res = client.request_selective_lock(["reddit.com"], 15)
+        self.assertEqual(res.get("status"), "ok")
+
+        # 3. Check status
+        st = client.get_status()
+        self.assertEqual(st.get("status"), "ok")
+        self.assertEqual(st.get("state"), "LOCKED")
+        self.assertEqual(st.get("reason"), "SELECTIVE_LOCK")
+        self.assertTrue(st.get("is_selective"))
+        self.assertIn("reddit.com", st.get("selective_domains", []))
+
+        # 4. Check hosts file: reddit.com MUST be present, but x.com MUST NOT be present
+        with open(self.hosts_file, "r") as f:
+            hosts_content = f.read()
+        self.assertIn("reddit.com", hosts_content)
+        self.assertNotIn("0.0.0.0 x.com", hosts_content)
+
+        # 5. Cancel selective lock
+        res_cancel = client.cancel_selective_lock()
+        self.assertEqual(res_cancel.get("status"), "ok")
+
+        st_after = client.get_status()
+        self.assertEqual(st_after.get("state"), "UNLOCKED")
+        with open(self.hosts_file, "r") as f:
+            hosts_after = f.read()
+        self.assertNotIn("reddit.com", hosts_after)
+
 
 
 class TestSystemIntegrationHelpers(unittest.TestCase):

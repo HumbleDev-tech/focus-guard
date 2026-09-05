@@ -126,6 +126,11 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.unlock_action.triggered.connect(self.on_unlock_clicked)
         self.menu.addAction(self.unlock_action)
 
+        self.cancel_selective_action = QAction("Finalizar Bloqueo Selectivo", self.menu)
+        self.cancel_selective_action.triggered.connect(self.on_cancel_selective_clicked)
+        self.cancel_selective_action.setVisible(False)
+        self.menu.addAction(self.cancel_selective_action)
+
         self.menu.addSeparator()
 
         # 8. Information Action
@@ -185,6 +190,7 @@ class FocusTrayApplet(QSystemTrayIcon):
             self.focus_menu.menuAction().setVisible(False)
             self.bypass_menu.menuAction().setVisible(False)
             self.unlock_action.setVisible(False)
+            self.cancel_selective_action.setVisible(False)
             self.emergency_action.setVisible(False)
             self.last_state = "OFFLINE"
             self.last_reason = None
@@ -197,6 +203,8 @@ class FocusTrayApplet(QSystemTrayIcon):
         target_time = res.get("target_time_str", "")
         message = res.get("message", "")
         is_blocking = res.get("is_blocking", False)
+        is_selective = res.get("is_selective", False)
+        selective_domains = res.get("selective_domains", [])
         bypasses_enabled = res.get("bypasses_enabled", True)
         in_curfew = res.get("in_curfew", False)
         curfew_warn = res.get("curfew_warning", False)
@@ -260,6 +268,9 @@ class FocusTrayApplet(QSystemTrayIcon):
             elif reason == "BOOT_COOLDOWN":
                 self.setIcon(self.icon_boot)
                 tooltip_txt = f"Focus-Guard — Protegido\nFoco de Inicio de sesión (hasta las {target_time})\nTiempo restante: {time_str or 'Activo'}\nSitios bloqueados: {domains_num}"
+            elif reason == "SELECTIVE_LOCK":
+                self.setIcon(self.icon_active)
+                tooltip_txt = f"Focus-Guard — Bloqueo Selectivo\n{len(selective_domains)} sitios bloqueados (hasta las {target_time})\nTiempo restante: {time_str or 'Activo'}"
             else:
                 self.setIcon(self.icon_active)
                 tooltip_txt = f"Focus-Guard — Protegido\nSesión de Enfoque Activa\nTiempo restante: {time_str or 'Activo'}\nSitios bloqueados: {domains_num}"
@@ -280,12 +291,21 @@ class FocusTrayApplet(QSystemTrayIcon):
                 self.bypass_menu.menuAction().setVisible(False)
                 self.emergency_action.setVisible(True)
                 self.unlock_action.setVisible(False)
+                self.cancel_selective_action.setVisible(False)
             elif reason == "BOOT_COOLDOWN":
                 self.status_action.setText("Cooldown de Arranque (Protegido)")
                 self.bypass_menu.menuAction().setVisible(bypasses_enabled)
                 self.bypass_menu.setEnabled(bypasses_enabled)
                 self.emergency_action.setVisible(False)
                 self.unlock_action.setVisible(False)
+                self.cancel_selective_action.setVisible(False)
+            elif reason == "SELECTIVE_LOCK":
+                self.status_action.setText(f"Bloqueo Selectivo ({len(selective_domains)} sitios)")
+                self.bypass_menu.menuAction().setVisible(bypasses_enabled)
+                self.bypass_menu.setEnabled(bypasses_enabled)
+                self.emergency_action.setVisible(False)
+                self.unlock_action.setVisible(False)
+                self.cancel_selective_action.setVisible(True)
             else:
                 self.status_action.setText("Modo Focus Manual (Protegido)")
                 self.bypass_menu.menuAction().setVisible(bypasses_enabled)
@@ -293,6 +313,7 @@ class FocusTrayApplet(QSystemTrayIcon):
                 self.emergency_action.setVisible(False)
                 self.unlock_action.setVisible(True)
                 self.unlock_action.setEnabled(True)
+                self.cancel_selective_action.setVisible(False)
 
         elif state == "BYPASS":
             self.focus_menu.menuAction().setVisible(False)
@@ -304,6 +325,7 @@ class FocusTrayApplet(QSystemTrayIcon):
             self.bypass_menu.setEnabled(True)
             self.emergency_action.setVisible(False)
             self.unlock_action.setVisible(False)
+            self.cancel_selective_action.setVisible(False)
 
         else:
             self.status_action.setText("Modo Libre (Apagado / Desprotegido)")
@@ -311,6 +333,8 @@ class FocusTrayApplet(QSystemTrayIcon):
             self.bypass_menu.menuAction().setVisible(False)
             self.emergency_action.setVisible(False)
             self.unlock_action.setVisible(False)
+            self.cancel_selective_action.setVisible(False)
+
 
         # Detail text
         if target_time and time_str:
@@ -393,6 +417,19 @@ class FocusTrayApplet(QSystemTrayIcon):
             err_msg = res.get("message") or res.get("error") or "No se puede desbloquear en este momento."
             self.showMessage("Desbloqueo no permitido", err_msg, QSystemTrayIcon.MessageIcon.Warning, 3000)
         self.refresh_status()
+
+    def on_cancel_selective_clicked(self):
+        """Handler for cancelling selective lock."""
+        res = self.ipc.cancel_selective_lock()
+        if res.get("status") == "ok":
+            self.showMessage(
+                "Bloqueo Selectivo Finalizado",
+                "Sitios desbloqueados. Modo Libre activo.",
+                QSystemTrayIcon.MessageIcon.Information,
+                3000
+            )
+        self.refresh_status()
+
 
     def show_info_dialog(self):
         """Displays the sleek custom About dialog."""

@@ -112,6 +112,20 @@ class FocusIPCClient:
         """Unlocks manual mode if permissible."""
         return self.send_command({"action": "unlock"})
 
+    unlock = unlock_now
+
+    def request_selective_lock(self, domains: list, duration_minutes: int) -> Dict[str, Any]:
+        """Requests a selective lock on specified domains for a duration."""
+        return self.send_command({
+            "action": "selective_lock",
+            "domains": domains,
+            "duration_minutes": duration_minutes
+        })
+
+    def cancel_selective_lock(self) -> Dict[str, Any]:
+        """Cancels an active selective lock."""
+        return self.send_command({"action": "cancel_selective_lock"})
+
     def is_daemon_alive(self) -> bool:
         """Pings daemon to check health."""
         res = self.get_status()

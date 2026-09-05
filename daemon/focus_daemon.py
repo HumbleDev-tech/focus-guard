@@ -99,19 +99,24 @@ class FocusDaemon:
         """Evaluates scheduler and applies or removes the /etc/hosts block only when state or domains change."""
         state = self.scheduler.evaluate_state()
         should_block = state.get("is_blocking", False)
-        current_domains = tuple(sorted(self.config.get("blocked_domains", [])))
+
+        # Domains to block: if specified by state (e.g. selective lock), use that; else config blocked_domains
+        domains_to_apply = state.get("domains_to_block")
+        if domains_to_apply is None:
+            domains_to_apply = self.config.get("blocked_domains", []) if should_block else []
+
+        current_domains = tuple(sorted(domains_to_apply))
 
         state_changed = (should_block != self._last_block_state)
         domains_changed = (current_domains != self._last_applied_domains)
 
         if state_changed or (should_block and domains_changed) or force:
-            domains = self.config.get("blocked_domains", [])
             ipv4 = self.config.get("redirect_ipv4", "0.0.0.0")
             ipv6 = self.config.get("redirect_ipv6", "::1")
 
-            if should_block:
-                logger.info(f"Applying block: {state.get('reason')} - {state.get('message')}")
-                self.hosts_mgr.apply_block(domains, ipv4, ipv6)
+            if should_block and current_domains:
+                logger.info(f"Applying block ({len(current_domains)} domains): {state.get('reason')} - {state.get('message')}")
+                self.hosts_mgr.apply_block(list(current_domains), ipv4, ipv6)
             else:
                 logger.info(f"Removing block: {state.get('reason')} - {state.get('message')}")
                 self.hosts_mgr.remove_block()
@@ -148,6 +153,8 @@ class FocusDaemon:
                 "message": state.get("message", ""),
                 "can_bypass": state.get("can_bypass", True),
                 "is_blocking": state.get("is_blocking", False),
+                "is_selective": state.get("is_selective", False),
+                "selective_domains": state.get("selective_domains", []),
                 "in_curfew": state.get("in_curfew", False),
                 "curfew_warning": state.get("curfew_warning", False),
                 "curfew_warning_seconds": state.get("curfew_warning_seconds", 0),
@@ -183,6 +190,29 @@ class FocusDaemon:
             ok, msg = self.scheduler.request_unlock()
             self._apply_current_state(force=True)
             return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
+
+        elif action == "selective_lock":
+            raw_domains = req.get("domains", [])
+            duration = int(req.get("duration_minutes", 15))
+            if not isinstance(raw_domains, list):
+                return {"status": "error", "error": "'domains' must be a list of strings"}
+
+            valid_domains = [
+                d.strip().lower() for d in raw_domains
+                if isinstance(d, str) and is_valid_domain(d.strip())
+            ]
+            if not valid_domains:
+                return {"status": "error", "error": "No valid domains provided"}
+
+            ok, msg = self.scheduler.request_selective_lock(valid_domains, duration)
+            self._apply_current_state(force=True)
+            return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
+
+        elif action == "cancel_selective_lock":
+            ok, msg = self.scheduler.cancel_selective_lock()
+            self._apply_current_state(force=True)
+            return {"status": "ok", "message": msg, "success": ok}
+
 
         elif action == "get_config":
             return {"status": "ok", "config": self.config}

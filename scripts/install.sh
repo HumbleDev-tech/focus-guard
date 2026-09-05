@@ -29,7 +29,9 @@ fi
 echo "3. Installing systemd service..."
 cp "$SOURCE_DIR/systemd/focus-guard.service" /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now focus-guard.service
+systemctl enable focus-guard.service
+systemctl restart focus-guard.service
+
 
 echo "4. Creating desktop entry for user autostart / launcher..."
 mkdir -p /usr/share/applications

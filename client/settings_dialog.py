@@ -5,8 +5,9 @@ Features: Auto-save, Category presets, Slim scrollbars, Pomodoro grid, Telemetry
 """
 import os
 import re
+from datetime import datetime, timedelta
 from urllib.parse import urlparse
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Set
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit,
@@ -19,614 +20,37 @@ from PyQt6.QtCore import Qt, QTime, QTimer, pyqtSignal, QSize, QObject, QEvent
 
 from client.ipc_client import FocusIPCClient
 
-USER_AUTOSTART_PATH = os.path.expanduser("~/.config/autostart/focus-guard.desktop")
-SYSTEM_AUTOSTART_PATH = "/etc/xdg/autostart/focus-guard.desktop"
-AUTOSTART_PATH = USER_AUTOSTART_PATH  # Backward compatibility
-
-
-
-def is_autostart_enabled() -> bool:
-    """Checks if autostart is enabled per XDG specifications."""
-    if os.path.exists(USER_AUTOSTART_PATH):
-        try:
-            with open(USER_AUTOSTART_PATH, "r", encoding="utf-8") as f:
-                content = f.read()
-                if "Hidden=true" in content or "X-GNOME-Autostart-enabled=false" in content:
-                    return False
-                return True
-        except Exception:
-            return False
-    return os.path.exists(SYSTEM_AUTOSTART_PATH)
-
-
-def set_autostart_enabled(enabled: bool) -> bool:
-    """Enables or disables desktop autostart conforming to XDG Desktop specifications."""
-    try:
-        os.makedirs(os.path.dirname(USER_AUTOSTART_PATH), exist_ok=True)
-        if enabled:
-            content = (
-                "[Desktop Entry]\n"
-                "Name=Focus-Guard\n"
-                "Comment=Anti-procrastination website blocker and focus regulator\n"
-                "Exec=python3 /opt/focus-guard/client/main.py\n"
-                "Icon=/opt/focus-guard/resources/icon-active.svg\n"
-                "Terminal=false\n"
-                "Type=Application\n"
-                "Categories=Utility;System;\n"
-                "StartupNotify=false\n"
-                "Hidden=false\n"
-                "X-GNOME-Autostart-enabled=true\n"
-            )
-            with open(USER_AUTOSTART_PATH, "w", encoding="utf-8") as f:
-                f.write(content)
-        else:
-            if os.path.exists(SYSTEM_AUTOSTART_PATH):
-                content = (
-                    "[Desktop Entry]\n"
-                    "Type=Application\n"
-                    "Name=Focus-Guard\n"
-                    "Hidden=true\n"
-                    "X-GNOME-Autostart-enabled=false\n"
-                )
-                with open(USER_AUTOSTART_PATH, "w", encoding="utf-8") as f:
-                    f.write(content)
-            else:
-                if os.path.exists(USER_AUTOSTART_PATH):
-                    os.unlink(USER_AUTOSTART_PATH)
-        return True
-    except Exception as e:
-        return False
-
-
-def sanitize_domain(raw_input: str) -> Optional[str]:
-    """Cleans up URLs and strings into a valid lowercase domain name."""
-    raw = raw_input.strip().lower()
-    if not raw:
-        return None
-
-    if not raw.startswith("http://") and not raw.startswith("https://"):
-        raw = "http://" + raw
-
-    try:
-        parsed = urlparse(raw)
-        host = parsed.netloc or parsed.path
-        host = host.split(":")[0]
-        if host.startswith("www."):
-            host = host[4:]
-        if re.match(r"^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", host):
-            return host
-    except Exception:
-        pass
-    return None
-
-
-def format_human_time(seconds: int) -> str:
-    """Formats remaining seconds into natural human time."""
-    if seconds <= 0:
-        return "0s"
-    hours = seconds // 3600
-    mins = (seconds % 3600) // 60
-    secs = seconds % 60
-
-    if hours > 0:
-        if mins > 0:
-            return f"{hours}h {mins}m {secs}s"
-        return f"{hours}h {secs}s"
-    elif mins > 0:
-        return f"{mins}m {secs}s"
-    else:
-        return f"{secs}s"
-
-
-class EmergencyPromptDialog(QDialog):
-    """Custom dialog for emergency unlock verification without broken HTML."""
-    def __init__(self, phrase: str, parent=None):
-        super().__init__(parent)
-        self.phrase = phrase.strip()
-        self.confirmed = False
-
-        self.setWindowTitle("Desbloqueo de Emergencia")
-        self.setMinimumWidth(440)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #0D1117;
-                color: #F0F6FC;
-                font-family: system-ui, -apple-system, sans-serif;
-            }
-            QLineEdit {
-                background-color: #161B22;
-                color: #F0F6FC;
-                border: 1px solid #30363D;
-                border-radius: 6px;
-                padding: 8px 12px;
-                font-size: 13px;
-            }
-            QPushButton#primaryBtn {
-                background-color: #388BFD;
-                color: #FFFFFF;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 600;
-            }
-            QPushButton#secondaryBtn {
-                background-color: #161B22;
-                color: #F0F6FC;
-                border: 1px solid #30363D;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 600;
-            }
-        """)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(12)
-
-        title = QLabel("Toque de Queda Nocturno Activo")
-        title.setStyleSheet("font-size: 15px; font-weight: 700; color: #F0F6FC;")
-        layout.addWidget(title)
-
-        desc = QLabel("Para confirmar una excepción de trabajo real, escribe la frase de confirmación:")
-        desc.setStyleSheet("font-size: 12px; color: #8B949E;")
-        desc.setWordWrap(True)
-        layout.addWidget(desc)
-
-        phrase_container = QFrame()
-        phrase_container.setStyleSheet("""
-            QFrame {
-                background-color: #161B22;
-                border: 1px solid #30363D;
-                border-radius: 6px;
-            }
-        """)
-        phrase_box_layout = QHBoxLayout(phrase_container)
-        phrase_box_layout.setContentsMargins(10, 6, 8, 6)
-        phrase_box_layout.setSpacing(10)
-
-        phrase_box = QLabel(self.phrase)
-        phrase_box.setStyleSheet("""
-            background: transparent;
-            border: none;
-            font-family: monospace;
-            font-size: 12.5px;
-            font-weight: 600;
-            color: #58A6FF;
-        """)
-        phrase_box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
-        phrase_box_layout.addWidget(phrase_box)
-
-        phrase_box_layout.addStretch()
-
-        self.copy_btn = QPushButton("Copiar Frase")
-        self.copy_btn.setObjectName("secondaryBtn")
-        self.copy_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #21262D;
-                border: 1px solid #30363D;
-                color: #F0F6FC;
-                font-size: 11px;
-                font-weight: 600;
-                border-radius: 4px;
-                padding: 4px 10px;
-            }
-            QPushButton:hover {
-                background-color: #30363D;
-                color: #58A6FF;
-                border-color: #58A6FF;
-            }
-        """)
-        self.copy_btn.setToolTip("Copiar frase al portapapeles")
-        self.copy_btn.clicked.connect(self.on_copy_phrase)
-        phrase_box_layout.addWidget(self.copy_btn)
-
-        layout.addWidget(phrase_container)
-
-        self.input_field = QLineEdit()
-        self.input_field.setPlaceholderText("Escribe o pega la frase exactamente aquí...")
-        self.input_field.returnPressed.connect(self.on_confirm)
-        layout.addWidget(self.input_field)
-
-        btn_row = QHBoxLayout()
-        btn_row.addStretch()
-
-        cancel_btn = QPushButton("Cancelar")
-        cancel_btn.setObjectName("secondaryBtn")
-        cancel_btn.clicked.connect(self.reject)
-        btn_row.addWidget(cancel_btn)
-
-        confirm_btn = QPushButton("Confirmar Desbloqueo (15 min)")
-        confirm_btn.setObjectName("primaryBtn")
-        confirm_btn.clicked.connect(self.on_confirm)
-        btn_row.addWidget(confirm_btn)
-
-        layout.addLayout(btn_row)
-
-    def on_copy_phrase(self):
-        QApplication.clipboard().setText(self.phrase)
-        if hasattr(self, "copy_btn"):
-            self.copy_btn.setText("Copiado")
-            QTimer.singleShot(2000, lambda: self.copy_btn.setText("Copiar Frase"))
-        if hasattr(self, "input_field") and self.input_field:
-            self.input_field.setFocus()
-
-    def on_confirm(self):
-        if not self.phrase or not self.input_field:
-            self.confirmed = True
-            self.accept()
-            return
-        entered = self.input_field.text().strip().lower()
-        if entered == self.phrase.lower():
-            self.confirmed = True
-            self.accept()
-        else:
-            self.input_field.setStyleSheet("border: 1px solid #F85149;")
-
-
-class ConfirmDomainRemovalDialog(QDialog):
-    """Friction modal to prevent impulsive deletion of blocked sites during active protection."""
-    def __init__(self, domain: str, reason_str: str, phrase: str, parent=None):
-        super().__init__(parent)
-        self.domain = domain
-        self.phrase = phrase.strip()
-        self.confirmed = False
-
-        self.setWindowTitle("Protección contra Impulsos")
-        self.setMinimumWidth(440)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #0D1117;
-                color: #F0F6FC;
-                font-family: system-ui, -apple-system, sans-serif;
-            }
-            QLineEdit {
-                background-color: #161B22;
-                color: #F0F6FC;
-                border: 1px solid #30363D;
-                border-radius: 6px;
-                padding: 8px 12px;
-                font-size: 13px;
-            }
-            QPushButton#dangerBtn {
-                background-color: #DA3633;
-                color: #FFFFFF;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 600;
-            }
-            QPushButton#dangerBtn:hover {
-                background-color: #F85149;
-            }
-            QPushButton#secondaryBtn {
-                background-color: #161B22;
-                color: #F0F6FC;
-                border: 1px solid #30363D;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 600;
-            }
-        """)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(12)
-
-        title = QLabel(f"Protección de Enfoque Activa")
-        title.setStyleSheet("font-size: 15px; font-weight: 700; color: #F0F6FC;")
-        layout.addWidget(title)
-
-        desc = QLabel(
-            f"El escudo de protección está activo actualmente (<b>{reason_str}</b>). "
-            f"Eliminar <b>{self.domain}</b> ahora desbloqueará el sitio de forma inmediata."
-        )
-        desc.setStyleSheet("font-size: 12px; color: #8B949E; line-height: 1.4;")
-        desc.setWordWrap(True)
-        layout.addWidget(desc)
-
-        if self.phrase:
-            instruction = QLabel("Para confirmar que no es un impulso y eliminar el sitio, escribe la frase de seguridad:")
-            instruction.setStyleSheet("font-size: 12px; color: #F0F6FC; font-weight: 500;")
-            instruction.setWordWrap(True)
-            layout.addWidget(instruction)
-
-            phrase_container = QFrame()
-            phrase_container.setStyleSheet("""
-                QFrame {
-                    background-color: #161B22;
-                    border: 1px solid #30363D;
-                    border-radius: 6px;
-                }
-            """)
-            phrase_box_layout = QHBoxLayout(phrase_container)
-            phrase_box_layout.setContentsMargins(10, 6, 8, 6)
-            phrase_box_layout.setSpacing(10)
-
-            phrase_box = QLabel(self.phrase)
-            phrase_box.setStyleSheet("""
-                background: transparent;
-                border: none;
-                font-family: monospace;
-                font-size: 12.5px;
-                font-weight: 600;
-                color: #58A6FF;
-            """)
-            phrase_box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard)
-            phrase_box_layout.addWidget(phrase_box)
-
-            phrase_box_layout.addStretch()
-
-            self.copy_btn = QPushButton("Copiar Frase")
-            self.copy_btn.setObjectName("secondaryBtn")
-            self.copy_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #21262D;
-                    border: 1px solid #30363D;
-                    color: #F0F6FC;
-                    font-size: 11px;
-                    font-weight: 600;
-                    border-radius: 4px;
-                    padding: 4px 10px;
-                }
-                QPushButton:hover {
-                    background-color: #30363D;
-                    color: #58A6FF;
-                    border-color: #58A6FF;
-                }
-            """)
-            self.copy_btn.setToolTip("Copiar frase al portapapeles")
-            self.copy_btn.clicked.connect(self.on_copy_phrase)
-            phrase_box_layout.addWidget(self.copy_btn)
-
-            layout.addWidget(phrase_container)
-
-            self.input_field = QLineEdit()
-            self.input_field.setPlaceholderText("Escribe o pega la frase exactamente aquí...")
-            self.input_field.returnPressed.connect(self.on_confirm)
-            layout.addWidget(self.input_field)
-        else:
-            self.input_field = None
-
-        btn_row = QHBoxLayout()
-        btn_row.addStretch()
-
-        cancel_btn = QPushButton("Cancelar")
-        cancel_btn.setObjectName("secondaryBtn")
-        cancel_btn.clicked.connect(self.reject)
-        btn_row.addWidget(cancel_btn)
-
-        del_btn = QPushButton(f"Eliminar {self.domain}")
-        del_btn.setObjectName("dangerBtn")
-        del_btn.clicked.connect(self.on_confirm)
-        btn_row.addWidget(del_btn)
-
-        layout.addLayout(btn_row)
-
-    def on_copy_phrase(self):
-        QApplication.clipboard().setText(self.phrase)
-        if hasattr(self, "copy_btn"):
-            self.copy_btn.setText("Copiado")
-            QTimer.singleShot(2000, lambda: self.copy_btn.setText("Copiar Frase"))
-        if hasattr(self, "input_field") and self.input_field:
-            self.input_field.setFocus()
-
-    def on_confirm(self):
-        if self.input_field:
-            entered = self.input_field.text().strip().lower()
-            if entered == self.phrase.lower():
-                self.confirmed = True
-                self.accept()
-            else:
-                self.input_field.setStyleSheet("border: 1px solid #F85149; background-color: #161B22; color: #F0F6FC; border-radius: 6px; padding: 8px 12px;")
-        else:
-            self.confirmed = True
-            self.accept()
-
-
-class AboutDialog(QDialog):
-    """Sleek modern About dialog matching KDE Plasma 6 dark aesthetic."""
-    def __init__(self, resource_dir: str, config: Dict[str, Any], parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Acerca de Focus-Guard")
-        self.setFixedSize(480, 420)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #0D1117;
-                color: #F0F6FC;
-                font-family: system-ui, -apple-system, sans-serif;
-            }
-            QPushButton#primaryBtn {
-                background-color: #388BFD;
-                color: #FFFFFF;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 24px;
-                font-weight: 600;
-                font-size: 12px;
-            }
-            QPushButton#primaryBtn:hover {
-                background-color: #1F6FEB;
-            }
-            QFrame#infoCard {
-                background-color: #161B22;
-                border: 1px solid #30363D;
-                border-radius: 8px;
-                padding: 14px;
-            }
-        """)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 20)
-        layout.setSpacing(14)
-
-        # Header with Logo
-        header = QHBoxLayout()
-        header.setSpacing(14)
-
-        icon_lbl = QLabel()
-        icon_path = os.path.join(resource_dir, "icon-active.svg")
-        if os.path.exists(icon_path):
-            icon_lbl.setPixmap(QIcon(icon_path).pixmap(48, 48))
-        header.addWidget(icon_lbl)
-
-        title_box = QVBoxLayout()
-        title_box.setSpacing(2)
-        app_name = QLabel("Focus-Guard")
-        app_name.setStyleSheet("font-size: 18px; font-weight: 800; color: #F0F6FC;")
-        app_ver = QLabel("Versión 1.0.0 (Linux Edition) • KDE Plasma 6 / Wayland")
-        app_ver.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
-        title_box.addWidget(app_name)
-        title_box.addWidget(app_ver)
-        header.addLayout(title_box)
-        header.addStretch()
-        layout.addLayout(header)
-
-        desc = QLabel("Anti-procrastinación y regulador de dopamina a nivel de sistema. Bloquea distracciones en /etc/hosts con separación estricta de privilegios.")
-        desc.setStyleSheet("font-size: 12px; color: #8B949E; line-height: 1.4;")
-        desc.setWordWrap(True)
-        layout.addWidget(desc)
-
-        # Architecture and Rules Card
-        card = QFrame()
-        card.setObjectName("infoCard")
-        card_layout = QVBoxLayout(card)
-        card_layout.setSpacing(8)
-
-        curfew = config.get("curfew", {})
-        boot = config.get("boot_cooldown", {})
-        domains = config.get("blocked_domains", [])
-
-        curfew_txt = f"{curfew.get('start_time', '23:15')} a {curfew.get('end_time', '07:00')}" if curfew.get('enabled') else "Desactivado"
-        boot_txt = f"{boot.get('duration_minutes', 30)} minutos" if boot.get('enabled') else "Desactivado"
-
-        def make_row(lbl_txt, val_txt):
-            r = QHBoxLayout()
-            l = QLabel(lbl_txt)
-            l.setStyleSheet("font-size: 12px; color: #8B949E; font-weight: 500;")
-            v = QLabel(val_txt)
-            v.setStyleSheet("font-size: 12px; color: #F0F6FC; font-weight: 600;")
-            r.addWidget(l)
-            r.addStretch()
-            r.addWidget(v)
-            return r
-
-        card_layout.addLayout(make_row("Toque de Queda Nocturno:", curfew_txt))
-        card_layout.addLayout(make_row("Foco de Inicio de sesión:", boot_txt))
-        card_layout.addLayout(make_row("Sitios Bloqueados:", f"{len(domains)} dominios"))
-        card_layout.addLayout(make_row("Nivel de Redirección:", "0.0.0.0 (Directo)"))
-
-        layout.addWidget(card)
-
-        layout.addStretch()
-
-        # Bottom OK button
-        btn_row = QHBoxLayout()
-        btn_row.addStretch()
-        ok_btn = QPushButton("Entendido")
-        ok_btn.setObjectName("primaryBtn")
-        ok_btn.clicked.connect(self.accept)
-        btn_row.addWidget(ok_btn)
-        layout.addLayout(btn_row)
-
-
-class UnsavedChangesDialog(QDialog):
-    """Modern modal asking to save unsaved rule changes before closing."""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.action = "cancel"  # 'save', 'discard', 'cancel'
-        self.setWindowTitle("Cambios sin guardar")
-        self.setFixedWidth(420)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #161B22;
-                border: 1px solid #30363D;
-                border-radius: 8px;
-            }
-            QLabel {
-                color: #F0F6FC;
-            }
-            QPushButton {
-                border-radius: 6px;
-                padding: 7px 14px;
-                font-weight: 600;
-                font-size: 12px;
-            }
-            QPushButton#primaryBtn {
-                background-color: #388BFD;
-                color: #FFFFFF;
-                border: none;
-            }
-            QPushButton#primaryBtn:hover {
-                background-color: #1F6FEB;
-            }
-            QPushButton#dangerBtn {
-                background-color: #21262D;
-                color: #F85149;
-                border: 1px solid #30363D;
-            }
-            QPushButton#dangerBtn:hover {
-                background-color: #DA3633;
-                color: #FFFFFF;
-                border-color: #F85149;
-            }
-            QPushButton#secondaryBtn {
-                background-color: #21262D;
-                color: #8B949E;
-                border: 1px solid #30363D;
-            }
-            QPushButton#secondaryBtn:hover {
-                color: #F0F6FC;
-                border-color: #8B949E;
-            }
-        """)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(12)
-
-        title = QLabel("¿Guardar cambios antes de salir?")
-        title.setStyleSheet("font-size: 15px; font-weight: 700; color: #F0F6FC;")
-        layout.addWidget(title)
-
-        desc = QLabel("Has modificado horarios o reglas del sistema. Si sales sin guardar, los cambios se descartarán.")
-        desc.setStyleSheet("font-size: 12px; color: #8B949E; line-height: 1.4;")
-        desc.setWordWrap(True)
-        layout.addWidget(desc)
-
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(8)
-
-        cancel_btn = QPushButton("Cancelar")
-        cancel_btn.setObjectName("secondaryBtn")
-        cancel_btn.clicked.connect(self.on_cancel)
-        btn_row.addWidget(cancel_btn)
-
-        btn_row.addStretch()
-
-        discard_btn = QPushButton("Descartar")
-        discard_btn.setObjectName("dangerBtn")
-        discard_btn.clicked.connect(self.on_discard)
-        btn_row.addWidget(discard_btn)
-
-        save_btn = QPushButton("Guardar y Salir")
-        save_btn.setObjectName("primaryBtn")
-        save_btn.clicked.connect(self.on_save)
-        btn_row.addWidget(save_btn)
-
-        layout.addLayout(btn_row)
-
-    def on_save(self):
-        self.action = "save"
-        self.accept()
-
-    def on_discard(self):
-        self.action = "discard"
-        self.accept()
-
-    def on_cancel(self):
-        self.action = "cancel"
-        self.reject()
-
+from client.autostart import (
+    USER_AUTOSTART_PATH,
+    SYSTEM_AUTOSTART_PATH,
+    AUTOSTART_PATH,
+    is_autostart_enabled,
+    set_autostart_enabled,
+)
+from client.utils import sanitize_domain, format_human_time
+from client.theme import get_theme_stylesheet
+from client.dialogs import (
+    EmergencyPromptDialog,
+    ConfirmDomainRemovalDialog,
+    AboutDialog,
+    UnsavedChangesDialog,
+)
+
+__all__ = [
+    "SettingsDialog",
+    "UniversalToolTipFilter",
+    "EmergencyPromptDialog",
+    "ConfirmDomainRemovalDialog",
+    "AboutDialog",
+    "UnsavedChangesDialog",
+    "sanitize_domain",
+    "format_human_time",
+    "is_autostart_enabled",
+    "set_autostart_enabled",
+    "USER_AUTOSTART_PATH",
+    "SYSTEM_AUTOSTART_PATH",
+    "AUTOSTART_PATH",
+]
 
 class UniversalToolTipFilter(QObject):
     """Enables tooltips to display across all widgets, including disabled ones."""
@@ -654,10 +78,12 @@ class SettingsDialog(QDialog):
         self.resource_dir = resource_dir
         self.config_data: Dict[str, Any] = {}
         self.blocked_domains: List[str] = []
+        self.selected_selective_domains: Set[str] = set()
+        self.domain_tile_widgets: Dict[str, Any] = {}
 
         self.setWindowTitle("Panel de Control — Focus-Guard")
-        self.setMinimumSize(640, 620)
-        self.resize(680, 660)
+        self.setMinimumSize(720, 640)
+        self.resize(760, 680)
 
         self.apply_theme_styles()
 
@@ -677,6 +103,7 @@ class SettingsDialog(QDialog):
         # 2. Tabs
         self.tabs = QTabWidget()
         self.setup_domains_tab()
+        self.setup_selective_tab()
         self.setup_rules_tab()
         self.setup_dashboard_tab()
         self.main_layout.addWidget(self.tabs)
@@ -690,6 +117,7 @@ class SettingsDialog(QDialog):
         QShortcut(QKeySequence("Ctrl+1"), self, lambda: self.tabs.setCurrentIndex(0))
         QShortcut(QKeySequence("Ctrl+2"), self, lambda: self.tabs.setCurrentIndex(1))
         QShortcut(QKeySequence("Ctrl+3"), self, lambda: self.tabs.setCurrentIndex(2))
+        QShortcut(QKeySequence("Ctrl+4"), self, lambda: self.tabs.setCurrentIndex(3))
         QShortcut(QKeySequence("Ctrl+N"), self, self.focus_domain_input)
         QShortcut(QKeySequence("Ctrl+F"), self, self.focus_search_or_domain_input)
 
@@ -707,284 +135,8 @@ class SettingsDialog(QDialog):
         return bg.lightness() < 128
 
     def apply_theme_styles(self):
-        is_dark = self.is_dark_mode()
-
-        if is_dark:
-            bg_window = "#0D1117"
-            bg_card = "#161B22"
-            bg_card_inner = "#1C2128"
-            bg_input = "#161B22"
-            border_color = "#30363D"
-            border_subtle = "#21262D"
-            text_primary = "#F0F6FC"
-            text_secondary = "#8B949E"
-            accent_blue = "#388BFD"
-            accent_blue_hover = "#1F6FEB"
-            tab_bg = "#111419"
-        else:
-            bg_window = "#F6F8FA"
-            bg_card = "#FFFFFF"
-            bg_card_inner = "#F3F4F6"
-            bg_input = "#FFFFFF"
-            border_color = "#D0D7DE"
-            border_subtle = "#E1E4E8"
-            text_primary = "#1F2328"
-            text_secondary = "#656D76"
-            accent_blue = "#0969DA"
-            accent_blue_hover = "#0550AE"
-            tab_bg = "#EAECEF"
-
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {bg_window};
-                color: {text_primary};
-            }}
-            QToolTip {{
-                background-color: {bg_card};
-                color: {text_primary};
-                border: 1px solid {border_color};
-                border-radius: 6px;
-                padding: 6px 10px;
-                font-size: 11.5px;
-                font-weight: 500;
-            }}
-            QTabWidget::pane {{
-                border: 1px solid {border_color};
-                border-radius: 8px;
-                background-color: {bg_card};
-                top: -1px;
-            }}
-            QTabBar::tab {{
-                background: {tab_bg};
-                color: {text_secondary};
-                padding: 10px 18px;
-                margin-right: 4px;
-                border-top-left-radius: 6px;
-                border-top-right-radius: 6px;
-                font-weight: 600;
-                font-size: 12px;
-            }}
-            QTabBar::tab:selected {{
-                background: {bg_card};
-                color: {text_primary};
-                border-top: 2px solid {accent_blue};
-            }}
-            QLineEdit {{
-                background-color: {bg_input};
-                color: {text_primary};
-                border: 1px solid {border_color};
-                border-radius: 6px;
-                padding: 8px 12px;
-                font-size: 13px;
-            }}
-            QLineEdit:focus {{
-                border: 1px solid {accent_blue};
-            }}
-            QTimeEdit, QSpinBox {{
-                background-color: {bg_input};
-                color: {text_primary};
-                border: 1px solid {border_color};
-                border-radius: 6px;
-                padding: 4px 8px;
-                font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
-                font-size: 13px;
-                font-weight: 700;
-                min-height: 24px;
-            }}
-            QTimeEdit:focus, QSpinBox:focus {{
-                border: 1px solid {accent_blue};
-            }}
-            QTimeEdit::up-button, QTimeEdit::down-button,
-            QSpinBox::up-button, QSpinBox::down-button {{
-                width: 0px;
-                height: 0px;
-                border: none;
-                background: transparent;
-            }}
-            QPushButton {{
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 600;
-                font-size: 12px;
-            }}
-            QPushButton#primaryBtn {{
-                background-color: {accent_blue};
-                color: #FFFFFF;
-                border: none;
-            }}
-            QPushButton#primaryBtn:hover {{
-                background-color: {accent_blue_hover};
-            }}
-            QPushButton#primaryBtn:disabled {{
-                background-color: #161B22;
-                color: #484F58;
-                border: 1px solid #21262D;
-            }}
-            QPushButton#secondaryBtn {{
-                background-color: {bg_card_inner};
-                color: {text_primary};
-                border: 1px solid {border_color};
-            }}
-            QPushButton#secondaryBtn:hover {{
-                border-color: {accent_blue};
-                background-color: {bg_card};
-            }}
-            QPushButton#secondaryBtn:disabled {{
-                background-color: #0D1117;
-                color: #484F58;
-                border: 1px solid #21262D;
-            }}
-            QPushButton#stepBtn {{
-                background-color: {bg_card_inner};
-                color: {text_primary};
-                border: 1px solid {border_color};
-                border-radius: 6px;
-                font-size: 14px;
-                font-weight: 700;
-                padding: 0px;
-                min-width: 28px;
-                max-width: 28px;
-                min-height: 26px;
-                max-height: 26px;
-            }}
-            QPushButton#stepBtn:hover {{
-                background-color: {accent_blue};
-                color: #FFFFFF;
-                border-color: {accent_blue};
-            }}
-            QPushButton#presetChipSmall {{
-                background-color: {bg_input};
-                color: {text_secondary};
-                border: 1px solid {border_subtle};
-                border-radius: 12px;
-                padding: 3px 10px;
-                font-size: 11px;
-                font-weight: 600;
-            }}
-            QPushButton#presetChipSmall:hover {{
-                border-color: {accent_blue};
-                color: {accent_blue};
-                background-color: {bg_card_inner};
-            }}
-            QLabel#summaryPill {{
-                font-size: 11.5px;
-                color: #58A6FF;
-                background-color: rgba(56, 139, 253, 0.08);
-                border: 1px solid rgba(56, 139, 253, 0.25);
-                border-radius: 6px;
-                padding: 6px 12px;
-                font-weight: 600;
-            }}
-            QPushButton:disabled {{
-                opacity: 0.45;
-                color: #6E7681;
-                background-color: {bg_card_inner};
-                border: 1px solid {border_color};
-            }}
-            QListWidget {{
-                background-color: {bg_card_inner};
-                border: 1px solid {border_color};
-                border-radius: 6px;
-                padding: 2px;
-                outline: none;
-            }}
-            QListWidget::item {{
-                background-color: transparent;
-                border: none;
-                padding: 0px;
-                margin-bottom: 1px;
-            }}
-            QListWidget::item:focus, QListWidget::item:selected {{
-                background-color: transparent;
-                border: none;
-                outline: none;
-            }}
-            QScrollBar:vertical {{
-                border: none;
-                background: transparent;
-                width: 6px;
-                margin: 4px 2px 4px 0px;
-            }}
-            QScrollBar::handle:vertical {{
-                background: #30363D;
-                min-height: 24px;
-                border-radius: 3px;
-            }}
-            QScrollBar::handle:vertical:hover {{
-                background: #58A6FF;
-            }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-                height: 0px;
-            }}
-            QCheckBox {{
-                color: {text_primary};
-                font-size: 13px;
-                font-weight: 600;
-                spacing: 10px;
-            }}
-            QCheckBox::indicator {{
-                width: 16px;
-                height: 16px;
-                border-radius: 4px;
-                border: 1px solid {border_color};
-                background-color: {bg_input};
-            }}
-            QCheckBox::indicator:hover {{
-                border-color: {accent_blue};
-            }}
-            QCheckBox::indicator:checked {{
-                background-color: {accent_blue};
-                border-color: {accent_blue};
-                image: url({os.path.join(self.resource_dir, 'checkbox-check.svg')});
-            }}
-            QCheckBox::indicator:disabled {{
-                background-color: {bg_card_inner};
-                border-color: {border_subtle};
-            }}
-            QFrame#settingsCard {{
-                background-color: {bg_card_inner};
-                border: 1px solid {border_subtle};
-                border-radius: 8px;
-            }}
-            QFrame#heroCard {{
-                background-color: {bg_card_inner};
-                border: 1px solid {border_color};
-                border-radius: 8px;
-                padding: 16px;
-            }}
-            QFrame#telemetryCard {{
-                background-color: {bg_card_inner};
-                border: 1px solid {border_subtle};
-                border-radius: 8px;
-                padding: 12px;
-            }}
-            QLabel#cardDesc {{
-                font-size: 12px;
-                color: {text_secondary};
-                background: transparent;
-                border: none;
-                padding: 2px 0px;
-            }}
-            QLabel#fieldLabel {{
-                font-size: 12px;
-                font-weight: 500;
-                color: {text_primary};
-                background: transparent;
-                border: none;
-                padding: 0px;
-            }}
-            QProgressBar {{
-                background-color: {bg_input};
-                border: 1px solid {border_subtle};
-                border-radius: 4px;
-                height: 8px;
-                text-align: center;
-            }}
-            QProgressBar::chunk {{
-                background-color: #2EA043;
-                border-radius: 3px;
-            }}
-        """)
+        stylesheet = get_theme_stylesheet(self.is_dark_mode(), self.resource_dir)
+        self.setStyleSheet(stylesheet)
 
     def setup_header(self):
         header = QHBoxLayout()
@@ -1054,7 +206,7 @@ class SettingsDialog(QDialog):
         count_row = QHBoxLayout()
         count_row.setSpacing(10)
         self.domains_count_lbl = QLabel("Sitios Bloqueados")
-        self.domains_count_lbl.setStyleSheet("font-size: 12px; font-weight: 600; color: #8B949E;")
+        self.domains_count_lbl.setStyleSheet("font-size: 12px; font-weight: 600; color: #8F98A0;")
         count_row.addWidget(self.domains_count_lbl)
 
         count_row.addStretch()
@@ -1080,7 +232,275 @@ class SettingsDialog(QDialog):
 
         self.tabs.addTab(tab, "Sitios Bloqueados")
 
+    def setup_selective_tab(self):
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+
+        container = QWidget()
+        container.setStyleSheet("background: transparent;")
+        main_layout = QVBoxLayout(container)
+        main_layout.setContentsMargins(14, 14, 14, 14)
+        main_layout.setSpacing(12)
+
+        # 1. Header Banner
+        header_frame = QFrame()
+        header_frame.setObjectName("settingsCard")
+        header_layout = QHBoxLayout(header_frame)
+        header_layout.setContentsMargins(16, 12, 16, 12)
+        header_layout.setSpacing(12)
+
+        hdr_info = QVBoxLayout()
+        hdr_info.setSpacing(2)
+        hdr_title = QLabel("Bloqueo Selectivo")
+        hdr_title.setStyleSheet("font-size: 13px; font-weight: 700; color: #58A6FF;" if self.is_dark_mode() else "font-size: 13px; font-weight: 700; color: #0969DA;")
+        hdr_sub = QLabel("Aislamiento temporal de distracciones bajo demanda.")
+        hdr_sub.setStyleSheet("font-size: 11px; color: #8B949E;" if self.is_dark_mode() else "font-size: 11px; color: #656D76;")
+        hdr_info.addWidget(hdr_title)
+        hdr_info.addWidget(hdr_sub)
+        header_layout.addLayout(hdr_info)
+        header_layout.addStretch()
+
+        self.sel_status_badge = QLabel("EN ESPERA")
+        self.sel_status_badge.setStyleSheet("font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid #30363D; color: #8B949E; background-color: rgba(110, 118, 129, 0.15);")
+        header_layout.addWidget(self.sel_status_badge)
+        main_layout.addWidget(header_frame)
+
+        # 2. Active Session Hero Card (Visible only when selective lock is running)
+        self.sel_active_card = QFrame()
+        self.sel_active_card.setObjectName("heroCard")
+        active_layout = QVBoxLayout(self.sel_active_card)
+        active_layout.setSpacing(10)
+
+        act_top_row = QHBoxLayout()
+        act_pill = QLabel("SESIÓN ACTIVA")
+        act_pill.setStyleSheet("background-color: rgba(56, 139, 253, 0.15); color: #58A6FF; font-weight: 700; font-size: 10px; padding: 3px 8px; border-radius: 12px; border: 1px solid rgba(56, 139, 253, 0.3);")
+        act_top_row.addWidget(act_pill)
+        act_top_row.addStretch()
+
+        self.sel_active_countdown_lbl = QLabel("Calculando...")
+        self.sel_active_countdown_lbl.setStyleSheet("font-family: ui-monospace, SFMono-Regular, monospace; font-size: 18px; font-weight: 700; color: #58A6FF;")
+        act_top_row.addWidget(self.sel_active_countdown_lbl)
+        active_layout.addLayout(act_top_row)
+
+        self.sel_active_domains_lbl = QLabel("")
+        self.sel_active_domains_lbl.setStyleSheet("font-size: 12px; font-weight: 600; color: #F0F6FC;" if self.is_dark_mode() else "font-size: 12px; font-weight: 600; color: #1F2328;")
+        self.sel_active_domains_lbl.setWordWrap(True)
+        active_layout.addWidget(self.sel_active_domains_lbl)
+
+        act_bottom_row = QHBoxLayout()
+        self.sel_active_end_lbl = QLabel("")
+        self.sel_active_end_lbl.setStyleSheet("font-size: 11px; color: #8B949E;")
+        act_bottom_row.addWidget(self.sel_active_end_lbl)
+        act_bottom_row.addStretch()
+
+        self.sel_cancel_btn = QPushButton("Finalizar Bloqueo")
+        self.sel_cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.sel_cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #21262D;
+                color: #F85149;
+                border: 1px solid #30363D;
+                border-radius: 6px;
+                padding: 6px 14px;
+                font-weight: 600;
+                font-size: 11.5px;
+            }
+            QPushButton:hover {
+                background-color: #DA3633;
+                color: #FFFFFF;
+                border-color: #F85149;
+            }
+        """)
+        self.sel_cancel_btn.clicked.connect(self.on_cancel_selective_clicked)
+        act_bottom_row.addWidget(self.sel_cancel_btn)
+        active_layout.addLayout(act_bottom_row)
+
+        self.sel_active_card.setVisible(False)
+        main_layout.addWidget(self.sel_active_card)
+
+        # 3. Two-Column Split Layout
+        split_layout = QHBoxLayout()
+        split_layout.setSpacing(12)
+
+        # LEFT COLUMN (55%): Minimalist Domain Picker
+        sites_card = QFrame()
+        sites_card.setObjectName("settingsCard")
+        sites_layout = QVBoxLayout(sites_card)
+        sites_layout.setContentsMargins(14, 14, 14, 14)
+        sites_layout.setSpacing(10)
+
+        col_top = QHBoxLayout()
+        col_title = QLabel("1. Selección de Sitios")
+        col_title.setStyleSheet("font-size: 12px; font-weight: 700; color: #F0F6FC;" if self.is_dark_mode() else "font-size: 12px; font-weight: 700; color: #1F2328;")
+        col_top.addWidget(col_title)
+        col_top.addStretch()
+
+        self.sel_count_lbl = QLabel("0 seleccionados")
+        self.sel_count_lbl.setStyleSheet("font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 12px; background-color: rgba(56, 139, 253, 0.12); color: #58A6FF; border: 1px solid #30363D;")
+        col_top.addWidget(self.sel_count_lbl)
+        sites_layout.addLayout(col_top)
+
+        # Search filter and bulk buttons
+        toolbar_row = QHBoxLayout()
+        toolbar_row.setSpacing(6)
+
+        self.sel_search_input = QLineEdit()
+        self.sel_search_input.setPlaceholderText("Filtrar sitios...")
+        self.sel_search_input.setStyleSheet("padding: 4px 8px; font-size: 11.5px; border-radius: 4px;")
+        self.sel_search_input.textChanged.connect(lambda: self.render_selective_domains_list())
+        toolbar_row.addWidget(self.sel_search_input)
+
+        sel_all_btn = QPushButton("Todos")
+        sel_all_btn.setObjectName("presetChipSmall")
+        sel_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        sel_all_btn.clicked.connect(self.on_select_all_selective)
+        toolbar_row.addWidget(sel_all_btn)
+
+        desel_all_btn = QPushButton("Ninguno")
+        desel_all_btn.setObjectName("presetChipSmall")
+        desel_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        desel_all_btn.clicked.connect(self.on_deselect_all_selective)
+        toolbar_row.addWidget(desel_all_btn)
+        sites_layout.addLayout(toolbar_row)
+
+        self.sel_domains_list = QListWidget()
+        self.sel_domains_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
+        self.sel_domains_list.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+        self.sel_domains_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.sel_domains_list.setMinimumHeight(280)
+        sites_layout.addWidget(self.sel_domains_list)
+
+        split_layout.addWidget(sites_card, stretch=55)
+
+        # RIGHT COLUMN (45%): Duration & Launch Action
+        ctrl_card = QFrame()
+        ctrl_card.setObjectName("settingsCard")
+        ctrl_layout = QVBoxLayout(ctrl_card)
+        ctrl_layout.setContentsMargins(14, 14, 14, 14)
+        ctrl_layout.setSpacing(10)
+
+        ctrl_title = QLabel("2. Tiempo de Enfoque")
+        ctrl_title.setStyleSheet("font-size: 12px; font-weight: 700; color: #F0F6FC;" if self.is_dark_mode() else "font-size: 12px; font-weight: 700; color: #1F2328;")
+        ctrl_layout.addWidget(ctrl_title)
+
+        ctrl_sub = QLabel("Intervalos predefinidos o personalizados:")
+        ctrl_sub.setObjectName("cardDesc")
+        ctrl_layout.addWidget(ctrl_sub)
+
+        # Presets Matrix
+        grid = QGridLayout()
+        grid.setSpacing(6)
+        presets = [
+            ("15 min", 15),
+            ("25 min (Pomodoro)", 25),
+            ("45 min", 45),
+            ("60 min", 60)
+        ]
+        self.sel_preset_buttons = {}
+        row_idx = 0
+        col_idx = 0
+        for p_label, p_val in presets:
+            btn = QPushButton(p_label)
+            btn.setObjectName("presetCardBtn")
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.clicked.connect(lambda _, v=p_val: self.sel_duration_spin.setValue(v))
+            self.sel_preset_buttons[p_val] = btn
+            grid.addWidget(btn, row_idx, col_idx)
+            col_idx += 1
+            if col_idx > 1:
+                col_idx = 0
+                row_idx += 1
+        ctrl_layout.addLayout(grid)
+
+        # 120m long session chip
+        btn_120 = QPushButton("120 min (2 horas)")
+        btn_120.setObjectName("presetCardBtn")
+        btn_120.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_120.clicked.connect(lambda: self.sel_duration_spin.setValue(120))
+        self.sel_preset_buttons[120] = btn_120
+        ctrl_layout.addWidget(btn_120)
+
+        # Stepper Row
+        stepper_row = QHBoxLayout()
+        stepper_row.setSpacing(6)
+        stepper_lbl = QLabel("Ajuste manual:")
+        stepper_lbl.setObjectName("fieldLabel")
+        stepper_row.addWidget(stepper_lbl)
+
+        step_minus = QPushButton("−")
+        step_minus.setObjectName("stepBtn")
+        step_minus.setCursor(Qt.CursorShape.PointingHandCursor)
+        step_minus.clicked.connect(lambda: self.step_selective_duration(-5))
+        stepper_row.addWidget(step_minus)
+
+        self.sel_duration_spin = QSpinBox()
+        self.sel_duration_spin.setRange(5, 480)
+        self.sel_duration_spin.setSingleStep(5)
+        self.sel_duration_spin.setValue(25)
+        self.sel_duration_spin.setSuffix(" min")
+        self.sel_duration_spin.setFixedWidth(85)
+        self.sel_duration_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.sel_duration_spin.valueChanged.connect(self.update_selective_summary)
+        stepper_row.addWidget(self.sel_duration_spin)
+
+        step_plus = QPushButton("+")
+        step_plus.setObjectName("stepBtn")
+        step_plus.setCursor(Qt.CursorShape.PointingHandCursor)
+        step_plus.clicked.connect(lambda: self.step_selective_duration(5))
+        stepper_row.addWidget(step_plus)
+        stepper_row.addStretch()
+        ctrl_layout.addLayout(stepper_row)
+
+        # Live Forecast Card
+        self.sel_summary_card = QFrame()
+        self.sel_summary_card.setObjectName("previewCard")
+        sum_layout = QVBoxLayout(self.sel_summary_card)
+        sum_layout.setContentsMargins(10, 8, 10, 8)
+        sum_layout.setSpacing(4)
+
+        self.sel_summary_title = QLabel("Parámetros de Sesión")
+        self.sel_summary_title.setStyleSheet("font-size: 11px; font-weight: 700; color: #58A6FF;")
+        sum_layout.addWidget(self.sel_summary_title)
+
+        self.sel_summary_lbl = QLabel("")
+        self.sel_summary_lbl.setStyleSheet("font-size: 11px; color: #8B949E;" if self.is_dark_mode() else "font-size: 11px; color: #30363D;")
+        self.sel_summary_lbl.setWordWrap(True)
+        sum_layout.addWidget(self.sel_summary_lbl)
+
+        ctrl_layout.addWidget(self.sel_summary_card)
+        ctrl_layout.addStretch()
+
+        # Action Button
+        self.sel_start_btn = QPushButton("Bloquear Sitios Seleccionados")
+        self.sel_start_btn.setObjectName("primaryBtn")
+        self.sel_start_btn.setMinimumHeight(38)
+        self.sel_start_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.sel_start_btn.clicked.connect(self.on_start_selective_lock)
+        ctrl_layout.addWidget(self.sel_start_btn)
+
+        self.sel_feedback_lbl = QLabel("")
+        self.sel_feedback_lbl.setStyleSheet("font-size: 11px; font-weight: 600;")
+        self.sel_feedback_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ctrl_layout.addWidget(self.sel_feedback_lbl)
+
+        split_layout.addWidget(ctrl_card, stretch=45)
+
+        main_layout.addLayout(split_layout)
+        scroll.setWidget(container)
+
+        tab_widget = QWidget()
+        tab_layout = QVBoxLayout(tab_widget)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        tab_layout.addWidget(scroll)
+
+        self.tabs.addTab(tab_widget, "Bloqueo Selectivo")
+
+
     def setup_rules_tab(self):
+
         # Container with Scroll Area to avoid text compression or clipping
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -1364,12 +784,12 @@ class SettingsDialog(QDialog):
 
         top_row = QHBoxLayout()
         self.dash_state_title = QLabel("Estado Actual")
-        self.dash_state_title.setStyleSheet("font-size: 15px; font-weight: 700; color: #F0F6FC;")
+        self.dash_state_title.setStyleSheet("font-size: 13px; font-weight: 700; color: #F0F6FC;")
         top_row.addWidget(self.dash_state_title)
         top_row.addStretch()
 
         self.dash_state_pill = QLabel("ESTADO")
-        self.dash_state_pill.setStyleSheet("font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; border: 1px solid #30363D;")
+        self.dash_state_pill.setStyleSheet("font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; border: 1px solid #30363D; color: #8B949E;")
         top_row.addWidget(self.dash_state_pill)
         hero_layout.addLayout(top_row)
 
@@ -1602,11 +1022,16 @@ class SettingsDialog(QDialog):
         QTimer.singleShot(2000, lambda: self.copy_phrase_btn.setText("Copiar Frase"))
 
     def on_stop_focus_clicked(self):
-        res = self.ipc.unlock()
+        res_status = self.ipc.get_status()
+        if res_status.get("is_selective"):
+            res = self.ipc.cancel_selective_lock()
+        else:
+            res = self.ipc.unlock_now()
         if res.get("status") == "ok":
             self.dash_feedback_lbl.setText("Sesión finalizada")
             self.refresh_live_status()
             QTimer.singleShot(2500, lambda: self.dash_feedback_lbl.setText(""))
+
 
     def on_domain_input_changed(self, text: str):
         raw = text.strip()
@@ -1638,13 +1063,11 @@ class SettingsDialog(QDialog):
 
         if hasattr(self, "search_input"):
             self.search_input.setVisible(total_cnt > 5)
-
         is_dark = self.is_dark_mode()
-        hover_bg = "rgba(255,255,255,0.04)" if is_dark else "rgba(0,0,0,0.04)"
+        hover_bg = "#161B22" if is_dark else "#F6F8FA"
         sep_color = "#21262D" if is_dark else "#E1E4E8"
 
         if total_cnt == 0:
-            # Modern Minimalist Empty State
             item = QListWidgetItem()
             empty_box = QFrame()
             empty_layout = QVBoxLayout(empty_box)
@@ -1653,18 +1076,20 @@ class SettingsDialog(QDialog):
             empty_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             title = QLabel("Sin sitios en la lista")
-            title.setStyleSheet("font-size: 13px; font-weight: 700; color: #F0F6FC; background: transparent; border: none;")
+            title.setStyleSheet("font-size: 12px; font-weight: 700; color: #F0F6FC; background: transparent; border: none;" if is_dark else "font-size: 12px; font-weight: 700; color: #1F2328; background: transparent; border: none;")
             title.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_layout.addWidget(title)
 
             sub = QLabel("Ingresa dominios arriba (ej: youtube.com) para activar la protección.")
-            sub.setStyleSheet("font-size: 11px; color: #8B949E; background: transparent; border: none;")
+            sub.setStyleSheet("font-size: 11.5px; color: #8B949E; background: transparent; border: none;")
             sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_layout.addWidget(sub)
 
             item.setSizeHint(empty_box.sizeHint())
             self.domains_list.addItem(item)
             self.domains_list.setItemWidget(item, empty_box)
+            if hasattr(self, "sel_domains_list"):
+                self.render_selective_domains_list()
             return
 
         for domain in sorted(filtered_domains):
@@ -1690,7 +1115,7 @@ class SettingsDialog(QDialog):
             row_layout.addWidget(dot_lbl)
 
             name_lbl = QLabel(domain)
-            name_lbl.setStyleSheet("font-weight: 600; font-size: 13px; border: none; background: transparent; color: #F0F6FC;")
+            name_lbl.setStyleSheet(f"font-weight: 600; font-size: 13px; border: none; background: transparent; color: {'#F0F6FC' if is_dark else '#1F2328'};")
             row_layout.addWidget(name_lbl)
 
             row_layout.addStretch()
@@ -1721,6 +1146,9 @@ class SettingsDialog(QDialog):
             item.setSizeHint(QSize(0, 42))
             self.domains_list.addItem(item)
             self.domains_list.setItemWidget(item, row)
+
+        if hasattr(self, "sel_domains_list"):
+            self.render_selective_domains_list()
 
     def on_add_domain_clicked(self):
         raw = self.domain_input.text()
@@ -1776,6 +1204,270 @@ class SettingsDialog(QDialog):
             self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
             self.domain_auto_feedback_lbl.setText(feedback_text)
             QTimer.singleShot(2500, lambda: self.domain_auto_feedback_lbl.setText(""))
+
+    def render_selective_domains_list(self):
+        """Populates the selective blocking domains list with minimalist tiles."""
+        if not hasattr(self, "sel_domains_list"):
+            return
+
+        self.sel_domains_list.clear()
+        self.domain_tile_widgets = {}
+
+        # Clean up any selected domains that might have been deleted from blocked_domains
+        current_set = set(self.blocked_domains)
+        self.selected_selective_domains = self.selected_selective_domains.intersection(current_set)
+
+        search_query = self.sel_search_input.text().strip().lower() if hasattr(self, "sel_search_input") else ""
+        filtered = [d for d in self.blocked_domains if (not search_query or search_query in d.lower())]
+
+        is_dark = self.is_dark_mode()
+        text_color = "#F0F6FC" if is_dark else "#1F2328"
+
+        if not self.blocked_domains:
+            empty_item = QListWidgetItem()
+            empty_box = QWidget()
+            empty_layout = QVBoxLayout(empty_box)
+            empty_layout.setContentsMargins(20, 30, 20, 30)
+            empty_layout.setSpacing(6)
+            empty_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            title = QLabel("Sin sitios configurados")
+            title.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {text_color}; background: transparent; border: none;")
+            title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            empty_layout.addWidget(title)
+
+            sub = QLabel("Añade dominios en 'Sitios Bloqueados' para gestionarlos aquí.")
+            sub.setStyleSheet("font-size: 11.5px; color: #8B949E; background: transparent; border: none;")
+            sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            empty_layout.addWidget(sub)
+
+            empty_item.setSizeHint(empty_box.sizeHint())
+            self.sel_domains_list.addItem(empty_item)
+            self.sel_domains_list.setItemWidget(empty_item, empty_box)
+            self.update_selective_summary()
+            return
+
+        if not filtered and search_query:
+            empty_item = QListWidgetItem()
+            empty_lbl = QLabel("Sin coincidencias")
+            empty_lbl.setStyleSheet("font-size: 11.5px; color: #8B949E; padding: 16px; background: transparent;")
+            empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            empty_item.setSizeHint(QSize(0, 42))
+            self.sel_domains_list.addItem(empty_item)
+            self.sel_domains_list.setItemWidget(empty_item, empty_lbl)
+            self.update_selective_summary()
+            return
+
+        for domain in sorted(filtered):
+            item = QListWidgetItem()
+            is_checked = domain in self.selected_selective_domains
+
+            row = QFrame()
+            row.setCursor(Qt.CursorShape.PointingHandCursor)
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(12, 6, 12, 6)
+            row_layout.setSpacing(10)
+
+            # Left: bullet indicator
+            dot_lbl = QLabel("•")
+            dot_lbl.setStyleSheet("font-size: 14px; font-weight: 700; color: #58A6FF; border: none; background: transparent;")
+            row_layout.addWidget(dot_lbl)
+
+            # Center: Domain info
+            info_layout = QVBoxLayout()
+            info_layout.setSpacing(1)
+            name_lbl = QLabel(domain)
+            name_lbl.setStyleSheet(f"font-weight: 600; font-size: 12.5px; color: {text_color}; background: transparent; border: none;")
+            info_layout.addWidget(name_lbl)
+
+            sub_lbl = QLabel("Regla individual")
+            sub_lbl.setStyleSheet("font-size: 10px; color: #8B949E; background: transparent; border: none;")
+            info_layout.addWidget(sub_lbl)
+            row_layout.addLayout(info_layout)
+
+            row_layout.addStretch()
+
+            # Right: Checkbox indicator (mouse transparent so click lands on the card)
+            cb = QCheckBox()
+            cb.setChecked(is_checked)
+            cb.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            row_layout.addWidget(cb)
+
+            # Apply initial tile styling
+            self.apply_domain_tile_style(row, is_checked)
+
+            # Click handler on the tile
+            def make_click_handler(d=domain):
+                def handler(event):
+                    self.toggle_domain_selection(d)
+                return handler
+
+            row.mousePressEvent = make_click_handler(domain)
+            self.domain_tile_widgets[domain] = (row, cb)
+
+            item.setSizeHint(QSize(0, 44))
+            self.sel_domains_list.addItem(item)
+            self.sel_domains_list.setItemWidget(item, row)
+
+        self.update_selective_summary()
+
+    def apply_domain_tile_style(self, frame: QFrame, is_checked: bool):
+        is_dark = self.is_dark_mode()
+        if is_checked:
+            bg = "rgba(56, 139, 253, 0.12)" if is_dark else "rgba(9, 105, 218, 0.10)"
+            border = "#388BFD" if is_dark else "#0969DA"
+            frame.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {bg};
+                    border: 1px solid {border};
+                    border-left: 3px solid {border};
+                    border-radius: 6px;
+                }}
+            """)
+        else:
+            bg = "#1C2128" if is_dark else "#FFFFFF"
+            border = "#30363D" if is_dark else "#D0D7DE"
+            hover_bg = "#21262D" if is_dark else "#F6F8FA"
+            hover_border = "#58A6FF" if is_dark else "#0969DA"
+            frame.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {bg};
+                    border: 1px solid {border};
+                    border-radius: 6px;
+                }}
+                QFrame:hover {{
+                    background-color: {hover_bg};
+                    border-color: {hover_border};
+                }}
+            """)
+
+    def toggle_domain_selection(self, domain: str):
+        if domain in self.selected_selective_domains:
+            self.selected_selective_domains.remove(domain)
+            is_checked = False
+        else:
+            self.selected_selective_domains.add(domain)
+            is_checked = True
+
+        if hasattr(self, "domain_tile_widgets") and domain in self.domain_tile_widgets:
+            frame, cb = self.domain_tile_widgets[domain]
+            cb.setChecked(is_checked)
+            self.apply_domain_tile_style(frame, is_checked)
+
+        self.update_selective_summary()
+
+    def step_selective_duration(self, delta: int):
+        val = self.sel_duration_spin.value() + delta
+        val = max(self.sel_duration_spin.minimum(), min(self.sel_duration_spin.maximum(), val))
+        self.sel_duration_spin.setValue(val)
+
+    def on_select_all_selective(self):
+        search_query = self.sel_search_input.text().strip().lower() if hasattr(self, "sel_search_input") else ""
+        for d in self.blocked_domains:
+            if not search_query or search_query in d.lower():
+                self.selected_selective_domains.add(d)
+                if hasattr(self, "domain_tile_widgets") and d in self.domain_tile_widgets:
+                    frame, cb = self.domain_tile_widgets[d]
+                    cb.setChecked(True)
+                    self.apply_domain_tile_style(frame, True)
+        self.update_selective_summary()
+
+    def on_deselect_all_selective(self):
+        search_query = self.sel_search_input.text().strip().lower() if hasattr(self, "sel_search_input") else ""
+        if search_query:
+            for d in self.blocked_domains:
+                if search_query in d.lower():
+                    self.selected_selective_domains.discard(d)
+                    if hasattr(self, "domain_tile_widgets") and d in self.domain_tile_widgets:
+                        frame, cb = self.domain_tile_widgets[d]
+                        cb.setChecked(False)
+                        self.apply_domain_tile_style(frame, False)
+        else:
+            self.selected_selective_domains.clear()
+            if hasattr(self, "domain_tile_widgets"):
+                for d, (frame, cb) in self.domain_tile_widgets.items():
+                    cb.setChecked(False)
+                    self.apply_domain_tile_style(frame, False)
+        self.update_selective_summary()
+
+    def update_selective_summary(self):
+        if not hasattr(self, "sel_count_lbl"):
+            return
+
+        count = len(self.selected_selective_domains)
+        total = len(self.blocked_domains)
+        self.sel_count_lbl.setText(f"{count} de {total} seleccionados")
+
+        dur = self.sel_duration_spin.value()
+        target_dt = datetime.now() + timedelta(minutes=dur)
+        target_str = target_dt.strftime("%H:%M")
+
+        # Update preset button visual highlights
+        if hasattr(self, "sel_preset_buttons"):
+            for p_val, btn in self.sel_preset_buttons.items():
+                if p_val == dur:
+                    btn.setObjectName("presetCardBtnSelected")
+                else:
+                    btn.setObjectName("presetCardBtn")
+                btn.style().unpolish(btn)
+                btn.style().polish(btn)
+
+        if count == 0:
+            self.sel_summary_title.setText("Parámetros de Sesión")
+            self.sel_summary_title.setStyleSheet("font-size: 11px; font-weight: 700; color: #8B949E;")
+            self.sel_summary_lbl.setText("Ningún sitio seleccionado. Marca al menos un dominio para continuar.")
+            self.sel_start_btn.setEnabled(False)
+            self.sel_start_btn.setText("Selecciona sitios para iniciar")
+            self.sel_start_btn.setToolTip("Selecciona al menos un sitio para activar el bloqueo.")
+        else:
+            plural = "sitio" if count == 1 else "sitios"
+            self.sel_summary_title.setText("Parámetros de Sesión")
+            self.sel_summary_title.setStyleSheet("font-size: 11px; font-weight: 700; color: #58A6FF;")
+            self.sel_summary_lbl.setText(
+                f"• Sitios seleccionados: <b>{count}</b><br>"
+                f"• Duración: <b>{dur} minutos</b><br>"
+                f"• Finalización estimada: <b>{target_str}</b>"
+            )
+            # Check if active lock is running
+            res = self.ipc.get_status()
+            is_selective = res.get("is_selective", False) if res.get("status") == "ok" else False
+            if not is_selective:
+                self.sel_start_btn.setEnabled(True)
+                self.sel_start_btn.setText(f"Bloquear {count} {plural} ({dur} min)")
+                self.sel_start_btn.setToolTip(f"Iniciar bloqueo selectivo de {count} {plural} por {dur} minutos.")
+
+    def on_start_selective_lock(self):
+        if not self.selected_selective_domains:
+            self.sel_feedback_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
+            self.sel_feedback_lbl.setText("Selecciona al menos un sitio")
+            QTimer.singleShot(3000, lambda: self.sel_feedback_lbl.setText(""))
+            return
+
+        dur = self.sel_duration_spin.value()
+        domains = sorted(list(self.selected_selective_domains))
+        res = self.ipc.request_selective_lock(domains, dur)
+
+        if res.get("status") == "ok":
+            self.sel_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
+            self.sel_feedback_lbl.setText(f"Bloqueo activado ({len(domains)} sitios)")
+            QTimer.singleShot(3500, lambda: self.sel_feedback_lbl.setText(""))
+            self.refresh_live_status()
+            self.config_saved.emit()
+        else:
+            err = res.get("message") or res.get("error") or "Error al activar el bloqueo"
+            self.sel_feedback_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
+            self.sel_feedback_lbl.setText(f"Error: {err}")
+            QTimer.singleShot(4000, lambda: self.sel_feedback_lbl.setText(""))
+
+    def on_cancel_selective_clicked(self):
+        res = self.ipc.cancel_selective_lock()
+        if res.get("status") == "ok":
+            self.sel_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
+            self.sel_feedback_lbl.setText("Bloqueo selectivo finalizado")
+            QTimer.singleShot(3000, lambda: self.sel_feedback_lbl.setText(""))
+            self.refresh_live_status()
+            self.config_saved.emit()
+
 
     def on_save_clicked(self):
         curfew_cfg = {
@@ -1915,7 +1607,7 @@ class SettingsDialog(QDialog):
                 QPushButton {
                     background-color: #388BFD;
                     color: #FFFFFF;
-                    font-weight: 700;
+                    font-weight: 600;
                     font-size: 12px;
                     border: none;
                     border-radius: 6px;
@@ -1949,8 +1641,8 @@ class SettingsDialog(QDialog):
     def refresh_live_status(self):
         res = self.ipc.get_status()
         if res.get("status") != "ok":
-            self.status_badge.setText("● FUERA DE LÍNEA")
-            self.status_badge.setStyleSheet("background-color: rgba(110, 118, 129, 0.2); color: #8B949E; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid #30363D;")
+            self.status_badge.setText("FUERA DE LÍNEA")
+            self.status_badge.setStyleSheet("background-color: rgba(110, 118, 129, 0.2); color: #8F98A0; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid #30363D;")
             icon_off = os.path.join(self.resource_dir, "icon-offline.svg")
             if os.path.exists(icon_off):
                 self.header_icon_lbl.setPixmap(QIcon(icon_off).pixmap(28, 28))
@@ -2144,10 +1836,67 @@ class SettingsDialog(QDialog):
                     self.btn_secondary_action.setEnabled(False)
                     self.btn_secondary_action.setToolTip("Las pausas temporales están desactivadas en la configuración.")
 
+            elif reason == "SELECTIVE_LOCK":
+                sel_count = len(res.get("selective_domains", []))
+                self.status_badge.setText("BLOQUEO SELECTIVO")
+                self.status_badge.setStyleSheet("background-color: rgba(56, 139, 253, 0.15); color: #58A6FF; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(56, 139, 253, 0.3);")
+                icon_act = os.path.join(self.resource_dir, "icon-active.svg")
+                if os.path.exists(icon_act):
+                    self.header_icon_lbl.setPixmap(QIcon(icon_act).pixmap(28, 28))
+                self.dash_state_pill.setText("BLOQUEO SELECTIVO")
+                self.dash_state_pill.setStyleSheet("border: 1px solid #388BFD; color: #58A6FF; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background-color: rgba(56, 139, 253, 0.12);")
+                self.dash_state_title.setText(f"Bloqueo Selectivo ({sel_count} sitios)")
+                self.dash_desc_lbl.setText(f"Bloqueo específico activo para {sel_count} dominios seleccionados.")
+                self.dash_countdown_lbl.setStyleSheet("font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; color: #58A6FF;")
+                self.dash_progress_bar.setValue(100)
+                self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #388BFD; }")
+                self.btn_stop_focus.setVisible(True)
+                self.btn_stop_focus.setText("Finalizar Bloqueo")
+                self.btn_stop_focus.setToolTip("Finalizar el bloqueo selectivo y restaurar el acceso a todos los sitios.")
+
+                self.btn_primary_action.setText("Bloqueo en Curso")
+                self.btn_primary_action.setEnabled(False)
+                self.btn_pomodoro_25.setEnabled(False)
+                self.btn_pomodoro_50.setEnabled(False)
+
+                if bypasses_enabled:
+                    self.btn_secondary_action.setText("Pausa Temporal (15 min)")
+                    self.btn_secondary_action.setEnabled(True)
+                    self.btn_secondary_action.setToolTip("Solicitar 15 minutos de pausa temporal.")
+                else:
+                    self.btn_secondary_action.setText("Descanso Desactivado")
+                    self.btn_secondary_action.setEnabled(False)
+                    self.btn_secondary_action.setToolTip("Las pausas temporales están desactivadas en la configuración.")
+
             if rem > 0:
                 self.dash_countdown_lbl.setText(f"{human_time}")
             else:
                 self.dash_countdown_lbl.setText("Protección Activa")
+
+        # Update Selective Lock Tab UI State
+        is_selective = res.get("is_selective", False)
+        selective_domains = res.get("selective_domains", [])
+
+        if hasattr(self, "sel_active_card"):
+            if is_selective and selective_domains:
+                self.sel_active_card.setVisible(True)
+                if hasattr(self, "sel_status_badge"):
+                    self.sel_status_badge.setText("EN CURSO")
+                    self.sel_status_badge.setStyleSheet("font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid #388BFD; color: #58A6FF; background-color: rgba(56, 139, 253, 0.15);")
+                self.sel_active_countdown_lbl.setText(f"{human_time.upper()} RESTANTES")
+                badges_text = "  /  ".join(selective_domains)
+                self.sel_active_domains_lbl.setText(f"Sitios bloqueados: <b>{badges_text}</b>")
+                self.sel_active_end_lbl.setText(f"Término programado: {target}")
+                self.sel_start_btn.setEnabled(False)
+                self.sel_start_btn.setText("Bloqueo selectivo en curso")
+                self.sel_start_btn.setToolTip("Ya hay una sesión de bloqueo selectivo activa.")
+            else:
+                self.sel_active_card.setVisible(False)
+                if hasattr(self, "sel_status_badge"):
+                    self.sel_status_badge.setText("EN ESPERA")
+                    self.sel_status_badge.setStyleSheet("font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid #30363D; color: #8B949E; background-color: rgba(110, 118, 129, 0.15);")
+                self.update_selective_summary()
+
 
     def start_focus_session(self, minutes: int):
         """Starts a timed focus session (Pomodoro)."""
