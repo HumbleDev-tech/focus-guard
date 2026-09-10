@@ -4,6 +4,7 @@ Automated unit and integration test suite for Focus-Guard.
 import os
 import sys
 import time
+import json
 import tempfile
 import unittest
 from datetime import datetime, timedelta
@@ -209,6 +210,96 @@ class TestScheduler(unittest.TestCase):
         st = sched.evaluate_state()
         self.assertEqual(st["state"], "UNLOCKED")
 
+    def test_selective_lock_indefinite(self):
+        cfg = dict(self.config)
+        cfg["curfew"] = {"enabled": False}
+        cfg["boot_cooldown"] = {"enabled": False}
+        sched = StateScheduler(cfg, dev_mode=True)
+
+        # 1. Request indefinite selective lock (duration_minutes = 0)
+        ok, msg = sched.request_selective_lock(["reddit.com", "instagram.com"], 0)
+        self.assertTrue(ok)
+        self.assertTrue(sched.is_in_selective_lock()[0])
+
+        # 2. Verify state immediately
+        st = sched.evaluate_state()
+        self.assertEqual(st["state"], "LOCKED")
+        self.assertEqual(st["reason"], "SELECTIVE_LOCK")
+        self.assertTrue(st["is_selective"])
+        self.assertTrue(st["is_indefinite"])
+        self.assertEqual(st["target_time_str"], "Indefinido")
+        self.assertEqual(st["domains_to_block"], ["instagram.com", "reddit.com"])
+
+        # 3. Simulate passage of 10 hours — verify it does NOT auto-expire!
+        far_future = datetime.now() + timedelta(hours=10)
+        in_sel, rem, target, domains = sched.is_in_selective_lock(far_future)
+        self.assertTrue(in_sel)
+        self.assertEqual(rem, 0)
+        self.assertIsNone(target)
+        self.assertEqual(domains, ["instagram.com", "reddit.com"])
+
+        st_future = sched.evaluate_state(far_future)
+        self.assertEqual(st_future["state"], "LOCKED")
+        self.assertTrue(st_future["is_indefinite"])
+
+        # 4. Cancel selective lock
+        ok_c, _ = sched.cancel_selective_lock()
+        self.assertTrue(ok_c)
+        self.assertFalse(sched.is_in_selective_lock()[0])
+        st_clean = sched.evaluate_state()
+        self.assertEqual(st_clean["state"], "UNLOCKED")
+
+    def test_persistent_state_export_and_restore(self):
+        cfg = dict(self.config)
+        cfg["boot_cooldown"] = {"enabled": False}
+        cfg["curfew"] = {"enabled": False}
+        sched1 = StateScheduler(cfg, dev_mode=True)
+        sched1.request_selective_lock(["reddit.com", "twitch.tv"], 0)
+
+        # Export state
+        exported = sched1.export_persistent_state()
+        self.assertTrue(exported.get("selective_is_indefinite"))
+        self.assertEqual(sorted(exported.get("selective_domains", [])), ["reddit.com", "twitch.tv"])
+
+        # Restore into a new scheduler instance (simulating reboot)
+        sched2 = StateScheduler(cfg, dev_mode=True)
+        self.assertFalse(sched2.is_in_selective_lock()[0])
+        sched2.restore_persistent_state(exported)
+
+        self.assertTrue(sched2.is_in_selective_lock()[0])
+        st = sched2.evaluate_state()
+        self.assertEqual(st["state"], "LOCKED")
+        self.assertEqual(st["reason"], "SELECTIVE_LOCK")
+        self.assertTrue(st["is_indefinite"])
+        self.assertEqual(st["domains_to_block"], ["reddit.com", "twitch.tv"])
+
+    def test_boot_cooldown_unites_with_indefinite_selective_domains(self):
+        cfg = dict(self.config)
+        cfg["boot_cooldown"] = {"enabled": True, "duration_minutes": 30}
+        cfg["curfew"] = {"enabled": False}
+        cfg["blocked_domains"] = ["twitter.com"]
+
+        sched = StateScheduler(cfg, dev_mode=True)
+        # Add indefinite selective domain that is NOT in base config
+        sched.request_selective_lock(["customdistraction.com"], 0)
+
+        # 1. During Boot Cooldown (5 min after boot)
+        now_cooldown = sched.daemon_start_time + timedelta(minutes=5)
+        st_boot = sched.evaluate_state(now_cooldown)
+        self.assertEqual(st_boot["state"], "LOCKED")
+        self.assertEqual(st_boot["reason"], "BOOT_COOLDOWN")
+        # BOTH base domains AND indefinite selective domains MUST be blocked!
+        self.assertEqual(sorted(st_boot["domains_to_block"]), ["customdistraction.com", "twitter.com"])
+
+        # 2. After Boot Cooldown ends (35 min after boot)
+        now_after_cooldown = sched.daemon_start_time + timedelta(minutes=35)
+        st_after = sched.evaluate_state(now_after_cooldown)
+        # Seamless transition: stays LOCKED under SELECTIVE_LOCK!
+        self.assertEqual(st_after["state"], "LOCKED")
+        self.assertEqual(st_after["reason"], "SELECTIVE_LOCK")
+        self.assertTrue(st_after["is_indefinite"])
+        self.assertEqual(st_after["domains_to_block"], ["customdistraction.com"])
+
 
 class TestIPCAndSecurityValidation(unittest.TestCase):
     @classmethod
@@ -319,6 +410,89 @@ class TestIPCAndSecurityValidation(unittest.TestCase):
         with open(self.hosts_file, "r") as f:
             hosts_after = f.read()
         self.assertNotIn("reddit.com", hosts_after)
+
+    def test_ipc_selective_lock_indefinite(self):
+        client = FocusIPCClient(socket_path=self.sock_path)
+        client.unlock_now()
+
+        # Start indefinite selective lock (duration_minutes = 0)
+        res = client.request_selective_lock(["reddit.com"], 0)
+        self.assertEqual(res.get("status"), "ok")
+
+        st = client.get_status()
+        self.assertEqual(st.get("state"), "LOCKED")
+        self.assertEqual(st.get("reason"), "SELECTIVE_LOCK")
+        self.assertTrue(st.get("is_selective"))
+        self.assertTrue(st.get("is_indefinite"))
+
+        with open(self.hosts_file, "r") as f:
+            hosts_content = f.read()
+        self.assertIn("reddit.com", hosts_content)
+
+        # Cancel
+        res_c = client.cancel_selective_lock()
+        self.assertEqual(res_c.get("status"), "ok")
+        st_after = client.get_status()
+        self.assertEqual(st_after.get("state"), "UNLOCKED")
+        with open(self.hosts_file, "r") as f:
+            hosts_after = f.read()
+        self.assertNotIn("reddit.com", hosts_after)
+
+    def test_ipc_indefinite_lock_reboot_persistence(self):
+        import threading
+        # Create dedicated files for persistence test
+        ts = int(time.time() * 1000)
+        sock_p = f"/tmp/fg_persist_sock_{ts}.sock"
+        hosts_p = f"/tmp/fg_persist_hosts_{ts}"
+        cfg_p = f"/tmp/fg_persist_cfg_{ts}.json"
+        state_p = f"/tmp/fg_persist_state_{ts}.json"
+
+        with open(hosts_p, "w") as f:
+            f.write("127.0.0.1 localhost\n")
+        with open(cfg_p, "w") as f:
+            f.write('{"version": "1.0.0", "blocked_domains": ["base.com"], "curfew": {"enabled": false}, "boot_cooldown": {"enabled": false}}')
+
+        # 1. Start initial daemon instance
+        d1 = FocusDaemon(config_path=cfg_p, hosts_path=hosts_p, socket_path=sock_p, state_path=state_p, dev_mode=True)
+        t1 = threading.Thread(target=d1.run, daemon=True)
+        t1.start()
+        time.sleep(0.4)
+
+        client1 = FocusIPCClient(socket_path=sock_p)
+        # Lock twitch.tv indefinitely
+        res_lock = client1.request_selective_lock(["twitch.tv"], 0)
+        self.assertEqual(res_lock.get("status"), "ok")
+
+        # Verify state file exists and has twitch.tv
+        self.assertTrue(os.path.exists(state_p))
+        with open(state_p, "r") as f:
+            saved_state = json.load(f)
+        self.assertTrue(saved_state.get("selective_is_indefinite"))
+        self.assertEqual(saved_state.get("selective_domains"), ["twitch.tv"])
+
+        # 2. Stop daemon (simulating PC shutdown / service restart)
+        d1.stop(clean_hosts=False)
+        time.sleep(0.4)
+
+        # 3. Start second daemon instance with same state_path (simulating boot)
+        d2 = FocusDaemon(config_path=cfg_p, hosts_path=hosts_p, socket_path=sock_p, state_path=state_p, dev_mode=True)
+        t2 = threading.Thread(target=d2.run, daemon=True)
+        t2.start()
+        time.sleep(0.4)
+
+        client2 = FocusIPCClient(socket_path=sock_p)
+        st2 = client2.get_status()
+        self.assertEqual(st2.get("state"), "LOCKED")
+        self.assertEqual(st2.get("reason"), "SELECTIVE_LOCK")
+        self.assertTrue(st2.get("is_selective"))
+        self.assertTrue(st2.get("is_indefinite"))
+        self.assertEqual(st2.get("selective_domains"), ["twitch.tv"])
+
+        # Clean up
+        d2.stop(clean_hosts=True)
+        for p in [sock_p, hosts_p, cfg_p, state_p]:
+            if os.path.exists(p):
+                os.unlink(p)
 
 
 

@@ -37,5 +37,6 @@ rm -rf /opt/focus-guard
 rm -f /usr/share/applications/focus-guard.desktop
 rm -f /etc/xdg/autostart/focus-guard.desktop
 rm -f /run/focus-guard.sock
+rm -f /etc/focus-guard/state.json
 
 echo "=== Focus-Guard has been completely uninstalled ==="

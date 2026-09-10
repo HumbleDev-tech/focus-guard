@@ -32,15 +32,26 @@ DEFAULT_CONFIG_LOCATIONS = [
 
 
 class FocusDaemon:
-    def __init__(self, config_path: Optional[str] = None, hosts_path: Optional[str] = None, socket_path: Optional[str] = None, dev_mode: bool = False):
+    def __init__(self, config_path: Optional[str] = None, hosts_path: Optional[str] = None, socket_path: Optional[str] = None, state_path: Optional[str] = None, dev_mode: bool = False):
         self.config_path = self._resolve_config_path(config_path)
         self.config = self._load_config()
         self.hosts_path = hosts_path or self.config.get("hosts_path", "/etc/hosts")
         self.socket_path = socket_path or self.config.get("socket_path", "/run/focus-guard.sock")
         self.dev_mode = dev_mode
-        
+
+        if state_path:
+            self.state_path = state_path
+        elif self.dev_mode:
+            self.state_path = "/tmp/focus_guard_dev_state.json"
+        else:
+            cfg_dir = os.path.dirname(os.path.abspath(self.config_path))
+            self.state_path = os.path.join(cfg_dir, "state.json")
+
         self.hosts_mgr = HostsManager(self.hosts_path)
         self.scheduler = StateScheduler(self.config, dev_mode=self.dev_mode)
+        # Restore persistent runtime state (e.g. indefinite selective locks across reboots)
+        self.scheduler.restore_persistent_state(self._load_state())
+
         self.running = False
         self.server_socket: Optional[socket.socket] = None
         self._last_block_state: Optional[bool] = None
@@ -93,6 +104,31 @@ class FocusDaemon:
             return True
         except Exception as e:
             logger.error(f"Failed to save configuration: {e}")
+            return False
+
+    def _load_state(self) -> Dict[str, Any]:
+        """Loads persistent runtime state from disk if available."""
+        if os.path.exists(self.state_path):
+            try:
+                with open(self.state_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    logger.info(f"Loaded persistent runtime state from {self.state_path}")
+                    return data
+            except Exception as e:
+                logger.error(f"Error loading state from {self.state_path}: {e}")
+        return {}
+
+    def _save_state(self, state_dict: Dict[str, Any]) -> bool:
+        """Saves persistent runtime state to disk safely."""
+        try:
+            state_dir = os.path.dirname(os.path.abspath(self.state_path))
+            os.makedirs(state_dir, exist_ok=True)
+            with open(self.state_path, "w", encoding="utf-8") as f:
+                json.dump(state_dict, f, indent=2, ensure_ascii=False)
+            logger.debug(f"Saved persistent state to {self.state_path}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save persistent state to {self.state_path}: {e}")
             return False
 
     def _apply_current_state(self, force: bool = False):
@@ -155,6 +191,7 @@ class FocusDaemon:
                 "is_blocking": state.get("is_blocking", False),
                 "is_selective": state.get("is_selective", False),
                 "selective_domains": state.get("selective_domains", []),
+                "is_indefinite": state.get("is_indefinite", False),
                 "in_curfew": state.get("in_curfew", False),
                 "curfew_warning": state.get("curfew_warning", False),
                 "curfew_warning_seconds": state.get("curfew_warning_seconds", 0),
@@ -177,17 +214,20 @@ class FocusDaemon:
 
         elif action == "cancel_bypass":
             ok, msg = self.scheduler.cancel_bypass()
+            self._save_state(self.scheduler.export_persistent_state())
             self._apply_current_state(force=True)
             return {"status": "ok", "message": msg, "success": ok}
 
         elif action == "lock":
             duration = int(req.get("duration_minutes", 0))
             ok, msg = self.scheduler.request_lock(duration)
+            self._save_state(self.scheduler.export_persistent_state())
             self._apply_current_state(force=True)
             return {"status": "ok", "message": msg, "success": ok}
 
         elif action == "unlock":
             ok, msg = self.scheduler.request_unlock()
+            self._save_state(self.scheduler.export_persistent_state())
             self._apply_current_state(force=True)
             return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
 
@@ -205,11 +245,13 @@ class FocusDaemon:
                 return {"status": "error", "error": "No valid domains provided"}
 
             ok, msg = self.scheduler.request_selective_lock(valid_domains, duration)
+            self._save_state(self.scheduler.export_persistent_state())
             self._apply_current_state(force=True)
             return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
 
         elif action == "cancel_selective_lock":
             ok, msg = self.scheduler.cancel_selective_lock()
+            self._save_state(self.scheduler.export_persistent_state())
             self._apply_current_state(force=True)
             return {"status": "ok", "message": msg, "success": ok}
 
@@ -375,6 +417,11 @@ class FocusDaemon:
     def stop(self, clean_hosts: bool = True):
         """Cleans up sockets and restores hosts."""
         self.running = False
+        try:
+            self._save_state(self.scheduler.export_persistent_state())
+        except Exception:
+            pass
+
         if clean_hosts:
             try:
                 self.hosts_mgr.remove_block()

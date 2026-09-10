@@ -590,10 +590,12 @@ class SettingsDialog(QDialog):
         # Selective Tab Status Update
         is_selective = res.get("is_selective", False)
         selective_domains = res.get("selective_domains", [])
+        is_indefinite = res.get("is_indefinite", False)
         self.selective_tab.update_active_status(
             is_selective=is_selective,
             remaining_sec=rem,
             selective_domains=selective_domains,
             target_time=target,
-            human_time=human_time
+            human_time=human_time,
+            is_indefinite=is_indefinite
         )

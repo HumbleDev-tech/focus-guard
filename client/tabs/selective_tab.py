@@ -28,6 +28,7 @@ class SelectiveTab(QWidget):
         self.selected_selective_domains: Set[str] = set()
         self.domain_tile_widgets: Dict[str, Any] = {}
         self.is_active_selective: bool = False
+        self.is_indefinite_selective: bool = False
 
         self.setup_ui()
 
@@ -197,24 +198,24 @@ class SelectiveTab(QWidget):
         ctrl_layout.setContentsMargins(16, 14, 16, 14)
         ctrl_layout.setSpacing(12)
 
-        ctrl_title = QLabel("2. Duración del Bloqueo")
+        ctrl_title = QLabel("2. Modalidad de Bloqueo")
         ctrl_title.setObjectName("sectionHeader")
         ctrl_layout.addWidget(ctrl_title)
 
-        ctrl_desc = QLabel("Define el tiempo durante el cual permanecerán bloqueados los sitios marcados.")
+        ctrl_desc = QLabel("Bloquea los sitios seleccionados temporalmente con temporizador o de forma continua e indefinida.")
         ctrl_desc.setObjectName("cardDesc")
         ctrl_desc.setWordWrap(True)
         ctrl_layout.addWidget(ctrl_desc)
 
-        # Duration Selector Box
-        dur_box = QFrame()
-        dur_box.setObjectName("innerCard")
-        dur_box_layout = QVBoxLayout(dur_box)
-        dur_box_layout.setSpacing(8)
+        # 1) Timed Blocking Card
+        timed_box = QFrame()
+        timed_box.setObjectName("innerCard")
+        timed_layout = QVBoxLayout(timed_box)
+        timed_layout.setSpacing(8)
 
-        dur_box_title = QLabel("Tiempo a bloquear:")
-        dur_box_title.setObjectName("fieldLabel")
-        dur_box_layout.addWidget(dur_box_title)
+        timed_hdr = QLabel("Bloqueo Temporal")
+        timed_hdr.setObjectName("fieldLabel")
+        timed_layout.addWidget(timed_hdr)
 
         stepper_row = QHBoxLayout()
         stepper_row.setSpacing(6)
@@ -231,7 +232,7 @@ class SelectiveTab(QWidget):
         self.sel_duration_spin.setSingleStep(5)
         self.sel_duration_spin.setValue(25)
         self.sel_duration_spin.setSuffix(" min")
-        self.sel_duration_spin.setFixedWidth(80)
+        self.sel_duration_spin.setFixedWidth(84)
         self.sel_duration_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.sel_duration_spin.valueChanged.connect(self.update_selective_summary)
         stepper_row.addWidget(self.sel_duration_spin)
@@ -242,20 +243,42 @@ class SelectiveTab(QWidget):
         step_plus.setCursor(Qt.CursorShape.PointingHandCursor)
         step_plus.clicked.connect(lambda: self.step_selective_duration(5))
         stepper_row.addWidget(step_plus)
-
-        stepper_row.addSpacing(10)
-
-        for m in [15, 25, 45, 60]:
-            pill = QPushButton(f"{m}m")
-            pill.setObjectName("presetChipSmall")
-            pill.setToolTip(f"Fijar duración a {m} minutos")
-            pill.setCursor(Qt.CursorShape.PointingHandCursor)
-            pill.clicked.connect(lambda _, mins=m: self.sel_duration_spin.setValue(mins))
-            stepper_row.addWidget(pill)
-
         stepper_row.addStretch()
-        dur_box_layout.addLayout(stepper_row)
-        ctrl_layout.addWidget(dur_box)
+
+        timed_layout.addLayout(stepper_row)
+
+        self.sel_start_btn = QPushButton("Iniciar Bloqueo Temporal (25 min)")
+        self.sel_start_btn.setObjectName("primaryBtn")
+        self.sel_start_btn.setMinimumHeight(38)
+        self.sel_start_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.sel_start_btn.clicked.connect(self.on_start_selective_lock)
+        timed_layout.addWidget(self.sel_start_btn)
+
+        ctrl_layout.addWidget(timed_box)
+
+        # 2) Indefinite Blocking Card
+        indef_box = QFrame()
+        indef_box.setObjectName("innerCard")
+        indef_layout = QVBoxLayout(indef_box)
+        indef_layout.setSpacing(8)
+
+        indef_hdr = QLabel("Bloqueo Indefinido")
+        indef_hdr.setObjectName("fieldLabel")
+        indef_layout.addWidget(indef_hdr)
+
+        indef_desc = QLabel("Mantiene bloqueados los sitios continuamente. No se liberarán hasta que vuelvas a pulsar el botón.")
+        indef_desc.setObjectName("cardDesc")
+        indef_desc.setWordWrap(True)
+        indef_layout.addWidget(indef_desc)
+
+        self.sel_indefinite_btn = QPushButton("Bloquear Indefinidamente")
+        self.sel_indefinite_btn.setObjectName("secondaryBtn")
+        self.sel_indefinite_btn.setMinimumHeight(38)
+        self.sel_indefinite_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.sel_indefinite_btn.clicked.connect(self.on_indefinite_button_clicked)
+        indef_layout.addWidget(self.sel_indefinite_btn)
+
+        ctrl_layout.addWidget(indef_box)
 
         # Session Forecast Card
         self.sel_summary_card = QFrame()
@@ -275,14 +298,6 @@ class SelectiveTab(QWidget):
 
         ctrl_layout.addWidget(self.sel_summary_card)
         ctrl_layout.addStretch()
-
-        # Action Button
-        self.sel_start_btn = QPushButton("Iniciar Bloqueo (25 min)")
-        self.sel_start_btn.setObjectName("primaryBtn")
-        self.sel_start_btn.setMinimumHeight(40)
-        self.sel_start_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.sel_start_btn.clicked.connect(self.on_start_selective_lock)
-        ctrl_layout.addWidget(self.sel_start_btn)
 
         self.sel_feedback_lbl = QLabel("")
         self.sel_feedback_lbl.setStyleSheet("font-size: 11px; font-weight: 600;")
@@ -507,19 +522,28 @@ class SelectiveTab(QWidget):
             self.sel_start_btn.setEnabled(False)
             self.sel_start_btn.setText("Selecciona sitios para iniciar")
             self.sel_start_btn.setToolTip("Selecciona al menos un sitio para activar el bloqueo.")
+            if not self.is_active_selective:
+                self.sel_indefinite_btn.setEnabled(False)
+                self.sel_indefinite_btn.setText("Bloquear Indefinidamente")
+                self.sel_indefinite_btn.setObjectName("secondaryBtn")
+                self.sel_indefinite_btn.setStyleSheet("")
         else:
             plural = "sitio" if count == 1 else "sitios"
             self.sel_summary_title.setText("Parámetros de Sesión")
             self.sel_summary_title.setStyleSheet("font-size: 11px; font-weight: 700; color: #58A6FF;")
             self.sel_summary_lbl.setText(
                 f"• Sitios seleccionados: <b>{count} {plural}</b><br>"
-                f"• Tiempo de bloqueo: <b>{dur} min</b><br>"
-                f"• Finalizará a las: <b>{target_str}</b>"
+                f"• Bloqueo Temporal: <b>{dur} min</b> (hasta las {target_str})<br>"
+                f"• Bloqueo Indefinido: <b>Continuo</b> (hasta liberar)"
             )
             if not self.is_active_selective:
                 self.sel_start_btn.setEnabled(True)
-                self.sel_start_btn.setText(f"Iniciar Bloqueo ({dur} min)")
+                self.sel_start_btn.setText(f"Iniciar Bloqueo Temporal ({dur} min)")
                 self.sel_start_btn.setToolTip(f"Iniciar bloqueo selectivo de {count} {plural} por {dur} minutos.")
+                self.sel_indefinite_btn.setEnabled(True)
+                self.sel_indefinite_btn.setText(f"Bloquear Indefinidamente ({count} {plural})")
+                self.sel_indefinite_btn.setObjectName("secondaryBtn")
+                self.sel_indefinite_btn.setStyleSheet("")
 
     def on_start_selective_lock(self):
         if not self.selected_selective_domains:
@@ -529,6 +553,20 @@ class SelectiveTab(QWidget):
         dur = self.sel_duration_spin.value()
         domains = sorted(list(self.selected_selective_domains))
         self.start_lock_requested.emit(domains, dur)
+
+    def on_indefinite_button_clicked(self):
+        if self.is_active_selective and self.is_indefinite_selective:
+            # Re-clicking while indefinite lock is active releases the block
+            self.cancel_lock_requested.emit()
+            return
+
+        if not self.selected_selective_domains:
+            self.set_feedback("Selecciona al menos un sitio", is_success=False)
+            return
+
+        domains = sorted(list(self.selected_selective_domains))
+        # 0 minutes indicates indefinite lock
+        self.start_lock_requested.emit(domains, 0)
 
     def set_feedback(self, text: str, is_success: bool = True):
         color = "#2EA043" if is_success else "#F85149"
@@ -542,35 +580,70 @@ class SelectiveTab(QWidget):
         remaining_sec: int,
         selective_domains: List[str] | None = None,
         target_time: str = "",
-        human_time: str = ""
+        human_time: str = "",
+        is_indefinite: bool = False
     ):
         self.is_active_selective = is_selective
+        self.is_indefinite_selective = is_selective and is_indefinite
         domains_list = selective_domains or []
 
         if is_selective and domains_list:
-            self.sel_status_badge.setText("EN CURSO")
-            self.sel_status_badge.setStyleSheet("font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid #388BFD; color: #58A6FF; background-color: rgba(56, 139, 253, 0.15);")
-            self.sel_active_card.setVisible(True)
-
-            if human_time:
-                self.sel_active_countdown_lbl.setText(f"{human_time.upper()} RESTANTES")
-            else:
-                mins = remaining_sec // 60
-                secs = remaining_sec % 60
-                self.sel_active_countdown_lbl.setText(f"{mins:02d}:{secs:02d} RESTANTES")
-
             num_domains = len(domains_list)
             domains_preview = ", ".join(domains_list[:3])
             if num_domains > 3:
                 domains_preview += f" (+{num_domains - 3} más)"
-            self.sel_active_domains_lbl.setText(f"Bloqueando {num_domains} sitios: {domains_preview}")
-            self.sel_active_end_lbl.setText(f"Finaliza a las {target_time}" if target_time else "")
 
-            self.sel_start_btn.setEnabled(False)
-            self.sel_start_btn.setText("Bloqueo Selectivo en curso")
-            self.sel_start_btn.setToolTip("Ya hay un bloqueo selectivo activo.")
+            self.sel_active_card.setVisible(True)
+            self.sel_active_domains_lbl.setText(f"Bloqueando {num_domains} sitios: {domains_preview}")
+
+            if is_indefinite:
+                self.sel_status_badge.setText("BLOQUEO INDEFINIDO")
+                self.sel_status_badge.setStyleSheet(
+                    "font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
+                    "border: 1px solid #A371F7; color: #BC8CFF; background-color: rgba(163, 113, 247, 0.15);"
+                )
+                self.sel_active_countdown_lbl.setText("SIN LÍMITE DE TIEMPO")
+                self.sel_active_countdown_lbl.setStyleSheet(
+                    "font-family: ui-monospace, SFMono-Regular, monospace; font-size: 16px; font-weight: 700; color: #BC8CFF;"
+                )
+                self.sel_active_end_lbl.setText("Permanente hasta pulsar Finalizar Bloqueo o Desbloquear")
+
+                self.sel_start_btn.setEnabled(False)
+                self.sel_start_btn.setText("Bloqueo indefinido activo")
+
+                self.sel_indefinite_btn.setEnabled(True)
+                self.sel_indefinite_btn.setText("Desbloquear Sitios Indefinidos")
+                self.sel_indefinite_btn.setObjectName("dangerBtn")
+                self.sel_indefinite_btn.setStyleSheet("background-color: #DA3633; color: #FFFFFF; font-weight: 600; border: none; border-radius: 6px;")
+            else:
+                self.sel_status_badge.setText("EN CURSO")
+                self.sel_status_badge.setStyleSheet(
+                    "font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
+                    "border: 1px solid #388BFD; color: #58A6FF; background-color: rgba(56, 139, 253, 0.15);"
+                )
+                if human_time:
+                    self.sel_active_countdown_lbl.setText(f"{human_time.upper()} RESTANTES")
+                else:
+                    mins = remaining_sec // 60
+                    secs = remaining_sec % 60
+                    self.sel_active_countdown_lbl.setText(f"{mins:02d}:{secs:02d} RESTANTES")
+                self.sel_active_countdown_lbl.setStyleSheet(
+                    "font-family: ui-monospace, SFMono-Regular, monospace; font-size: 18px; font-weight: 700; color: #58A6FF;"
+                )
+                self.sel_active_end_lbl.setText(f"Finaliza a las {target_time}" if target_time else "")
+
+                self.sel_start_btn.setEnabled(False)
+                self.sel_start_btn.setText("Bloqueo temporal en curso")
+
+                self.sel_indefinite_btn.setEnabled(False)
+                self.sel_indefinite_btn.setText("Bloqueo temporal en curso")
+                self.sel_indefinite_btn.setObjectName("secondaryBtn")
+                self.sel_indefinite_btn.setStyleSheet("")
         else:
             self.sel_status_badge.setText("EN ESPERA")
-            self.sel_status_badge.setStyleSheet("font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; border: 1px solid #30363D; color: #8B949E; background-color: rgba(110, 118, 129, 0.15);")
+            self.sel_status_badge.setStyleSheet(
+                "font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
+                "border: 1px solid #30363D; color: #8B949E; background-color: rgba(110, 118, 129, 0.15);"
+            )
             self.sel_active_card.setVisible(False)
             self.update_selective_summary()
