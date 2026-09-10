@@ -131,6 +131,11 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.cancel_selective_action.setVisible(False)
         self.menu.addAction(self.cancel_selective_action)
 
+        self.cancel_emergency_action = QAction("Finalizar Desbloqueo de Emergencia", self.menu)
+        self.cancel_emergency_action.triggered.connect(self.on_cancel_bypass_clicked)
+        self.cancel_emergency_action.setVisible(False)
+        self.menu.addAction(self.cancel_emergency_action)
+
         self.menu.addSeparator()
 
         # 8. Information Action
@@ -254,6 +259,20 @@ class FocusTrayApplet(QSystemTrayIcon):
                     QSystemTrayIcon.MessageIcon.Warning,
                     5000
                 )
+            elif self.last_reason == "MANUAL_LOCK" and reason == "FREE_TIME":
+                self.showMessage(
+                    "¡Sesión de Enfoque Concluida!",
+                    "Has completado tu bloque de concentración. Modo Libre activo.",
+                    QSystemTrayIcon.MessageIcon.Information,
+                    5000
+                )
+            elif self.last_reason == "SELECTIVE_LOCK" and reason == "FREE_TIME":
+                self.showMessage(
+                    "Bloqueo Selectivo Finalizado",
+                    "El tiempo de bloqueo selectivo ha terminado. Sitios desbloqueados.",
+                    QSystemTrayIcon.MessageIcon.Information,
+                    5000
+                )
 
         self.last_state = state
         self.last_reason = reason
@@ -261,6 +280,7 @@ class FocusTrayApplet(QSystemTrayIcon):
 
         # 3. State-Specific Icon & Rich Formatted Tooltip
         domains_num = res.get("domains_count", 0)
+        can_bypass_curfew = res.get("can_bypass", False)
         if state == "LOCKED":
             if reason == "CURFEW":
                 self.setIcon(self.icon_curfew)
@@ -286,10 +306,11 @@ class FocusTrayApplet(QSystemTrayIcon):
         # 4. Context-Aware Menu Items
         if state == "LOCKED":
             self.focus_menu.menuAction().setVisible(False)
+            self.cancel_emergency_action.setVisible(False)
             if reason == "CURFEW":
                 self.status_action.setText("Toque de Queda Nocturno (Protegido)")
                 self.bypass_menu.menuAction().setVisible(False)
-                self.emergency_action.setVisible(True)
+                self.emergency_action.setVisible(can_bypass_curfew)
                 self.unlock_action.setVisible(False)
                 self.cancel_selective_action.setVisible(False)
             elif reason == "BOOT_COOLDOWN":
@@ -319,10 +340,13 @@ class FocusTrayApplet(QSystemTrayIcon):
             self.focus_menu.menuAction().setVisible(False)
             if reason == "EMERGENCY_BYPASS":
                 self.status_action.setText("Desbloqueo de Emergencia Activo")
+                self.bypass_menu.menuAction().setVisible(False)
+                self.cancel_emergency_action.setVisible(True)
             else:
                 self.status_action.setText("Descanso Temporal Activo")
-            self.bypass_menu.menuAction().setVisible(True)
-            self.bypass_menu.setEnabled(True)
+                self.bypass_menu.menuAction().setVisible(True)
+                self.bypass_menu.setEnabled(True)
+                self.cancel_emergency_action.setVisible(False)
             self.emergency_action.setVisible(False)
             self.unlock_action.setVisible(False)
             self.cancel_selective_action.setVisible(False)
@@ -334,6 +358,7 @@ class FocusTrayApplet(QSystemTrayIcon):
             self.emergency_action.setVisible(False)
             self.unlock_action.setVisible(False)
             self.cancel_selective_action.setVisible(False)
+            self.cancel_emergency_action.setVisible(False)
 
 
         # Detail text
@@ -416,18 +441,16 @@ class FocusTrayApplet(QSystemTrayIcon):
         if res.get("status") != "ok":
             err_msg = res.get("message") or res.get("error") or "No se puede desbloquear en este momento."
             self.showMessage("Desbloqueo no permitido", err_msg, QSystemTrayIcon.MessageIcon.Warning, 3000)
+        else:
+            self.last_reason = "MANUAL_UNLOCKED"
         self.refresh_status()
 
     def on_cancel_selective_clicked(self):
         """Handler for cancelling selective lock."""
         res = self.ipc.cancel_selective_lock()
-        if res.get("status") == "ok":
-            self.showMessage(
-                "Bloqueo Selectivo Finalizado",
-                "Sitios desbloqueados. Modo Libre activo.",
-                QSystemTrayIcon.MessageIcon.Information,
-                3000
-            )
+        if res.get("status") != "ok":
+            err_msg = res.get("message") or res.get("error") or "No se pudo cancelar el bloqueo selectivo."
+            self.showMessage("Error", err_msg, QSystemTrayIcon.MessageIcon.Warning, 3000)
         self.refresh_status()
 
 

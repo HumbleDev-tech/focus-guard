@@ -192,6 +192,8 @@ class FocusDaemon:
                 "is_selective": state.get("is_selective", False),
                 "selective_domains": state.get("selective_domains", []),
                 "is_indefinite": state.get("is_indefinite", False),
+                "has_pending_selective": state.get("has_pending_selective", False),
+                "selective_is_indefinite": state.get("selective_is_indefinite", False),
                 "in_curfew": state.get("in_curfew", False),
                 "curfew_warning": state.get("curfew_warning", False),
                 "curfew_warning_seconds": state.get("curfew_warning_seconds", 0),
@@ -203,12 +205,14 @@ class FocusDaemon:
             duration = int(req.get("duration_minutes", 15))
             force = bool(req.get("force", False))
             ok, msg = self.scheduler.request_bypass(duration, force=force)
+            self._save_state(self.scheduler.export_persistent_state())
             self._apply_current_state(force=True)
             return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
 
         elif action == "emergency_bypass":
             duration = int(req.get("duration_minutes", 15))
             ok, msg = self.scheduler.request_bypass(duration, force=True)
+            self._save_state(self.scheduler.export_persistent_state())
             self._apply_current_state(force=True)
             return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
 

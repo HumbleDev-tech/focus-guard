@@ -44,6 +44,10 @@ class StateScheduler:
         self.selective_domains: List[str] = []
         self.selective_end_time: Optional[datetime] = None
         self.selective_is_indefinite: bool = False
+        # State preservation during temporary bypasses
+        self.paused_manual_remaining_seconds: Optional[int] = None
+        self.paused_manual_is_indefinite: bool = False
+        self.paused_selective_remaining_seconds: Optional[int] = None
 
     def update_config(self, config: Dict[str, Any]):
         """Updates internal configuration."""
@@ -152,6 +156,23 @@ class StateScheduler:
                 return True, remaining, cooldown_end
             return False, 0, None
 
+    def _resume_paused_sessions(self, now: Optional[datetime] = None):
+        """Restores any focus session or timed selective lock that was paused by a bypass."""
+        now = now or datetime.now()
+        if self.paused_manual_remaining_seconds is not None:
+            self.manual_lock = True
+            self.manual_lock_end_time = now + timedelta(seconds=self.paused_manual_remaining_seconds)
+            self.paused_manual_remaining_seconds = None
+            self.paused_manual_is_indefinite = False
+        elif self.paused_manual_is_indefinite:
+            self.manual_lock = True
+            self.manual_lock_end_time = None
+            self.paused_manual_is_indefinite = False
+
+        if self.paused_selective_remaining_seconds is not None:
+            self.selective_end_time = now + timedelta(seconds=self.paused_selective_remaining_seconds)
+            self.paused_selective_remaining_seconds = None
+
     def is_in_bypass(self, now: Optional[datetime] = None) -> Tuple[bool, int, Optional[datetime]]:
         """Checks if an authorized temporary bypass is active."""
         if not self.bypass_end_time:
@@ -164,6 +185,7 @@ class StateScheduler:
         else:
             self.bypass_end_time = None
             self.emergency_bypass_active = False
+            self._resume_paused_sessions(now)
             return False, 0, None
 
     def is_in_selective_lock(self, now: Optional[datetime] = None) -> Tuple[bool, int, Optional[datetime], List[str]]:
@@ -185,6 +207,7 @@ class StateScheduler:
             self.selective_domains = []
             self.selective_end_time = None
             self.selective_is_indefinite = False
+            self.paused_selective_remaining_seconds = None
             return False, 0, None, []
 
     def evaluate_state(self, now: Optional[datetime] = None) -> Dict[str, Any]:
@@ -197,12 +220,13 @@ class StateScheduler:
         # When an indefinite selective lock is active, ensure those domains are protected during global locks
         active_sel_domains = self.selective_domains if (self.selective_is_indefinite and self.selective_domains) else []
         combined_domains = sorted(list(set(all_domains) | set(active_sel_domains)))
+        has_pending_sel = bool(self.selective_domains and self.selective_is_indefinite)
 
         # 1. Curfew check
         in_curfew, curfew_remaining, curfew_target = self.is_in_curfew(now)
         if in_curfew:
             in_bypass, bypass_rem, bypass_target = self.is_in_bypass(now)
-            if in_bypass and self.emergency_bypass_active:
+            if in_bypass and self.emergency_bypass_active and allow_during_curfew:
                 return {
                     "state": "BYPASS",
                     "reason": "EMERGENCY_BYPASS",
@@ -221,6 +245,9 @@ class StateScheduler:
 
             self.bypass_end_time = None
             self.emergency_bypass_active = False
+            self.paused_manual_remaining_seconds = None
+            self.paused_manual_is_indefinite = False
+            self.paused_selective_remaining_seconds = None
             end_t_str = self.config.get("curfew", {}).get("end_time", "07:00")
             return {
                 "state": "LOCKED",
@@ -233,7 +260,9 @@ class StateScheduler:
                 "is_blocking": True,
                 "is_selective": False,
                 "is_indefinite": False,
-                "selective_domains": [],
+                "selective_domains": list(self.selective_domains),
+                "has_pending_selective": has_pending_sel,
+                "selective_is_indefinite": self.selective_is_indefinite,
                 "domains_to_block": combined_domains,
                 "in_curfew": True
             }
@@ -254,7 +283,9 @@ class StateScheduler:
                 "is_blocking": False,
                 "is_selective": False,
                 "is_indefinite": False,
-                "selective_domains": [],
+                "selective_domains": list(self.selective_domains),
+                "has_pending_selective": has_pending_sel,
+                "selective_is_indefinite": self.selective_is_indefinite,
                 "domains_to_block": [],
                 "in_curfew": False,
                 "curfew_warning": curfew_warn,
@@ -276,7 +307,9 @@ class StateScheduler:
                 "is_blocking": True,
                 "is_selective": False,
                 "is_indefinite": False,
-                "selective_domains": [],
+                "selective_domains": list(self.selective_domains),
+                "has_pending_selective": has_pending_sel,
+                "selective_is_indefinite": self.selective_is_indefinite,
                 "domains_to_block": combined_domains,
                 "in_curfew": False,
                 "curfew_warning": curfew_warn,
@@ -376,9 +409,16 @@ class StateScheduler:
         if in_curfew:
             return False, "El Toque de Queda nocturno ya bloquea todos los sitios."
 
+        # Clear any prior manual lock so selective lock takes effect immediately without conflict
+        self.manual_lock = False
+        self.manual_lock_end_time = None
+        self.paused_manual_remaining_seconds = None
+        self.paused_manual_is_indefinite = False
+
         self.selective_domains = sorted(list(set(domains)))
         self.bypass_end_time = None
         self.emergency_bypass_active = False
+        self.paused_selective_remaining_seconds = None
 
         if duration_minutes == 0:
             self.selective_end_time = None
@@ -393,17 +433,18 @@ class StateScheduler:
 
     def cancel_selective_lock(self) -> Tuple[bool, str]:
         """Cancels any active selective lock."""
-        if self.selective_domains or self.selective_end_time is not None or self.selective_is_indefinite:
+        if self.selective_domains or self.selective_end_time is not None or self.selective_is_indefinite or self.paused_selective_remaining_seconds is not None:
             count = len(self.selective_domains)
             self.selective_domains = []
             self.selective_end_time = None
             self.selective_is_indefinite = False
+            self.paused_selective_remaining_seconds = None
             logger.info("Selective lock cancelled by user.")
             return True, f"Bloqueo selectivo de {count} sitios cancelado."
         return True, "No hay bloqueo selectivo activo."
 
     def request_bypass(self, duration_minutes: int, force: bool = False) -> Tuple[bool, str]:
-        """Requests a temporary bypass."""
+        """Requests a temporary bypass while preserving underlying focus sessions."""
         bypasses_cfg = self.config.get("bypasses", {})
         if not bypasses_cfg.get("enabled", True) and not force:
             return False, "La opción de descansos temporales está desactivada en los ajustes."
@@ -411,27 +452,45 @@ class StateScheduler:
         now = datetime.now()
         in_curfew, _, _ = self.is_in_curfew(now)
 
-        if in_curfew and not bypasses_cfg.get("allow_during_curfew", False) and not force:
-            return False, f"Bypass denegado: El Toque de Queda está activo hasta las {self.config.get('curfew', {}).get('end_time', '07:00')}."
+        if in_curfew:
+            if not bypasses_cfg.get("allow_during_curfew", False):
+                return False, "Bypass denegado: El Toque de Queda nocturno está activo y los descansos de emergencia están desactivados en los ajustes."
+            if not force:
+                return False, "Bypass denegado: Durante el Toque de Queda nocturno solo se permite el desbloqueo de emergencia con frase de confirmación."
 
         if duration_minutes <= 0 or duration_minutes > 180:
             return False, "Duración inválida (debe ser entre 1 y 180 minutos)."
 
         self.bypass_end_time = now + timedelta(minutes=duration_minutes)
         self.emergency_bypass_active = force and in_curfew
-        self.manual_lock = False
-        self.manual_lock_end_time = None
-        self.selective_domains = []
-        self.selective_end_time = None
-        self.selective_is_indefinite = False
+
+        # Pause active manual/Pomodoro timer so time remaining is restored after bypass
+        if self.manual_lock:
+            if self.manual_lock_end_time:
+                if now < self.manual_lock_end_time:
+                    self.paused_manual_remaining_seconds = max(1, int((self.manual_lock_end_time - now).total_seconds()))
+                self.paused_manual_is_indefinite = False
+            else:
+                self.paused_manual_is_indefinite = True
+                self.paused_manual_remaining_seconds = None
+            self.manual_lock = False
+            self.manual_lock_end_time = None
+
+        # Pause active timed selective lock so time remaining is restored after bypass
+        if self.selective_domains and not self.selective_is_indefinite and self.selective_end_time:
+            if now < self.selective_end_time:
+                self.paused_selective_remaining_seconds = max(1, int((self.selective_end_time - now).total_seconds()))
+            self.selective_end_time = None
+
         logger.info(f"Bypass granted for {duration_minutes} minutes")
         return True, f"Bypass activado por {duration_minutes} minutos."
 
     def cancel_bypass(self) -> Tuple[bool, str]:
-        """Cancels any active bypass immediately."""
+        """Cancels any active bypass immediately and resumes paused sessions."""
         if self.bypass_end_time is not None:
             self.bypass_end_time = None
             self.emergency_bypass_active = False
+            self._resume_paused_sessions(datetime.now())
             logger.info("Bypass cancelled by user.")
             return True, "Descanso cancelado. Modo Focus reactivado."
         return True, "No hay descanso activo."
@@ -440,10 +499,14 @@ class StateScheduler:
         """Forces a manual lock or timed Pomodoro session immediately."""
         self.bypass_end_time = None
         self.emergency_bypass_active = False
-        self.selective_domains = []
-        self.selective_end_time = None
-        self.selective_is_indefinite = False
+        # Only clear timed selective lock; preserve indefinite selective lock configuration
+        if not self.selective_is_indefinite:
+            self.selective_domains = []
+            self.selective_end_time = None
+            self.paused_selective_remaining_seconds = None
         self.manual_lock = True
+        self.paused_manual_remaining_seconds = None
+        self.paused_manual_is_indefinite = False
         if duration_minutes > 0:
             self.manual_lock_end_time = datetime.now() + timedelta(minutes=duration_minutes)
             msg = f"Sesión de enfoque iniciada por {duration_minutes} minutos."
@@ -466,11 +529,14 @@ class StateScheduler:
 
         self.manual_lock = False
         self.manual_lock_end_time = None
+        self.paused_manual_remaining_seconds = None
+        self.paused_manual_is_indefinite = False
         self.bypass_end_time = None
         self.emergency_bypass_active = False
         self.selective_domains = []
         self.selective_end_time = None
         self.selective_is_indefinite = False
+        self.paused_selective_remaining_seconds = None
         logger.info("Manual lock cleared.")
         return True, "Sitios desbloqueados."
 

@@ -141,11 +141,11 @@ class SelectiveTab(QWidget):
         self.sel_add_input.returnPressed.connect(self.on_sel_add_domain_clicked)
         add_row.addWidget(self.sel_add_input)
 
-        sel_add_btn = QPushButton("Añadir")
-        sel_add_btn.setObjectName("primaryBtn")
-        sel_add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        sel_add_btn.clicked.connect(self.on_sel_add_domain_clicked)
-        add_row.addWidget(sel_add_btn)
+        self.sel_add_btn = QPushButton("Añadir")
+        self.sel_add_btn.setObjectName("primaryBtn")
+        self.sel_add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.sel_add_btn.clicked.connect(self.on_sel_add_domain_clicked)
+        add_row.addWidget(self.sel_add_btn)
         sites_layout.addLayout(add_row)
 
         self.sel_add_feedback_lbl = QLabel("")
@@ -162,17 +162,17 @@ class SelectiveTab(QWidget):
         self.sel_search_input.textChanged.connect(lambda: self.render_selective_domains_list())
         toolbar_row.addWidget(self.sel_search_input)
 
-        sel_all_btn = QPushButton("Todos")
-        sel_all_btn.setObjectName("presetChipSmall")
-        sel_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        sel_all_btn.clicked.connect(self.on_select_all_selective)
-        toolbar_row.addWidget(sel_all_btn)
+        self.sel_all_btn = QPushButton("Todos")
+        self.sel_all_btn.setObjectName("presetChipSmall")
+        self.sel_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.sel_all_btn.clicked.connect(self.on_select_all_selective)
+        toolbar_row.addWidget(self.sel_all_btn)
 
-        desel_all_btn = QPushButton("Ninguno")
-        desel_all_btn.setObjectName("presetChipSmall")
-        desel_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        desel_all_btn.clicked.connect(self.on_deselect_all_selective)
-        toolbar_row.addWidget(desel_all_btn)
+        self.sel_desel_btn = QPushButton("Ninguno")
+        self.sel_desel_btn.setObjectName("presetChipSmall")
+        self.sel_desel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.sel_desel_btn.clicked.connect(self.on_deselect_all_selective)
+        toolbar_row.addWidget(self.sel_desel_btn)
 
         refresh_btn = QPushButton("Actualizar")
         refresh_btn.setObjectName("presetChipSmall")
@@ -555,8 +555,8 @@ class SelectiveTab(QWidget):
         self.start_lock_requested.emit(domains, dur)
 
     def on_indefinite_button_clicked(self):
-        if self.is_active_selective and self.is_indefinite_selective:
-            # Re-clicking while indefinite lock is active releases the block
+        if (self.is_active_selective and self.is_indefinite_selective) or getattr(self, "has_pending_selective", False):
+            # Re-clicking while indefinite lock is active or pending cooldown releases the block
             self.cancel_lock_requested.emit()
             return
 
@@ -581,11 +581,26 @@ class SelectiveTab(QWidget):
         selective_domains: List[str] | None = None,
         target_time: str = "",
         human_time: str = "",
-        is_indefinite: bool = False
+        is_indefinite: bool = False,
+        has_pending_selective: bool = False
     ):
         self.is_active_selective = is_selective
-        self.is_indefinite_selective = is_selective and is_indefinite
+        self.is_indefinite_selective = (is_selective and is_indefinite) or has_pending_selective
+        self.has_pending_selective = has_pending_selective
         domains_list = selective_domains or []
+
+        # Prevent modifying checklist and buttons while a selective session is running or pending
+        session_running = (is_selective and bool(domains_list)) or (has_pending_selective and bool(domains_list))
+        if hasattr(self, "sel_domains_list"):
+            self.sel_domains_list.setEnabled(not session_running)
+        if hasattr(self, "sel_all_btn"):
+            self.sel_all_btn.setEnabled(not session_running)
+        if hasattr(self, "sel_desel_btn"):
+            self.sel_desel_btn.setEnabled(not session_running)
+        if hasattr(self, "sel_add_input"):
+            self.sel_add_input.setEnabled(not session_running)
+        if hasattr(self, "sel_add_btn"):
+            self.sel_add_btn.setEnabled(not session_running)
 
         if is_selective and domains_list:
             num_domains = len(domains_list)
@@ -639,6 +654,32 @@ class SelectiveTab(QWidget):
                 self.sel_indefinite_btn.setText("Bloqueo temporal en curso")
                 self.sel_indefinite_btn.setObjectName("secondaryBtn")
                 self.sel_indefinite_btn.setStyleSheet("")
+        elif has_pending_selective and domains_list:
+            num_domains = len(domains_list)
+            domains_preview = ", ".join(domains_list[:3])
+            if num_domains > 3:
+                domains_preview += f" (+{num_domains - 3} más)"
+
+            self.sel_active_card.setVisible(True)
+            self.sel_active_domains_lbl.setText(f"Bloqueando {num_domains} sitios: {domains_preview}")
+            self.sel_status_badge.setText("ACTIVO TRAS ARRANQUE")
+            self.sel_status_badge.setStyleSheet(
+                "font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
+                "border: 1px solid #388BFD; color: #58A6FF; background-color: rgba(56, 139, 253, 0.15);"
+            )
+            self.sel_active_countdown_lbl.setText("EN ESPERA DE COOLDOWN")
+            self.sel_active_countdown_lbl.setStyleSheet(
+                "font-family: ui-monospace, SFMono-Regular, monospace; font-size: 16px; font-weight: 700; color: #58A6FF;"
+            )
+            self.sel_active_end_lbl.setText("El bloqueo indefinido se activará automáticamente al concluir el inicio")
+
+            self.sel_start_btn.setEnabled(False)
+            self.sel_start_btn.setText("Bloqueo indefinido programado")
+
+            self.sel_indefinite_btn.setEnabled(True)
+            self.sel_indefinite_btn.setText("Desbloquear Sitios Indefinidos")
+            self.sel_indefinite_btn.setObjectName("dangerBtn")
+            self.sel_indefinite_btn.setStyleSheet("background-color: #DA3633; color: #FFFFFF; font-weight: 600; border: none; border-radius: 6px;")
         else:
             self.sel_status_badge.setText("EN ESPERA")
             self.sel_status_badge.setStyleSheet(
