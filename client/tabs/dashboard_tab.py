@@ -83,21 +83,29 @@ class DashboardTab(QWidget):
 
         self.btn_pomodoro_25 = QPushButton("Pomodoro (25 min)")
         self.btn_pomodoro_25.setObjectName("secondaryBtn")
+        self.btn_pomodoro_25.setMinimumHeight(38)
+        self.btn_pomodoro_25.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_pomodoro_25.clicked.connect(lambda: self.focus_session_requested.emit(25))
         grid.addWidget(self.btn_pomodoro_25, 0, 0)
 
         self.btn_pomodoro_50 = QPushButton("Trabajo Profundo (50 min)")
         self.btn_pomodoro_50.setObjectName("secondaryBtn")
+        self.btn_pomodoro_50.setMinimumHeight(38)
+        self.btn_pomodoro_50.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_pomodoro_50.clicked.connect(lambda: self.focus_session_requested.emit(50))
         grid.addWidget(self.btn_pomodoro_50, 0, 1)
 
         self.btn_primary_action = QPushButton("Bloquear Ahora")
         self.btn_primary_action.setObjectName("primaryBtn")
+        self.btn_primary_action.setMinimumHeight(38)
+        self.btn_primary_action.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_primary_action.clicked.connect(self.primary_action_clicked.emit)
         grid.addWidget(self.btn_primary_action, 1, 0)
 
         self.btn_secondary_action = QPushButton("Pausa Temporal (15 min)")
         self.btn_secondary_action.setObjectName("secondaryBtn")
+        self.btn_secondary_action.setMinimumHeight(38)
+        self.btn_secondary_action.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_secondary_action.clicked.connect(self.secondary_action_clicked.emit)
         grid.addWidget(self.btn_secondary_action, 1, 1)
 
@@ -105,36 +113,75 @@ class DashboardTab(QWidget):
 
         # Stop manual focus button
         self.btn_stop_focus = QPushButton("Finalizar Sesión de Enfoque")
-        self.btn_stop_focus.setObjectName("secondaryBtn")
+        self.btn_stop_focus.setObjectName("dangerBtn")
+        self.btn_stop_focus.setMinimumHeight(38)
+        self.btn_stop_focus.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_stop_focus.setVisible(False)
         self.btn_stop_focus.clicked.connect(self.stop_focus_clicked.emit)
         act_box.addWidget(self.btn_stop_focus)
 
         layout.addLayout(act_box)
 
-        # 3. Telemetry / Active Rules Summary Card
-        self.telemetry_card = QFrame()
-        self.telemetry_card.setObjectName("telemetryCard")
-        telemetry_layout = QVBoxLayout(self.telemetry_card)
-        telemetry_layout.setSpacing(6)
+        # 3. Telemetry / Active Rules Summary KPI Cards
+        self.telemetry_box = QVBoxLayout()
+        self.telemetry_box.setSpacing(8)
 
         telem_title = QLabel("Resumen de Configuración")
         telem_title.setObjectName("sectionHeader")
-        telemetry_layout.addWidget(telem_title)
+        self.telemetry_box.addWidget(telem_title)
 
-        self.telem_domains_lbl = QLabel("• Sitios protegidos: Calculando...")
-        self.telem_domains_lbl.setObjectName("fieldLabel")
-        telemetry_layout.addWidget(self.telem_domains_lbl)
+        kpi_row = QHBoxLayout()
+        kpi_row.setSpacing(10)
 
-        self.telem_curfew_lbl = QLabel("• Toque de Queda: 23:15 a 07:00")
-        self.telem_curfew_lbl.setObjectName("fieldLabel")
-        telemetry_layout.addWidget(self.telem_curfew_lbl)
+        # KPI 1: Dominios Protegidos
+        kpi_dom = QFrame()
+        kpi_dom.setObjectName("kpiCard")
+        kpi_dom_layout = QVBoxLayout(kpi_dom)
+        kpi_dom_layout.setContentsMargins(10, 8, 10, 8)
+        kpi_dom_layout.setSpacing(2)
+        lbl_dom_title = QLabel("SITIOS PROTEGIDOS")
+        lbl_dom_title.setObjectName("kpiTitle")
+        self.kpi_domains_val = QLabel("0 dominios")
+        self.kpi_domains_val.setObjectName("kpiValue")
+        kpi_dom_layout.addWidget(lbl_dom_title)
+        kpi_dom_layout.addWidget(self.kpi_domains_val)
+        kpi_row.addWidget(kpi_dom)
 
-        self.telem_boot_lbl = QLabel("• Cooldown de Inicio: 30 minutos")
-        self.telem_boot_lbl.setObjectName("fieldLabel")
-        telemetry_layout.addWidget(self.telem_boot_lbl)
+        # KPI 2: Toque de Queda
+        kpi_curf = QFrame()
+        kpi_curf.setObjectName("kpiCard")
+        kpi_curf_layout = QVBoxLayout(kpi_curf)
+        kpi_curf_layout.setContentsMargins(10, 8, 10, 8)
+        kpi_curf_layout.setSpacing(2)
+        lbl_curf_title = QLabel("TOQUE DE QUEDA")
+        lbl_curf_title.setObjectName("kpiTitle")
+        self.kpi_curfew_val = QLabel("23:15 a 07:00")
+        self.kpi_curfew_val.setObjectName("kpiValue")
+        kpi_curf_layout.addWidget(lbl_curf_title)
+        kpi_curf_layout.addWidget(self.kpi_curfew_val)
+        kpi_row.addWidget(kpi_curf)
 
-        layout.addWidget(self.telemetry_card)
+        # KPI 3: Cooldown Inicio
+        kpi_boot = QFrame()
+        kpi_boot.setObjectName("kpiCard")
+        kpi_boot_layout = QVBoxLayout(kpi_boot)
+        kpi_boot_layout.setContentsMargins(10, 8, 10, 8)
+        kpi_boot_layout.setSpacing(2)
+        lbl_boot_title = QLabel("COOLDOWN INICIO")
+        lbl_boot_title.setObjectName("kpiTitle")
+        self.kpi_boot_val = QLabel("30 minutos")
+        self.kpi_boot_val.setObjectName("kpiValue")
+        kpi_boot_layout.addWidget(lbl_boot_title)
+        kpi_boot_layout.addWidget(self.kpi_boot_val)
+        kpi_row.addWidget(kpi_boot)
+
+        self.telemetry_box.addLayout(kpi_row)
+        layout.addLayout(self.telemetry_box)
+
+        # Legacy label references for backward compatibility
+        self.telem_domains_lbl = self.kpi_domains_val
+        self.telem_curfew_lbl = self.kpi_curfew_val
+        self.telem_boot_lbl = self.kpi_boot_val
 
         # Action feedback label
         self.dash_feedback_lbl = QLabel("")
@@ -157,8 +204,17 @@ class DashboardTab(QWidget):
     ):
         """Updates all dashboard elements based on the daemon status."""
         if res.get("status") != "ok":
+            self.dash_state_pill.setText("DESCONECTADO")
+            self.dash_state_pill.setStyleSheet(
+                "border: 1px solid #30363D; color: #8B949E; font-size: 10px; font-weight: 700; "
+                "padding: 3px 10px; border-radius: 12px; background-color: rgba(110, 118, 129, 0.12);"
+            )
             self.dash_state_title.setText("Servicio Fuera de Línea")
             self.dash_countdown_lbl.setText("Inactivo")
+            self.dash_countdown_lbl.setStyleSheet(
+                "font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
+                "font-size: 20px; font-weight: 700; color: #8B949E;"
+            )
             self.dash_desc_lbl.setText("Inicia el servicio focus-guard para habilitar la protección.")
             self.dash_progress_bar.setValue(0)
             self.btn_primary_action.setEnabled(False)
@@ -183,28 +239,28 @@ class DashboardTab(QWidget):
         human_time = format_human_time(rem)
 
         # Update Telemetry Widget
-        self.telem_domains_lbl.setText(f"• Sitios protegidos: {domains_cnt} dominios")
+        self.kpi_domains_val.setText(f"{domains_cnt} dominios")
         curfew = config_data.get("curfew", {})
         curfew_str = (
             f"{curfew.get('start_time', '23:15')} a {curfew.get('end_time', '07:00')}"
             if curfew.get("enabled")
             else "Desactivado"
         )
-        self.telem_curfew_lbl.setText(f"• Toque de Queda: {curfew_str}")
+        self.kpi_curfew_val.setText(curfew_str)
         boot = config_data.get("boot_cooldown", {})
         boot_str = (
             f"{boot.get('duration_minutes', 30)}m (Activo)"
             if (reason == "BOOT_COOLDOWN")
             else (f"{boot.get('duration_minutes', 30)}m" if boot.get("enabled") else "Desactivado")
         )
-        self.telem_boot_lbl.setText(f"• Cooldown de Inicio: {boot_str}")
+        self.kpi_boot_val.setText(boot_str)
 
         # 1. State: UNLOCKED / FREE TIME
         if state == "UNLOCKED":
             self.dash_state_pill.setText("MODO LIBRE")
             self.dash_state_pill.setStyleSheet(
                 "border: 1px solid #2EA043; color: #3FB950; font-size: 10px; font-weight: 700; "
-                "padding: 3px 8px; border-radius: 4px; background-color: rgba(46, 160, 67, 0.12);"
+                "padding: 3px 10px; border-radius: 12px; background-color: rgba(46, 160, 67, 0.12);"
             )
             self.dash_state_title.setText("Modo Libre (Navegación Abierta)")
             self.dash_countdown_lbl.setText("Sitios Desbloqueados")
@@ -233,7 +289,7 @@ class DashboardTab(QWidget):
             self.dash_state_pill.setText("PAUSA TEMPORAL")
             self.dash_state_pill.setStyleSheet(
                 "border: 1px solid #D29922; color: #E3B341; font-size: 10px; font-weight: 700; "
-                "padding: 3px 8px; border-radius: 4px; background-color: rgba(210, 153, 34, 0.12);"
+                "padding: 3px 10px; border-radius: 12px; background-color: rgba(210, 153, 34, 0.12);"
             )
             self.dash_state_title.setText("Pausa Temporal Activa")
             self.dash_countdown_lbl.setText(f"{human_time}")
@@ -263,7 +319,7 @@ class DashboardTab(QWidget):
                 self.dash_state_pill.setText("NOCHE PROTEGIDA")
                 self.dash_state_pill.setStyleSheet(
                     "border: 1px solid #8957E5; color: #D2A8FF; font-size: 10px; font-weight: 700; "
-                    "padding: 3px 8px; border-radius: 4px; background-color: rgba(137, 87, 229, 0.12);"
+                    "padding: 3px 10px; border-radius: 12px; background-color: rgba(137, 87, 229, 0.12);"
                 )
                 self.dash_state_title.setText("Toque de Queda Nocturno")
                 self.dash_desc_lbl.setText(f"Protección nocturna activa hasta las {target}.")
@@ -296,7 +352,7 @@ class DashboardTab(QWidget):
                 self.dash_state_pill.setText("BOOT FOCUS")
                 self.dash_state_pill.setStyleSheet(
                     "border: 1px solid #388BFD; color: #58A6FF; font-size: 10px; font-weight: 700; "
-                    "padding: 3px 8px; border-radius: 4px; background-color: rgba(56, 139, 253, 0.12);"
+                    "padding: 3px 10px; border-radius: 12px; background-color: rgba(56, 139, 253, 0.12);"
                 )
                 self.dash_state_title.setText("Cooldown de Arranque")
                 self.dash_desc_lbl.setText(f"Protección de inicio activa hasta las {target}.")
@@ -330,7 +386,7 @@ class DashboardTab(QWidget):
                 self.dash_state_pill.setText("ENFOQUE MANUAL")
                 self.dash_state_pill.setStyleSheet(
                     "border: 1px solid #388BFD; color: #58A6FF; font-size: 10px; font-weight: 700; "
-                    "padding: 3px 8px; border-radius: 4px; background-color: rgba(56, 139, 253, 0.12);"
+                    "padding: 3px 10px; border-radius: 12px; background-color: rgba(56, 139, 253, 0.12);"
                 )
                 self.dash_state_title.setText("Modo Focus / Pomodoro")
                 self.dash_desc_lbl.setText("Sesión de concentración manual en curso.")
@@ -363,10 +419,11 @@ class DashboardTab(QWidget):
 
             elif reason == "SELECTIVE_LOCK":
                 sel_count = len(res.get("selective_domains", []))
-                self.dash_state_pill.setText("BLOQUEO SELECTIVO")
+                is_indef = res.get("is_indefinite", False)
+                self.dash_state_pill.setText("INDEFINIDO" if is_indef else "TEMPORAL")
                 self.dash_state_pill.setStyleSheet(
                     "border: 1px solid #388BFD; color: #58A6FF; font-size: 10px; font-weight: 700; "
-                    "padding: 3px 8px; border-radius: 4px; background-color: rgba(56, 139, 253, 0.12);"
+                    "padding: 3px 10px; border-radius: 12px; background-color: rgba(56, 139, 253, 0.12);"
                 )
                 self.dash_state_title.setText(f"Bloqueo Selectivo ({sel_count} sitios)")
                 self.dash_desc_lbl.setText(f"Bloqueo específico activo para {sel_count} dominios seleccionados.")
@@ -396,5 +453,7 @@ class DashboardTab(QWidget):
 
             if rem > 0:
                 self.dash_countdown_lbl.setText(f"{human_time}")
+                self.dash_progress_bar.setVisible(True)
             else:
                 self.dash_countdown_lbl.setText("Protección Activa")
+                self.dash_progress_bar.setVisible(False)

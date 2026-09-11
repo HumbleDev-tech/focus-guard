@@ -72,7 +72,7 @@ class DomainsTab(QWidget):
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Filtrar sitios...")
-        self.search_input.setFixedWidth(140)
+        self.search_input.setFixedWidth(170)
         self.search_input.textChanged.connect(lambda: self.render_domains_list())
         count_row.addWidget(self.search_input)
 
@@ -135,7 +135,8 @@ class DomainsTab(QWidget):
             self.domains_count_lbl.setText(f"Sitios Bloqueados ({total_cnt})")
 
         if hasattr(self, "search_input"):
-            self.search_input.setVisible(total_cnt > 5)
+            self.search_input.setEnabled(total_cnt > 0)
+            self.search_input.setPlaceholderText("Sin sitios" if total_cnt == 0 else "Filtrar sitios...")
         is_dark = self.is_dark_mode()
         hover_bg = "#161B22" if is_dark else "#F6F8FA"
         sep_color = "#21262D" if is_dark else "#E1E4E8"
@@ -163,6 +164,16 @@ class DomainsTab(QWidget):
             self.domains_list.setItemWidget(item, empty_box)
             return
 
+        if not filtered_domains and filter_text:
+            item = QListWidgetItem()
+            lbl = QLabel("Sin coincidencias para la búsqueda")
+            lbl.setStyleSheet("font-size: 11.5px; color: #8B949E; padding: 20px; background: transparent;")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            item.setSizeHint(QSize(0, 44))
+            self.domains_list.addItem(item)
+            self.domains_list.setItemWidget(item, lbl)
+            return
+
         for domain in sorted(filtered_domains):
             item = QListWidgetItem()
             row = QFrame()
@@ -170,15 +181,17 @@ class DomainsTab(QWidget):
                 QFrame {{
                     background-color: transparent;
                     border-bottom: 1px solid {sep_color};
-                    border-radius: 4px;
+                    border-radius: 6px;
+                    border-left: 3px solid transparent;
                 }}
                 QFrame:hover {{
                     background-color: {hover_bg};
+                    border-left: 3px solid #388BFD;
                 }}
             """)
 
             row_layout = QHBoxLayout(row)
-            row_layout.setContentsMargins(12, 4, 20, 4)
+            row_layout.setContentsMargins(12, 5, 12, 5)
             row_layout.setSpacing(10)
 
             dot_lbl = QLabel("•")
@@ -191,6 +204,21 @@ class DomainsTab(QWidget):
 
             row_layout.addStretch()
 
+            # Subtle routing pill to bridge the horizontal gap
+            status_pill = QLabel("127.0.0.1")
+            status_pill.setStyleSheet(f"""
+                font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
+                font-size: 10px;
+                font-weight: 600;
+                color: {'#8B949E' if is_dark else '#656D76'};
+                background-color: {'rgba(110, 118, 129, 0.12)' if is_dark else 'rgba(175, 184, 193, 0.15)'};
+                border: 1px solid {'#30363D' if is_dark else '#D0D7DE'};
+                border-radius: 4px;
+                padding: 2px 8px;
+            """)
+            status_pill.setToolTip("Redirigido a localhost para bloqueo local")
+            row_layout.addWidget(status_pill)
+
             # Elegant minimalist remove button
             del_btn = QPushButton("×")
             del_btn.setToolTip(f"Eliminar {domain}")
@@ -199,7 +227,7 @@ class DomainsTab(QWidget):
             del_btn.clicked.connect(lambda _, d=domain: self.on_remove_domain(d))
             row_layout.addWidget(del_btn)
 
-            item.setSizeHint(QSize(0, 42))
+            item.setSizeHint(QSize(0, 46))
             self.domains_list.addItem(item)
             self.domains_list.setItemWidget(item, row)
 

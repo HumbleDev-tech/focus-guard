@@ -12,8 +12,13 @@ DARK_THEME = {
     "bg_input": "#161B22",
     "border_color": "#30363D",
     "border_subtle": "#21262D",
+    "checkbox_border": "#484F58",
+    "checkbox_bg": "#21262D",
     "text_primary": "#F0F6FC",
     "text_secondary": "#8B949E",
+    "text_disabled": "#484F58",
+    "btn_disabled_bg": "#161B22",
+    "btn_disabled_border": "#21262D",
     "accent_blue": "#388BFD",
     "accent_blue_hover": "#1F6FEB",
     "tab_bg": "#111419",
@@ -30,8 +35,13 @@ LIGHT_THEME = {
     "bg_input": "#FFFFFF",
     "border_color": "#D0D7DE",
     "border_subtle": "#E1E4E8",
+    "checkbox_border": "#D0D7DE",
+    "checkbox_bg": "#FFFFFF",
     "text_primary": "#1F2328",
     "text_secondary": "#656D76",
+    "text_disabled": "#8C959F",
+    "btn_disabled_bg": "#EAECEF",
+    "btn_disabled_border": "#D0D7DE",
     "accent_blue": "#0969DA",
     "accent_blue_hover": "#0550AE",
     "tab_bg": "#EAECEF",
@@ -101,11 +111,12 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             color: {c['text_primary']};
             border: 1px solid {c['border_color']};
             border-radius: 6px;
-            padding: 4px 8px;
+            padding: 3px 8px;
             font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
             font-size: 13px;
             font-weight: 700;
             min-height: 24px;
+            max-height: 24px;
         }}
         QTimeEdit:focus, QSpinBox:focus {{
             border: 1px solid {c['accent_blue']};
@@ -132,9 +143,9 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             background-color: {c['accent_blue_hover']};
         }}
         QPushButton#primaryBtn:disabled {{
-            background-color: #161B22;
-            color: #484F58;
-            border: 1px solid #21262D;
+            background-color: {c['btn_disabled_bg']};
+            color: {c['text_disabled']};
+            border: 1px solid {c['btn_disabled_border']};
         }}
         QPushButton#secondaryBtn {{
             background-color: {c['bg_card_inner']};
@@ -146,27 +157,32 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             background-color: {c['bg_card']};
         }}
         QPushButton#secondaryBtn:disabled {{
-            background-color: #0D1117;
-            color: #484F58;
-            border: 1px solid #21262D;
+            background-color: {c['bg_window']};
+            color: {c['text_disabled']};
+            border: 1px solid {c['btn_disabled_border']};
         }}
         QPushButton#stepBtn {{
             background-color: {c['bg_card_inner']};
             color: {c['text_primary']};
             border: 1px solid {c['border_color']};
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 700;
             padding: 0px;
-            min-width: 28px;
-            max-width: 28px;
-            min-height: 26px;
-            max-height: 26px;
+            min-width: 32px;
+            max-width: 32px;
+            min-height: 32px;
+            max-height: 32px;
         }}
         QPushButton#stepBtn:hover {{
             background-color: {c['accent_blue']};
             color: #FFFFFF;
             border-color: {c['accent_blue']};
+        }}
+        QPushButton#stepBtn:disabled {{
+            background-color: {c['bg_window']};
+            color: {c['text_disabled']};
+            border: 1px solid {c['border_subtle']};
         }}
         QPushButton#presetChipSmall {{
             background-color: {c['bg_input']};
@@ -216,7 +232,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             background-color: rgba(56, 139, 253, 0.08);
             border: 1px solid rgba(56, 139, 253, 0.25);
             border-radius: 6px;
-            padding: 6px 12px;
+            padding: 9px 14px;
             font-weight: 600;
         }}
         QPushButton:disabled {{
@@ -270,8 +286,8 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             width: 16px;
             height: 16px;
             border-radius: 4px;
-            border: 1px solid {c['border_color']};
-            background-color: {c['bg_input']};
+            border: 1px solid {c['checkbox_border']};
+            background-color: {c['checkbox_bg']};
         }}
         QCheckBox::indicator:hover {{
             border-color: {c['accent_blue']};
@@ -284,6 +300,11 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
         QCheckBox::indicator:disabled {{
             background-color: {c['bg_card_inner']};
             border-color: {c['border_subtle']};
+        }}
+        QCheckBox::indicator:checked:disabled {{
+            background-color: {c['accent_blue']};
+            border-color: {c['accent_blue']};
+            image: url({check_icon});
         }}
         QFrame#settingsCard {{
             background-color: {c['bg_card_inner']};
@@ -301,6 +322,41 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             border: 1px solid {c['border_subtle']};
             border-radius: 8px;
             padding: 12px;
+        }}
+        QFrame#kpiCard {{
+            background-color: {c['bg_window']};
+            border: 1px solid {c['border_subtle']};
+            border-radius: 6px;
+            padding: 8px 12px;
+        }}
+        QLabel#kpiTitle {{
+            font-size: 10px;
+            font-weight: 700;
+            color: {c['text_secondary']};
+            letter-spacing: 0.5px;
+            background: transparent;
+            border: none;
+        }}
+        QLabel#kpiValue {{
+            font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
+            font-size: 13px;
+            font-weight: 700;
+            color: {c['text_primary']};
+            background: transparent;
+            border: none;
+        }}
+        QFrame#infoBanner {{
+            background-color: rgba(56, 139, 253, 0.08);
+            border: 1px solid rgba(56, 139, 253, 0.22);
+            border-radius: 6px;
+            padding: 8px 12px;
+        }}
+        QLabel#infoBannerText {{
+            font-size: 11.5px;
+            color: #58A6FF;
+            font-weight: 500;
+            background: transparent;
+            border: none;
         }}
         QLabel#cardDesc {{
             font-size: 12px;
@@ -338,26 +394,31 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
         }}
         QPushButton#dangerBtn:disabled {{
             background-color: {c['bg_card_inner']};
-            color: #484F58;
+            color: {c['text_disabled']};
             border: 1px solid {c['border_color']};
         }}
         QPushButton#removeBtn {{
             background-color: {c['bg_card_inner']};
             color: {c['text_secondary']};
             border: 1px solid {c['border_color']};
-            border-radius: 4px;
-            font-size: 15px;
-            font-weight: 600;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 700;
             padding: 0px;
-            min-width: 26px;
-            max-width: 26px;
-            min-height: 26px;
-            max-height: 26px;
+            min-width: 28px;
+            max-width: 28px;
+            min-height: 28px;
+            max-height: 28px;
         }}
         QPushButton#removeBtn:hover {{
             background-color: {c['danger']};
             border-color: {c['danger']};
             color: #FFFFFF;
+        }}
+        QPushButton#removeBtn:disabled {{
+            background-color: {c['bg_window']};
+            color: {c['text_disabled']};
+            border: 1px solid {c['border_subtle']};
         }}
         QFrame#innerCard {{
             background-color: {c['bg_card_inner']};
@@ -385,8 +446,9 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             border: 1px solid {c['border_color']};
             font-size: 10px;
             font-weight: 700;
-            padding: 3px 8px;
+            padding: 3px 10px;
             border-radius: 12px;
+            letter-spacing: 0.5px;
         }}
         QLabel#codePhrase {{
             font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;

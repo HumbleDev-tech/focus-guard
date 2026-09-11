@@ -33,8 +33,8 @@ class RulesTab(QWidget):
         container = QWidget()
         container.setStyleSheet("background: transparent;")
         layout = QVBoxLayout(container)
-        layout.setContentsMargins(14, 14, 14, 14)
-        layout.setSpacing(14)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
 
         # 1. Boot Focus Card
         boot_card = QFrame()
@@ -56,16 +56,16 @@ class RulesTab(QWidget):
         dur_row.setContentsMargins(0, 4, 0, 0)
         dur_row.setSpacing(6)
 
-        dur_label = QLabel("Duración inicial:")
-        dur_label.setObjectName("fieldLabel")
-        dur_row.addWidget(dur_label)
+        self.boot_dur_label = QLabel("Duración inicial:")
+        self.boot_dur_label.setObjectName("fieldLabel")
+        dur_row.addWidget(self.boot_dur_label)
 
-        step_minus = QPushButton("−")
-        step_minus.setObjectName("stepBtn")
-        step_minus.setToolTip("Disminuir 5 minutos")
-        step_minus.setCursor(Qt.CursorShape.PointingHandCursor)
-        step_minus.clicked.connect(lambda: self.step_boot_duration(-5))
-        dur_row.addWidget(step_minus)
+        self.boot_step_minus = QPushButton("−")
+        self.boot_step_minus.setObjectName("stepBtn")
+        self.boot_step_minus.setToolTip("Disminuir 5 minutos")
+        self.boot_step_minus.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.boot_step_minus.clicked.connect(lambda: self.step_boot_duration(-5))
+        dur_row.addWidget(self.boot_step_minus)
 
         self.boot_duration_spin = QSpinBox()
         self.boot_duration_spin.setRange(5, 180)
@@ -75,21 +75,23 @@ class RulesTab(QWidget):
         self.boot_duration_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
         dur_row.addWidget(self.boot_duration_spin)
 
-        step_plus = QPushButton("+")
-        step_plus.setObjectName("stepBtn")
-        step_plus.setToolTip("Aumentar 5 minutos")
-        step_plus.setCursor(Qt.CursorShape.PointingHandCursor)
-        step_plus.clicked.connect(lambda: self.step_boot_duration(5))
-        dur_row.addWidget(step_plus)
+        self.boot_step_plus = QPushButton("+")
+        self.boot_step_plus.setObjectName("stepBtn")
+        self.boot_step_plus.setToolTip("Aumentar 5 minutos")
+        self.boot_step_plus.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.boot_step_plus.clicked.connect(lambda: self.step_boot_duration(5))
+        dur_row.addWidget(self.boot_step_plus)
 
         dur_row.addSpacing(10)
 
+        self.boot_presets = []
         for m in [15, 30, 45, 60]:
             pill = QPushButton(f"{m}m")
             pill.setObjectName("presetChipSmall")
             pill.setCursor(Qt.CursorShape.PointingHandCursor)
             pill.clicked.connect(lambda _, mins=m: self.boot_duration_spin.setValue(mins))
             dur_row.addWidget(pill)
+            self.boot_presets.append(pill)
 
         dur_row.addStretch()
         boot_layout.addLayout(dur_row)
@@ -115,16 +117,16 @@ class RulesTab(QWidget):
         time_row.setContentsMargins(0, 4, 0, 0)
         time_row.setSpacing(6)
 
-        start_lbl = QLabel("Bloquear desde:")
-        start_lbl.setObjectName("fieldLabel")
-        time_row.addWidget(start_lbl)
+        self.curfew_start_lbl = QLabel("Bloquear desde:")
+        self.curfew_start_lbl.setObjectName("fieldLabel")
+        time_row.addWidget(self.curfew_start_lbl)
 
-        start_minus = QPushButton("−")
-        start_minus.setObjectName("stepBtn")
-        start_minus.setToolTip("Restar 15 minutos")
-        start_minus.setCursor(Qt.CursorShape.PointingHandCursor)
-        start_minus.clicked.connect(lambda: self.step_curfew_start(-15))
-        time_row.addWidget(start_minus)
+        self.curfew_start_minus = QPushButton("−")
+        self.curfew_start_minus.setObjectName("stepBtn")
+        self.curfew_start_minus.setToolTip("Restar 15 minutos")
+        self.curfew_start_minus.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.curfew_start_minus.clicked.connect(lambda: self.step_curfew_start(-15))
+        time_row.addWidget(self.curfew_start_minus)
 
         self.curfew_start_time = QTimeEdit()
         self.curfew_start_time.setDisplayFormat("HH:mm")
@@ -133,25 +135,25 @@ class RulesTab(QWidget):
         self.curfew_start_time.timeChanged.connect(self.update_curfew_summary)
         time_row.addWidget(self.curfew_start_time)
 
-        start_plus = QPushButton("+")
-        start_plus.setObjectName("stepBtn")
-        start_plus.setToolTip("Sumar 15 minutos")
-        start_plus.setCursor(Qt.CursorShape.PointingHandCursor)
-        start_plus.clicked.connect(lambda: self.step_curfew_start(15))
-        time_row.addWidget(start_plus)
+        self.curfew_start_plus = QPushButton("+")
+        self.curfew_start_plus.setObjectName("stepBtn")
+        self.curfew_start_plus.setToolTip("Sumar 15 minutos")
+        self.curfew_start_plus.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.curfew_start_plus.clicked.connect(lambda: self.step_curfew_start(15))
+        time_row.addWidget(self.curfew_start_plus)
 
         time_row.addSpacing(14)
 
-        end_lbl = QLabel("Hasta las:")
-        end_lbl.setObjectName("fieldLabel")
-        time_row.addWidget(end_lbl)
+        self.curfew_end_lbl = QLabel("Hasta las:")
+        self.curfew_end_lbl.setObjectName("fieldLabel")
+        time_row.addWidget(self.curfew_end_lbl)
 
-        end_minus = QPushButton("−")
-        end_minus.setObjectName("stepBtn")
-        end_minus.setToolTip("Restar 15 minutos")
-        end_minus.setCursor(Qt.CursorShape.PointingHandCursor)
-        end_minus.clicked.connect(lambda: self.step_curfew_end(-15))
-        time_row.addWidget(end_minus)
+        self.curfew_end_minus = QPushButton("−")
+        self.curfew_end_minus.setObjectName("stepBtn")
+        self.curfew_end_minus.setToolTip("Restar 15 minutos")
+        self.curfew_end_minus.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.curfew_end_minus.clicked.connect(lambda: self.step_curfew_end(-15))
+        time_row.addWidget(self.curfew_end_minus)
 
         self.curfew_end_time = QTimeEdit()
         self.curfew_end_time.setDisplayFormat("HH:mm")
@@ -160,12 +162,12 @@ class RulesTab(QWidget):
         self.curfew_end_time.timeChanged.connect(self.update_curfew_summary)
         time_row.addWidget(self.curfew_end_time)
 
-        end_plus = QPushButton("+")
-        end_plus.setObjectName("stepBtn")
-        end_plus.setToolTip("Sumar 15 minutos")
-        end_plus.setCursor(Qt.CursorShape.PointingHandCursor)
-        end_plus.clicked.connect(lambda: self.step_curfew_end(15))
-        time_row.addWidget(end_plus)
+        self.curfew_end_plus = QPushButton("+")
+        self.curfew_end_plus.setObjectName("stepBtn")
+        self.curfew_end_plus.setToolTip("Sumar 15 minutos")
+        self.curfew_end_plus.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.curfew_end_plus.clicked.connect(lambda: self.step_curfew_end(15))
+        time_row.addWidget(self.curfew_end_plus)
 
         time_row.addStretch()
         curfew_layout.addLayout(time_row)
@@ -178,9 +180,9 @@ class RulesTab(QWidget):
         # Quick schedule preset pills
         sched_row = QHBoxLayout()
         sched_row.setSpacing(6)
-        sched_lbl = QLabel("Horarios habituales:")
-        sched_lbl.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
-        sched_row.addWidget(sched_lbl)
+        self.curfew_sched_lbl = QLabel("Horarios habituales:")
+        self.curfew_sched_lbl.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
+        sched_row.addWidget(self.curfew_sched_lbl)
 
         curfew_presets = [
             ("23:00 a 07:00", (23, 0), (7, 0)),
@@ -188,20 +190,28 @@ class RulesTab(QWidget):
             ("00:00 a 08:00", (0, 0), (8, 0)),
             ("01:00 a 07:00", (1, 0), (7, 0))
         ]
+        self.curfew_presets_btns = []
         for p_title, p_start, p_end in curfew_presets:
             p_btn = QPushButton(p_title)
             p_btn.setObjectName("presetChipSmall")
             p_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             p_btn.clicked.connect(lambda _, s=p_start, e=p_end: self.set_curfew_times(s, e))
             sched_row.addWidget(p_btn)
+            self.curfew_presets_btns.append(p_btn)
 
         sched_row.addStretch()
         curfew_layout.addLayout(sched_row)
 
-        curfew_notice = QLabel("Aviso: Recibirás una notificación en tu escritorio 10 minutos antes del Toque de Queda para cerrar tus pestañas con calma.")
-        curfew_notice.setStyleSheet("font-size: 11px; color: #58A6FF; font-weight: 500; padding: 2px 0px;")
-        curfew_notice.setWordWrap(True)
-        curfew_layout.addWidget(curfew_notice)
+        self.curfew_notice_banner = QFrame()
+        self.curfew_notice_banner.setObjectName("infoBanner")
+        notice_layout = QHBoxLayout(self.curfew_notice_banner)
+        notice_layout.setContentsMargins(10, 8, 10, 8)
+
+        self.curfew_notice = QLabel("Aviso: Recibirás una notificación en tu escritorio 10 minutos antes del Toque de Queda para cerrar tus pestañas con calma.")
+        self.curfew_notice.setObjectName("infoBannerText")
+        self.curfew_notice.setWordWrap(True)
+        notice_layout.addWidget(self.curfew_notice)
+        curfew_layout.addWidget(self.curfew_notice_banner)
 
         layout.addWidget(curfew_card)
 
@@ -233,9 +243,9 @@ class RulesTab(QWidget):
         phrase_row = QHBoxLayout()
         phrase_row.setSpacing(8)
 
-        phrase_lbl = QLabel("Frase de confirmación:")
-        phrase_lbl.setObjectName("fieldLabel")
-        phrase_row.addWidget(phrase_lbl)
+        self.emergency_phrase_lbl = QLabel("Frase de confirmación:")
+        self.emergency_phrase_lbl.setObjectName("fieldLabel")
+        phrase_row.addWidget(self.emergency_phrase_lbl)
 
         self.emergency_phrase_input = QLineEdit()
         self.emergency_phrase_input.setPlaceholderText("ej: necesito desbloqueo de emergencia")
@@ -273,11 +283,9 @@ class RulesTab(QWidget):
         layout.addWidget(sys_card)
 
         # Dynamic state linkage
-        self.boot_enabled_cb.toggled.connect(self.boot_duration_spin.setEnabled)
-        self.curfew_enabled_cb.toggled.connect(self.curfew_start_time.setEnabled)
-        self.curfew_enabled_cb.toggled.connect(self.curfew_end_time.setEnabled)
-        self.curfew_emerg_cb.toggled.connect(self.emergency_phrase_input.setEnabled)
-        self.curfew_emerg_cb.toggled.connect(self.copy_phrase_btn.setEnabled)
+        self.boot_enabled_cb.toggled.connect(self._update_boot_controls_enabled)
+        self.curfew_enabled_cb.toggled.connect(self._update_curfew_controls_enabled)
+        self.curfew_emerg_cb.toggled.connect(lambda: self._update_emergency_controls_enabled())
 
         # Notify parent on change
         self.boot_enabled_cb.toggled.connect(self.rules_changed.emit)
@@ -296,6 +304,40 @@ class RulesTab(QWidget):
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.addWidget(scroll)
 
+    def _update_boot_controls_enabled(self, enabled: bool):
+        self.boot_dur_label.setEnabled(enabled)
+        self.boot_duration_spin.setEnabled(enabled)
+        self.boot_step_minus.setEnabled(enabled)
+        self.boot_step_plus.setEnabled(enabled)
+        for p in self.boot_presets:
+            p.setEnabled(enabled)
+
+    def _update_curfew_controls_enabled(self, enabled: bool):
+        self.curfew_start_lbl.setEnabled(enabled)
+        self.curfew_end_lbl.setEnabled(enabled)
+        self.curfew_start_minus.setEnabled(enabled)
+        self.curfew_start_plus.setEnabled(enabled)
+        self.curfew_end_minus.setEnabled(enabled)
+        self.curfew_end_plus.setEnabled(enabled)
+        self.curfew_start_time.setEnabled(enabled)
+        self.curfew_end_time.setEnabled(enabled)
+        self.curfew_summary_lbl.setEnabled(enabled)
+        self.curfew_sched_lbl.setEnabled(enabled)
+        for b in self.curfew_presets_btns:
+            b.setEnabled(enabled)
+        if hasattr(self, "curfew_notice_banner"):
+            self.curfew_notice_banner.setEnabled(enabled)
+        self.curfew_notice.setEnabled(enabled)
+        self._update_emergency_controls_enabled()
+
+    def _update_emergency_controls_enabled(self):
+        curfew_on = self.curfew_enabled_cb.isChecked()
+        self.curfew_emerg_cb.setEnabled(curfew_on)
+        emerg_active = curfew_on and self.curfew_emerg_cb.isChecked()
+        self.emergency_phrase_lbl.setEnabled(emerg_active)
+        self.emergency_phrase_input.setEnabled(emerg_active)
+        self.copy_phrase_btn.setEnabled(emerg_active)
+
     def load_rules(self, config: Dict[str, Any]):
         self.initial_config = dict(config)
 
@@ -305,7 +347,7 @@ class RulesTab(QWidget):
         boot = config.get("boot_cooldown", {})
         self.boot_enabled_cb.setChecked(boot.get("enabled", True))
         self.boot_duration_spin.setValue(boot.get("duration_minutes", 30))
-        self.boot_duration_spin.setEnabled(self.boot_enabled_cb.isChecked())
+        self._update_boot_controls_enabled(self.boot_enabled_cb.isChecked())
 
         curfew = config.get("curfew", {})
         self.curfew_enabled_cb.setChecked(curfew.get("enabled", True))
@@ -313,15 +355,13 @@ class RulesTab(QWidget):
         end_parts = [int(x) for x in curfew.get("end_time", "07:00").split(":")]
         self.curfew_start_time.setTime(QTime(start_parts[0], start_parts[1]))
         self.curfew_end_time.setTime(QTime(end_parts[0], end_parts[1]))
-        self.curfew_start_time.setEnabled(self.curfew_enabled_cb.isChecked())
-        self.curfew_end_time.setEnabled(self.curfew_enabled_cb.isChecked())
+        self._update_curfew_controls_enabled(self.curfew_enabled_cb.isChecked())
 
         bypasses = config.get("bypasses", {})
         self.bypasses_enabled_cb.setChecked(bypasses.get("enabled", True))
         self.curfew_emerg_cb.setChecked(bypasses.get("allow_during_curfew", False))
         self.emergency_phrase_input.setText(bypasses.get("emergency_phrase", "necesito desbloqueo de emergencia"))
-        self.emergency_phrase_input.setEnabled(self.curfew_emerg_cb.isChecked())
-        self.copy_phrase_btn.setEnabled(self.curfew_emerg_cb.isChecked())
+        self._update_emergency_controls_enabled()
 
         self.blockSignals(False)
         self.update_curfew_summary()

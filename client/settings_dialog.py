@@ -428,20 +428,7 @@ class SettingsDialog(QDialog):
                 self.discard_btn.setVisible(True)
             self.save_btn.setEnabled(True)
             self.save_btn.setText("Guardar Reglas (Ctrl+S)")
-            self.save_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #388BFD;
-                    color: #FFFFFF;
-                    font-weight: 600;
-                    font-size: 12px;
-                    border: none;
-                    border-radius: 6px;
-                    padding: 8px 18px;
-                }
-                QPushButton:hover {
-                    background-color: #1F6FEB;
-                }
-            """)
+            self.save_btn.setStyleSheet("")
             self.save_feedback_lbl.setText("Cambios sin guardar")
             self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #D29922; font-weight: 600;")
         else:
@@ -449,17 +436,7 @@ class SettingsDialog(QDialog):
                 self.discard_btn.setVisible(False)
             self.save_btn.setEnabled(False)
             self.save_btn.setText("Guardado")
-            self.save_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #161B22;
-                    color: #6E7681;
-                    font-weight: 600;
-                    font-size: 12px;
-                    border: 1px solid #30363D;
-                    border-radius: 6px;
-                    padding: 8px 18px;
-                }
-            """)
+            self.save_btn.setStyleSheet("")
             self.save_feedback_lbl.setText("Cambios sincronizados")
             self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
 
