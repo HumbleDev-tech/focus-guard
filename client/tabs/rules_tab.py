@@ -121,6 +121,7 @@ class RulesTab(QWidget):
         dur_row.addSpacing(10)
 
         self.boot_presets = []
+        self.boot_preset_data = []
         for m in [15, 30, 45, 60]:
             pill = QPushButton(f"{m}m")
             pill.setObjectName("presetChipSmall")
@@ -128,6 +129,9 @@ class RulesTab(QWidget):
             pill.clicked.connect(lambda _, mins=m: self.boot_duration_spin.setValue(mins))
             dur_row.addWidget(pill)
             self.boot_presets.append(pill)
+            self.boot_preset_data.append((pill, m))
+
+        self.boot_duration_spin.valueChanged.connect(self._update_boot_preset_highlights)
 
         dur_row.addStretch()
         boot_layout.addLayout(dur_row)
@@ -227,6 +231,7 @@ class RulesTab(QWidget):
             ("01:00 - 07:00", (1, 0), (7, 0))
         ]
         self.curfew_presets_btns = []
+        self.curfew_preset_data = []
         for p_title, p_start, p_end in curfew_presets:
             p_btn = QPushButton(p_title)
             p_btn.setObjectName("presetChipSmall")
@@ -234,6 +239,7 @@ class RulesTab(QWidget):
             p_btn.clicked.connect(lambda _, s=p_start, e=p_end: self.set_curfew_times(s, e))
             sched_row.addWidget(p_btn)
             self.curfew_presets_btns.append(p_btn)
+            self.curfew_preset_data.append((p_btn, p_start, p_end))
 
         sched_row.addStretch()
         curfew_layout.addLayout(sched_row)
@@ -339,6 +345,8 @@ class RulesTab(QWidget):
         self.emergency_phrase_input.textChanged.connect(self.rules_changed.emit)
 
         self.update_icons()
+        self._update_boot_preset_highlights()
+        self._update_curfew_preset_highlights()
         layout.addStretch()
         scroll.setWidget(container)
 
@@ -406,6 +414,7 @@ class RulesTab(QWidget):
         self._update_emergency_controls_enabled()
 
         self.blockSignals(False)
+        self._update_boot_preset_highlights()
         self.update_curfew_summary()
 
     def get_rules_dict(self) -> Dict[str, Any]:
@@ -490,6 +499,26 @@ class RulesTab(QWidget):
         self.curfew_summary_lbl.setText(
             t("rules.curfew_summary", start=s_str, end=e_str, duration=dur_txt)
         )
+        self._update_curfew_preset_highlights()
+
+    def _update_boot_preset_highlights(self):
+        val = self.boot_duration_spin.value()
+        for pill, mins in getattr(self, "boot_preset_data", []):
+            desired_name = "presetChipSmallSelected" if val == mins else "presetChipSmall"
+            if pill.objectName() != desired_name:
+                pill.setObjectName(desired_name)
+                pill.style().unpolish(pill)
+                pill.style().polish(pill)
+
+    def _update_curfew_preset_highlights(self):
+        s = (self.curfew_start_time.time().hour(), self.curfew_start_time.time().minute())
+        e = (self.curfew_end_time.time().hour(), self.curfew_end_time.time().minute())
+        for pill, p_start, p_end in getattr(self, "curfew_preset_data", []):
+            desired_name = "presetChipSmallSelected" if (s == p_start and e == p_end) else "presetChipSmall"
+            if pill.objectName() != desired_name:
+                pill.setObjectName(desired_name)
+                pill.style().unpolish(pill)
+                pill.style().polish(pill)
 
     def on_autostart_toggled(self, checked: bool):
         set_autostart_enabled(checked)

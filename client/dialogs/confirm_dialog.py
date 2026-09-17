@@ -71,6 +71,7 @@ class ConfirmDomainRemovalDialog(QDialog):
             self.input_field = QLineEdit()
             self.input_field.setPlaceholderText(t("dialog.confirm_removal_input_placeholder"))
             self.input_field.returnPressed.connect(self.on_confirm)
+            self.input_field.textChanged.connect(self._clear_input_error)
             layout.addWidget(self.input_field)
         else:
             self.input_field = None
@@ -101,6 +102,12 @@ class ConfirmDomainRemovalDialog(QDialog):
         if hasattr(self, "input_field") and self.input_field:
             self.input_field.setFocus()
 
+    def _clear_input_error(self):
+        if self.input_field and self.input_field.property("error"):
+            self.input_field.setProperty("error", False)
+            self.input_field.style().unpolish(self.input_field)
+            self.input_field.style().polish(self.input_field)
+
     def on_confirm(self):
         if self.input_field:
             entered = self.input_field.text().strip().lower()
@@ -108,7 +115,10 @@ class ConfirmDomainRemovalDialog(QDialog):
                 self.confirmed = True
                 self.accept()
             else:
-                self.input_field.setStyleSheet("border: 1px solid #DA3633;")
+                self.input_field.setProperty("error", True)
+                self.input_field.style().unpolish(self.input_field)
+                self.input_field.style().polish(self.input_field)
+                self.input_field.selectAll()
         else:
             self.confirmed = True
             self.accept()

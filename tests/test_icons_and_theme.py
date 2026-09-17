@@ -153,6 +153,116 @@ class TestIconsAndTheme(unittest.TestCase):
         self.assertIn("#D2A8FF", style_dark)
         self.assertIn("#6639BA", style_light)
 
+    def test_get_svg_pixmap_hidpi(self):
+        from client.icons import get_svg_pixmap
+        icon_path = os.path.join(ICONS_DIR, "shield.svg")
+        if not os.path.exists(icon_path):
+            icon_path = os.path.join(os.path.dirname(__file__), "../resources/icons/shield.svg")
+
+        # Test with dpr=2.0
+        pm = get_svg_pixmap(icon_path, size=32, dpr=2.0)
+        self.assertFalse(pm.isNull())
+        self.assertEqual(pm.devicePixelRatio(), 2.0)
+        self.assertEqual(pm.width(), 64)
+        self.assertEqual(pm.height(), 64)
+
+    def test_confirm_dialog_error_handling(self):
+        from client.dialogs import ConfirmDomainRemovalDialog
+        dlg = ConfirmDomainRemovalDialog(domain="facebook.com", reason_str="Curfew", phrase="unlock code")
+        self.assertIsNotNone(dlg.input_field)
+        self.assertFalse(dlg.input_field.property("error"))
+
+        # Trigger confirm with wrong phrase
+        dlg.input_field.setText("wrong phrase")
+        dlg.on_confirm()
+        self.assertTrue(dlg.input_field.property("error"))
+        self.assertFalse(dlg.confirmed)
+
+        # Typing text should clear the error state
+        dlg.input_field.setText("wrong phrase 2")
+        self.assertFalse(dlg.input_field.property("error"))
+
+    def test_emergency_dialog_error_handling(self):
+        from client.dialogs import EmergencyPromptDialog
+        dlg = EmergencyPromptDialog(phrase="emergency pass")
+        self.assertIsNotNone(dlg.input_field)
+        self.assertFalse(dlg.input_field.property("error"))
+
+        # Wrong phrase
+        dlg.input_field.setText("wrong")
+        dlg.on_confirm()
+        self.assertTrue(dlg.input_field.property("error"))
+        self.assertFalse(dlg.confirmed)
+
+        # Type to clear
+        dlg.input_field.setText("em")
+        self.assertFalse(dlg.input_field.property("error"))
+
+    def test_domains_tab_batch_add(self):
+        from client.tabs import DomainsTab
+        tab = DomainsTab(lambda: {}, lambda: {})
+        tab.set_domains(["existing.com"])
+
+        # Multiple domains separated by commas and spaces
+        tab.domain_input.setText("apple.com, google.com; microsoft.com")
+        tab.on_add_domain_clicked()
+
+        domains = tab.get_domains()
+        self.assertIn("apple.com", domains)
+        self.assertIn("google.com", domains)
+        self.assertIn("microsoft.com", domains)
+        self.assertIn("existing.com", domains)
+        self.assertEqual(len(domains), 4)
+
+        # Batch preview label
+        tab.domain_input.setText("site1.com, site2.com")
+        self.assertIn("2", tab.domain_preview_lbl.text())
+
+    def test_selective_tab_batch_add(self):
+        from client.tabs import SelectiveTab
+        tab = SelectiveTab()
+        tab.set_domains(["base.com"])
+
+        tab.sel_add_input.setText("alpha.com, beta.com")
+        tab.on_sel_add_domain_clicked()
+
+        self.assertIn("alpha.com", tab.selected_selective_domains)
+        self.assertIn("beta.com", tab.selected_selective_domains)
+        self.assertIn("alpha.com", tab.blocked_domains)
+        self.assertIn("beta.com", tab.blocked_domains)
+
+    def test_rules_tab_preset_chips_highlighting(self):
+        from client.tabs import RulesTab
+        from PyQt6.QtCore import QTime
+        tab = RulesTab()
+
+        # Check initial boot highlight for 30m
+        tab.boot_duration_spin.setValue(30)
+        for pill, mins in tab.boot_preset_data:
+            if mins == 30:
+                self.assertEqual(pill.objectName(), "presetChipSmallSelected")
+            else:
+                self.assertEqual(pill.objectName(), "presetChipSmall")
+
+        # Change to 45m
+        tab.boot_duration_spin.setValue(45)
+        for pill, mins in tab.boot_preset_data:
+            if mins == 45:
+                self.assertEqual(pill.objectName(), "presetChipSmallSelected")
+            else:
+                self.assertEqual(pill.objectName(), "presetChipSmall")
+
+        # Curfew preset highlighting: match 23:00 - 07:00
+        tab.curfew_start_time.setTime(QTime(23, 0))
+        tab.curfew_end_time.setTime(QTime(7, 0))
+        tab.update_curfew_summary()
+
+        for pill, p_start, p_end in tab.curfew_preset_data:
+            if p_start == (23, 0) and p_end == (7, 0):
+                self.assertEqual(pill.objectName(), "presetChipSmallSelected")
+            else:
+                self.assertEqual(pill.objectName(), "presetChipSmall")
+
 
 if __name__ == "__main__":
     unittest.main()

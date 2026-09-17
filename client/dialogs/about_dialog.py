@@ -13,7 +13,7 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt
 
 from client.theme import apply_dialog_theme
-from client.icons import get_themed_icon
+from client.icons import get_themed_icon, get_svg_pixmap
 from client.i18n import t
 
 
@@ -39,7 +39,7 @@ class AboutDialog(QDialog):
         icon_lbl = QLabel()
         icon_path = os.path.join(resource_dir, "icon-active.svg")
         if os.path.exists(icon_path):
-            icon_lbl.setPixmap(QIcon(icon_path).pixmap(48, 48))
+            icon_lbl.setPixmap(get_svg_pixmap(icon_path, 48))
         header.addWidget(icon_lbl)
 
         title_box = QVBoxLayout()

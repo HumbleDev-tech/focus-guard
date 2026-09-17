@@ -2,6 +2,7 @@
 Focus-Guard Selective Blocking Tab Component
 Handles selective domain locking, duration pickers, and active session management.
 """
+import re
 from datetime import datetime, timedelta
 from typing import List, Set, Dict, Any, Optional
 
@@ -534,23 +535,35 @@ class SelectiveTab(QWidget):
 
     def on_sel_add_domain_clicked(self):
         raw = self.sel_add_input.text()
-        clean = sanitize_domain(raw)
-        if not clean:
+        tokens = [t_item for t_item in re.split(r"[,;\s]+", raw) if t_item]
+        if not tokens:
+            return
+
+        cleaned_list: List[str] = []
+        for tok in tokens:
+            dom = sanitize_domain(tok)
+            if dom and dom not in cleaned_list:
+                cleaned_list.append(dom)
+
+        if not cleaned_list:
             self.sel_add_feedback_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
             self.sel_add_feedback_lbl.setText(t("selective.feedback_invalid_domain"))
             QTimer.singleShot(2500, lambda: self.sel_add_feedback_lbl.setText(""))
             return
 
         self.sel_add_input.clear()
-        self.selected_selective_domains.add(clean)
-
-        if clean not in self.blocked_domains:
-            self.blocked_domains.append(clean)
-            self.domain_added.emit(clean)
+        for clean in cleaned_list:
+            self.selected_selective_domains.add(clean)
+            if clean not in self.blocked_domains:
+                self.blocked_domains.append(clean)
+                self.domain_added.emit(clean)
 
         self.render_selective_domains_list()
         self.sel_add_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
-        self.sel_add_feedback_lbl.setText(t("selective.feedback_domain_selected", domain=clean))
+        if len(cleaned_list) == 1:
+            self.sel_add_feedback_lbl.setText(t("selective.feedback_domain_selected", domain=cleaned_list[0]))
+        else:
+            self.sel_add_feedback_lbl.setText(t("selective.feedback_batch_selected", count=len(cleaned_list)))
         QTimer.singleShot(2500, lambda: self.sel_add_feedback_lbl.setText(""))
 
     def update_selective_summary(self):

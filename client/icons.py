@@ -244,3 +244,34 @@ def clear_icon_cache() -> None:
     _render_pixmap_cached.cache_clear()
     get_icon.cache_clear()
 
+
+def get_svg_pixmap(file_path: str, size: int, dpr: Optional[float] = None) -> QPixmap:
+    """
+    Renders any SVG file to a crisp QPixmap with exact High-DPI / Wayland scaling.
+    Automatically accounts for screen DPR if not explicitly provided.
+    """
+    if not os.path.isfile(file_path):
+        return QPixmap()
+    if dpr is None:
+        app = QGuiApplication.instance()
+        if app and app.primaryScreen():
+            dpr = app.primaryScreen().devicePixelRatio()
+        else:
+            dpr = 1.0
+
+    pixel_size = max(1, int(round(size * float(dpr))))
+    renderer = QSvgRenderer(file_path)
+    if not renderer.isValid():
+        return QPixmap()
+
+    pixmap = QPixmap(pixel_size, pixel_size)
+    pixmap.fill(Qt.GlobalColor.transparent)
+
+    painter = QPainter(pixmap)
+    renderer.render(painter)
+    painter.end()
+
+    pixmap.setDevicePixelRatio(float(dpr))
+    return pixmap
+
+

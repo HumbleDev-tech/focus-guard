@@ -2,6 +2,7 @@
 Focus-Guard Domains Tab Component
 Handles adding, filtering, displaying, and removing blocked domains with friction protection.
 """
+import re
 from typing import List, Callable, Optional, Dict, Any
 
 from PyQt6.QtWidgets import (
@@ -141,6 +142,18 @@ class DomainsTab(QWidget):
         if not raw:
             self.domain_preview_lbl.setText("")
             return
+
+        tokens = [t_item for t_item in re.split(r"[,;\s]+", raw) if t_item]
+        if len(tokens) > 1:
+            valid_tokens = [sanitize_domain(t_item) for t_item in tokens if sanitize_domain(t_item)]
+            if valid_tokens:
+                self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #58A6FF; font-weight: 600;")
+                self.domain_preview_lbl.setText(t("domains.preview_batch", count=len(valid_tokens)))
+            else:
+                self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
+                self.domain_preview_lbl.setText(t("domains.preview_invalid"))
+            return
+
         clean = sanitize_domain(raw)
         if clean:
             if clean in self.blocked_domains:
@@ -265,25 +278,40 @@ class DomainsTab(QWidget):
 
     def on_add_domain_clicked(self):
         raw = self.domain_input.text()
-        domain = sanitize_domain(raw)
-        if not domain:
+        tokens = [t_item for t_item in re.split(r"[,;\s]+", raw) if t_item]
+        if not tokens:
+            return
+
+        cleaned_list: List[str] = []
+        for tok in tokens:
+            dom = sanitize_domain(tok)
+            if dom and dom not in cleaned_list:
+                cleaned_list.append(dom)
+
+        if not cleaned_list:
             self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
             self.domain_auto_feedback_lbl.setText(t("domains.feedback_invalid"))
             QTimer.singleShot(2500, lambda: self.domain_auto_feedback_lbl.setText(""))
             return
 
-        if domain in self.blocked_domains:
+        new_domains = [d for d in cleaned_list if d not in self.blocked_domains]
+        if not new_domains:
             self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #D29922; font-weight: 600;")
             self.domain_auto_feedback_lbl.setText(t("domains.feedback_exists"))
             QTimer.singleShot(2500, lambda: self.domain_auto_feedback_lbl.setText(""))
             return
 
-        self.blocked_domains.append(domain)
+        self.blocked_domains.extend(new_domains)
         self.domain_input.clear()
         self.render_domains_list()
 
         # Emit auto save request
-        self.auto_save_requested.emit(self.blocked_domains, t("domains.feedback_added", domain=domain))
+        if len(new_domains) == 1:
+            feedback_msg = t("domains.feedback_added", domain=new_domains[0])
+        else:
+            feedback_msg = t("domains.feedback_batch_added", count=len(new_domains))
+
+        self.auto_save_requested.emit(self.blocked_domains, feedback_msg)
         self.domains_changed.emit(self.blocked_domains)
 
     def on_remove_domain(self, domain: str):

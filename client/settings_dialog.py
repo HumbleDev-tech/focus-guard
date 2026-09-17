@@ -23,7 +23,7 @@ from client.autostart import (
 )
 from client.utils import sanitize_domain, format_human_time
 from client.theme import get_theme_stylesheet, get_status_tokens, get_status_badge_style
-from client.icons import get_themed_icon
+from client.icons import get_themed_icon, get_svg_pixmap
 from client.i18n import (
     t,
     get_configured_language_setting,
@@ -294,7 +294,7 @@ class SettingsDialog(QDialog):
         self.header_icon_lbl = QLabel()
         icon_path = os.path.join(self.resource_dir, "icon-active.svg")
         if os.path.exists(icon_path):
-            self.header_icon_lbl.setPixmap(QIcon(icon_path).pixmap(28, 28))
+            self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_path, 28))
         header.addWidget(self.header_icon_lbl)
 
         title_box = QVBoxLayout()
@@ -715,7 +715,7 @@ class SettingsDialog(QDialog):
             self.status_badge.setStyleSheet(get_status_badge_style("OFFLINE", is_dark))
             icon_off = os.path.join(self.resource_dir, "icon-offline.svg")
             if os.path.exists(icon_off):
-                self.header_icon_lbl.setPixmap(QIcon(icon_off).pixmap(28, 28))
+                self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_off, 28))
             self.dashboard_tab.update_status(res, self.config_data, len(self.blocked_domains), False)
             return
 
@@ -733,7 +733,7 @@ class SettingsDialog(QDialog):
             self.status_badge.setStyleSheet(get_status_badge_style("UNLOCKED", is_dark))
             icon_idle = os.path.join(self.resource_dir, "icon-idle.svg")
             if os.path.exists(icon_idle):
-                self.header_icon_lbl.setPixmap(QIcon(icon_idle).pixmap(28, 28))
+                self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_idle, 28))
 
         # 2. Header Badge: BYPASS
         elif state == "BYPASS":
@@ -741,7 +741,7 @@ class SettingsDialog(QDialog):
             self.status_badge.setStyleSheet(get_status_badge_style("BYPASS", is_dark))
             icon_byp = os.path.join(self.resource_dir, "icon-bypass.svg")
             if os.path.exists(icon_byp):
-                self.header_icon_lbl.setPixmap(QIcon(icon_byp).pixmap(28, 28))
+                self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_byp, 28))
 
         # 3. Header Badge: LOCKED
         elif is_blocking:
@@ -750,25 +750,25 @@ class SettingsDialog(QDialog):
                 self.status_badge.setStyleSheet(get_status_badge_style("CURFEW", is_dark))
                 icon_curf = os.path.join(self.resource_dir, "icon-curfew.svg")
                 if os.path.exists(icon_curf):
-                    self.header_icon_lbl.setPixmap(QIcon(icon_curf).pixmap(28, 28))
+                    self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_curf, 28))
             elif reason == "BOOT_COOLDOWN":
                 self.status_badge.setText(t("dash.status_boot"))
                 self.status_badge.setStyleSheet(get_status_badge_style("BOOT_COOLDOWN", is_dark))
                 icon_bt = os.path.join(self.resource_dir, "icon-boot.svg")
                 if os.path.exists(icon_bt):
-                    self.header_icon_lbl.setPixmap(QIcon(icon_bt).pixmap(28, 28))
+                    self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_bt, 28))
             elif reason == "MANUAL_LOCK":
                 self.status_badge.setText(t("dash.status_focus"))
                 self.status_badge.setStyleSheet(get_status_badge_style("MANUAL_LOCK", is_dark))
                 icon_act = os.path.join(self.resource_dir, "icon-active.svg")
                 if os.path.exists(icon_act):
-                    self.header_icon_lbl.setPixmap(QIcon(icon_act).pixmap(28, 28))
+                    self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_act, 28))
             elif reason == "SELECTIVE_LOCK":
                 self.status_badge.setText(t("dash.status_selective"))
                 self.status_badge.setStyleSheet(get_status_badge_style("SELECTIVE_LOCK", is_dark))
                 icon_act = os.path.join(self.resource_dir, "icon-active.svg")
                 if os.path.exists(icon_act):
-                    self.header_icon_lbl.setPixmap(QIcon(icon_act).pixmap(28, 28))
+                    self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_act, 28))
 
         # Dashboard Tab Status Update
         rules = self.rules_tab.get_rules_dict()

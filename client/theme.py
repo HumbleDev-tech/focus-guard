@@ -232,6 +232,9 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
         QLineEdit:focus {{
             border: 1.5px solid {c['accent_blue']};
         }}
+        QLineEdit[error="true"] {{
+            border: 1.5px solid {c['danger']};
+        }}
         QTimeEdit, QSpinBox {{
             background-color: {c['bg_input']};
             color: {c['text_primary']};
@@ -327,6 +330,15 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             border-color: {c['accent_blue']};
             color: {c['accent_blue']};
             background-color: {c['bg_card_inner']};
+        }}
+        QPushButton#presetChipSmallSelected {{
+            background-color: {c['accent_blue_subtle']};
+            border: 1.5px solid {c['accent_blue']};
+            border-radius: 12px;
+            color: {c['accent_blue']};
+            padding: 3px 10px;
+            font-size: 11px;
+            font-weight: 700;
         }}
         QPushButton#presetCardBtn {{
             background-color: {c['bg_card_inner']};
