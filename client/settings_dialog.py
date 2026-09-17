@@ -8,10 +8,10 @@ from typing import Dict, Any, List, Set
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTabWidget, QWidget, QApplication, QToolTip
+    QTabWidget, QWidget, QApplication, QToolTip, QComboBox
 )
 from PyQt6.QtGui import QIcon, QPalette, QKeySequence, QShortcut
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QEvent
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QEvent, QSettings
 
 from client.ipc_client import FocusIPCClient
 from client.autostart import (
@@ -153,9 +153,28 @@ class SettingsDialog(QDialog):
     # -------------------------------------------------------------------------
     # Styling & Setup
     # -------------------------------------------------------------------------
+    def get_theme_mode(self) -> str:
+        settings = QSettings("FocusGuard", "FocusGuardTray")
+        return settings.value("theme_mode", "auto")
+
     def is_dark_mode(self) -> bool:
+        mode = self.get_theme_mode()
+        if mode == "dark":
+            return True
+        elif mode == "light":
+            return False
         bg = self.palette().color(QPalette.ColorRole.Window)
         return bg.lightness() < 128
+
+    def on_theme_changed(self, index: int):
+        mode = self.theme_combo.currentData()
+        settings = QSettings("FocusGuard", "FocusGuardTray")
+        settings.setValue("theme_mode", mode)
+        self.apply_theme_styles()
+        if hasattr(self, "domains_tab"):
+            self.domains_tab.render_domains_list()
+        if hasattr(self, "selective_tab"):
+            self.selective_tab.render_selective_domains_list()
 
     def apply_theme_styles(self):
         stylesheet = get_theme_stylesheet(self.is_dark_mode(), self.resource_dir)
@@ -182,6 +201,19 @@ class SettingsDialog(QDialog):
         header.addLayout(title_box)
 
         header.addStretch()
+
+        # Theme mode selector (Auto / Dark / Light)
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItem("⚙️ Sistema", "auto")
+        self.theme_combo.addItem("🌙 Oscuro", "dark")
+        self.theme_combo.addItem("☀️ Claro", "light")
+        self.theme_combo.setToolTip("Tema visual de la interfaz")
+        cur_mode = self.get_theme_mode()
+        cur_idx = self.theme_combo.findData(cur_mode)
+        if cur_idx >= 0:
+            self.theme_combo.setCurrentIndex(cur_idx)
+        self.theme_combo.currentIndexChanged.connect(self.on_theme_changed)
+        header.addWidget(self.theme_combo)
 
         self.status_badge = QLabel("VERIFICANDO")
         self.status_badge.setObjectName("statusBadge")

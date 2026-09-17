@@ -458,20 +458,69 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             background: transparent;
             border: none;
         }}
+        QComboBox {{
+            background-color: {c['bg_input']};
+            color: {c['text_primary']};
+            border: 1px solid {c['border_color']};
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            min-height: 22px;
+        }}
+        QComboBox:hover {{
+            border-color: {c['accent_blue']};
+        }}
+        QComboBox::drop-down {{
+            subcontrol-origin: padding;
+            subcontrol-position: top right;
+            width: 20px;
+            border-left: none;
+        }}
+        QComboBox QAbstractItemView {{
+            background-color: {c['bg_card']};
+            color: {c['text_primary']};
+            border: 1px solid {c['border_color']};
+            border-radius: 6px;
+            selection-background-color: {c['accent_blue']};
+            selection-color: #FFFFFF;
+            padding: 4px;
+            outline: none;
+        }}
     """
 
 
-def apply_dialog_theme(dialog, is_dark: bool = True, resource_dir: str = "") -> None:
+def apply_dialog_theme(dialog, is_dark=None, resource_dir: str = "") -> None:
     """Applies unified theme stylesheet to any modal QDialog."""
+    if is_dark is None:
+        if hasattr(dialog, "parent") and dialog.parent() and hasattr(dialog.parent(), "is_dark_mode"):
+            is_dark = dialog.parent().is_dark_mode()
+        else:
+            try:
+                from PyQt6.QtCore import QSettings
+                from PyQt6.QtGui import QPalette
+                settings = QSettings("FocusGuard", "FocusGuardTray")
+                mode = settings.value("theme_mode", "auto")
+                if mode == "dark":
+                    is_dark = True
+                elif mode == "light":
+                    is_dark = False
+                else:
+                    is_dark = dialog.palette().color(QPalette.ColorRole.Window).lightness() < 128
+            except Exception:
+                is_dark = True
+
     if not resource_dir and hasattr(dialog, "resource_dir") and dialog.resource_dir:
         resource_dir = dialog.resource_dir
     elif not resource_dir and dialog.parent() and hasattr(dialog.parent(), "resource_dir"):
         resource_dir = dialog.parent().resource_dir
     if not resource_dir:
+        this_dir = os.path.dirname(os.path.realpath(__file__))
         candidates = [
-            os.path.abspath(os.path.join(os.path.dirname(__file__), "../resources")),
+            os.path.abspath(os.path.join(this_dir, "../resources")),
             "/usr/share/focus-guard/resources",
             "/usr/local/share/focus-guard/resources",
+            "/opt/focus-guard/resources",
             os.path.expanduser("~/.local/share/focus-guard/resources")
         ]
         for candidate in candidates:
