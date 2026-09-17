@@ -49,11 +49,12 @@ class FocusIPCClient:
 
             buffer = ""
             while True:
-                chunk = client_sock.recv(8192).decode("utf-8")
-                if not chunk:
+                raw_chunk = client_sock.recv(8192)
+                if not raw_chunk:
                     break
+                chunk = raw_chunk.decode("utf-8", errors="replace")
                 buffer += chunk
-                if "\n" in buffer:
+                if "\n" in buffer or len(buffer) >= 65536:
                     break
 
             if not buffer:

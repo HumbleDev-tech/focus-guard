@@ -60,10 +60,8 @@ class FocusDaemon:
                     logger.info(f"Migrated persistent state from {legacy_etc_path} to {primary_var_path}")
                 except Exception:
                     self.state_path = legacy_etc_path
-            elif os.path.exists(primary_var_path) or os.path.exists("/var/lib/focus-guard") or os.path.exists("/var/lib"):
-                self.state_path = primary_var_path
             else:
-                self.state_path = legacy_etc_path
+                self.state_path = primary_var_path
 
         self.hosts_mgr = HostsManager(self.hosts_path)
         self.scheduler = StateScheduler(self.config, dev_mode=self.dev_mode)
@@ -383,11 +381,12 @@ class FocusDaemon:
             conn.settimeout(3.0)
             buffer = ""
             while self.running:
-                chunk = conn.recv(8192).decode("utf-8")
-                if not chunk:
+                raw_chunk = conn.recv(8192)
+                if not raw_chunk:
                     break
+                chunk = raw_chunk.decode("utf-8", errors="replace")
                 buffer += chunk
-                if "\n" in buffer:
+                if "\n" in buffer or len(buffer) >= 65536:
                     break
 
             if buffer:

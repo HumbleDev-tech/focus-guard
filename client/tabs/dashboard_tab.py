@@ -11,7 +11,7 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QPalette
 from client.utils import format_human_time
 from client.icons import get_themed_icon
-from client.theme import get_status_tokens
+from client.theme import get_status_tokens, get_theme_colors
 from client.i18n import t
 
 
@@ -315,7 +315,7 @@ class DashboardTab(QWidget):
         self.kpi_boot_val.setText(boot_str)
 
         # State key for styling & widget structure
-        state_key = (state, reason, is_dark, curfew_emerg_enabled, bypasses_enabled, target, len(sel_domains), is_indef)
+        state_key = (state, reason, is_dark, curfew_emerg_enabled, bypasses_enabled, target, tuple(sorted(sel_domains)), is_indef)
         state_changed = (state_key != self._last_state_key)
         if state_changed:
             self._last_state_key = state_key
@@ -505,6 +505,21 @@ class DashboardTab(QWidget):
                         self.btn_secondary_action.setText(t("dash.btn_break_disabled"))
                         self.btn_secondary_action.setEnabled(False)
                         self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
+
+                else:
+                    self.dash_state_pill.setText(t("dash.pill_focus"))
+                    self.dash_state_pill.setStyleSheet(pill_style)
+                    self.dash_state_title.setText(t("dash.state_title"))
+                    self.dash_desc_lbl.setText(t("dash.active_protection"))
+                    self.dash_countdown_lbl.setStyleSheet(lbl_style)
+                    self.dash_progress_bar.setValue(100)
+                    self.dash_progress_bar.setStyleSheet(chunk_style)
+                    self.btn_stop_focus.setVisible(False)
+                    self.btn_primary_action.setText(t("dash.btn_focus_running"))
+                    self.btn_primary_action.setEnabled(False)
+                    self.btn_pomodoro_25.setEnabled(False)
+                    self.btn_pomodoro_50.setEnabled(False)
+                    self.btn_secondary_action.setEnabled(False)
 
             # Dynamic progress/countdown updates on tick
             if reason == "BOOT_COOLDOWN":

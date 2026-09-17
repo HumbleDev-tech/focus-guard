@@ -252,6 +252,9 @@ def get_themed_icon(
 @functools.lru_cache(maxsize=64)
 def _render_svg_file_cached(file_path: str, size: int, dpr: float) -> QPixmap:
     """Internal cached SVG file rasterizer for High-DPI / Wayland scaling."""
+    if QGuiApplication.instance() is None:
+        return QPixmap()
+
     pixel_size = max(1, int(round(size * dpr)))
     renderer = QSvgRenderer(file_path)
     if not renderer.isValid():

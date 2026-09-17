@@ -160,6 +160,12 @@ class TestSearchDebounceTimers(unittest.TestCase):
         self.assertTrue(tab._sel_search_timer.isSingleShot())
         self.assertEqual(tab._sel_search_timer.interval(), 150)
 
+    def test_dashboard_tab_show_feedback(self):
+        from client.tabs.dashboard_tab import DashboardTab
+        tab = DashboardTab()
+        tab.show_feedback("Test feedback message", timeout_ms=50)
+        self.assertEqual(tab.dash_feedback_lbl.text(), "Test feedback message")
+
 
 class TestIPCTimeouts(unittest.TestCase):
     """Verifies IPC client timeout settings to prevent Wayland freezes."""
