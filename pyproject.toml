@@ -32,4 +32,4 @@ where = ["."]
 include = ["daemon*", "client*", "config*"]
 
 [tool.setuptools.package-data]
-"*" = ["resources/*.svg", "config/*.json"]
+"*" = ["resources/*.svg", "resources/icons/*.svg", "config/*.json"]

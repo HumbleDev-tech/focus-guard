@@ -1,40 +1,47 @@
 """
-Focus-Guard Theme & Design System
-Clean minimalist black aesthetic tokens and QSS stylesheet generators.
+Focus-Guard Theme & Design System 2.0
+Clean modern desktop aesthetic with refined surface elevation,
+crisp contrast, and seamless integration for Lucide vector iconography.
 """
 
 import os
 
 DARK_THEME = {
-    "bg_window": "#0D1117",
-    "bg_card": "#161B22",
-    "bg_card_inner": "#1C2128",
-    "bg_input": "#161B22",
-    "border_color": "#30363D",
-    "border_subtle": "#21262D",
-    "checkbox_border": "#484F58",
-    "checkbox_bg": "#21262D",
+    "bg_window": "#0B0F14",
+    "bg_card": "#131822",
+    "bg_card_inner": "#18202C",
+    "bg_input": "#141A24",
+    "border_color": "#242F3E",
+    "border_subtle": "#1B232F",
+    "border_highlight": "rgba(255, 255, 255, 0.06)",
+    "checkbox_border": "#374354",
+    "checkbox_bg": "#18202C",
     "text_primary": "#F0F6FC",
     "text_secondary": "#8B949E",
     "text_disabled": "#484F58",
-    "btn_disabled_bg": "#161B22",
-    "btn_disabled_border": "#21262D",
+    "btn_disabled_bg": "#131822",
+    "btn_disabled_border": "#1B232F",
     "accent_blue": "#388BFD",
-    "accent_blue_hover": "#1F6FEB",
-    "tab_bg": "#111419",
-    "danger": "#DA3633",
-    "danger_hover": "#F85149",
+    "accent_blue_hover": "#58A6FF",
+    "accent_blue_subtle": "rgba(56, 139, 253, 0.12)",
+    "tab_bg": "#0D1117",
+    "danger": "#F85149",
+    "danger_hover": "#FF6B65",
+    "danger_subtle": "rgba(248, 81, 73, 0.12)",
     "success": "#2EA043",
+    "success_subtle": "rgba(46, 160, 67, 0.14)",
     "warning": "#D29922",
+    "warning_subtle": "rgba(210, 153, 34, 0.14)",
 }
 
 LIGHT_THEME = {
     "bg_window": "#F6F8FA",
     "bg_card": "#FFFFFF",
-    "bg_card_inner": "#F3F4F6",
+    "bg_card_inner": "#F0F3F6",
     "bg_input": "#FFFFFF",
     "border_color": "#D0D7DE",
     "border_subtle": "#E1E4E8",
+    "border_highlight": "rgba(0, 0, 0, 0.04)",
     "checkbox_border": "#D0D7DE",
     "checkbox_bg": "#FFFFFF",
     "text_primary": "#1F2328",
@@ -44,11 +51,15 @@ LIGHT_THEME = {
     "btn_disabled_border": "#D0D7DE",
     "accent_blue": "#0969DA",
     "accent_blue_hover": "#0550AE",
+    "accent_blue_subtle": "rgba(9, 105, 218, 0.08)",
     "tab_bg": "#EAECEF",
     "danger": "#CF222E",
     "danger_hover": "#A40E26",
+    "danger_subtle": "rgba(207, 34, 46, 0.08)",
     "success": "#1A7F37",
+    "success_subtle": "rgba(26, 127, 55, 0.08)",
     "warning": "#9A6700",
+    "warning_subtle": "rgba(154, 103, 0, 0.08)",
 }
 
 
@@ -89,6 +100,11 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             border-top-right-radius: 6px;
             font-weight: 600;
             font-size: 12px;
+            border-bottom: 2px solid transparent;
+        }}
+        QTabBar::tab:hover {{
+            background: {c['bg_card_inner']};
+            color: {c['text_primary']};
         }}
         QTabBar::tab:selected {{
             background: {c['bg_card']};
@@ -104,7 +120,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             font-size: 13px;
         }}
         QLineEdit:focus {{
-            border: 1px solid {c['accent_blue']};
+            border: 1.5px solid {c['accent_blue']};
         }}
         QTimeEdit, QSpinBox {{
             background-color: {c['bg_input']};
@@ -119,7 +135,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             max-height: 24px;
         }}
         QTimeEdit:focus, QSpinBox:focus {{
-            border: 1px solid {c['accent_blue']};
+            border: 1.5px solid {c['accent_blue']};
         }}
         QTimeEdit::up-button, QTimeEdit::down-button,
         QSpinBox::up-button, QSpinBox::down-button {{
@@ -137,10 +153,13 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
         QPushButton#primaryBtn {{
             background-color: {c['accent_blue']};
             color: #FFFFFF;
-            border: none;
+            border: 1px solid rgba(255, 255, 255, 0.12);
         }}
         QPushButton#primaryBtn:hover {{
             background-color: {c['accent_blue_hover']};
+        }}
+        QPushButton#primaryBtn:pressed {{
+            background-color: {c['accent_blue']};
         }}
         QPushButton#primaryBtn:disabled {{
             background-color: {c['btn_disabled_bg']};
@@ -155,6 +174,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
         QPushButton#secondaryBtn:hover {{
             border-color: {c['accent_blue']};
             background-color: {c['bg_card']};
+            color: {c['text_primary']};
         }}
         QPushButton#secondaryBtn:disabled {{
             background-color: {c['bg_window']};
@@ -166,7 +186,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             color: {c['text_primary']};
             border: 1px solid {c['border_color']};
             border-radius: 6px;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 700;
             padding: 0px;
             min-width: 32px;
@@ -212,7 +232,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             border-color: {c['accent_blue']};
         }}
         QPushButton#presetCardBtnSelected {{
-            background-color: rgba(56, 139, 253, 0.15);
+            background-color: {c['accent_blue_subtle']};
             border: 1.5px solid {c['accent_blue']};
             border-radius: 6px;
             color: {c['accent_blue']};
@@ -228,8 +248,8 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
         }}
         QLabel#summaryPill {{
             font-size: 11.5px;
-            color: #58A6FF;
-            background-color: rgba(56, 139, 253, 0.08);
+            color: {c['accent_blue_hover']};
+            background-color: {c['accent_blue_subtle']};
             border: 1px solid rgba(56, 139, 253, 0.25);
             border-radius: 6px;
             padding: 9px 14px;
@@ -237,7 +257,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
         }}
         QPushButton:disabled {{
             opacity: 0.45;
-            color: #6E7681;
+            color: {c['text_disabled']};
             background-color: {c['bg_card_inner']};
             border: 1px solid {c['border_color']};
         }}
@@ -266,12 +286,12 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             margin: 4px 2px 4px 0px;
         }}
         QScrollBar::handle:vertical {{
-            background: #30363D;
+            background: {c['border_color']};
             min-height: 24px;
             border-radius: 3px;
         }}
         QScrollBar::handle:vertical:hover {{
-            background: #58A6FF;
+            background: {c['accent_blue']};
         }}
         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
             height: 0px;
@@ -346,14 +366,14 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             border: none;
         }}
         QFrame#infoBanner {{
-            background-color: rgba(56, 139, 253, 0.08);
+            background-color: {c['accent_blue_subtle']};
             border: 1px solid rgba(56, 139, 253, 0.22);
             border-radius: 6px;
             padding: 8px 12px;
         }}
         QLabel#infoBannerText {{
             font-size: 11.5px;
-            color: #58A6FF;
+            color: {c['accent_blue_hover']};
             font-weight: 500;
             background: transparent;
             border: none;
@@ -381,13 +401,13 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             text-align: center;
         }}
         QProgressBar::chunk {{
-            background-color: #2EA043;
+            background-color: {c['success']};
             border-radius: 3px;
         }}
         QPushButton#dangerBtn {{
             background-color: {c['danger']};
             color: #FFFFFF;
-            border: none;
+            border: 1px solid rgba(255, 255, 255, 0.12);
         }}
         QPushButton#dangerBtn:hover {{
             background-color: {c['danger_hover']};
@@ -486,6 +506,31 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             selection-color: #FFFFFF;
             padding: 4px;
             outline: none;
+        }}
+        QMenu {{
+            background-color: {c['bg_card']};
+            color: {c['text_primary']};
+            border: 1px solid {c['border_color']};
+            border-radius: 8px;
+            padding: 4px;
+        }}
+        QMenu::item {{
+            padding: 6px 14px 6px 26px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }}
+        QMenu::item:selected {{
+            background-color: {c['accent_blue']};
+            color: #FFFFFF;
+        }}
+        QMenu::item:disabled {{
+            color: {c['text_disabled']};
+        }}
+        QMenu::separator {{
+            height: 1px;
+            background: {c['border_subtle']};
+            margin: 4px 6px;
         }}
     """
 

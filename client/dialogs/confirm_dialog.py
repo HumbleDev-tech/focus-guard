@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer
 
 from client.theme import apply_dialog_theme
+from client.icons import get_themed_icon
 
 
 class ConfirmDomainRemovalDialog(QDialog):
@@ -61,6 +62,7 @@ class ConfirmDomainRemovalDialog(QDialog):
 
             self.copy_btn = QPushButton("Copiar Frase")
             self.copy_btn.setObjectName("secondaryBtn")
+            self.copy_btn.setIcon(get_themed_icon("copy", role="secondary", size=14))
             self.copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             self.copy_btn.setToolTip("Copiar frase al portapapeles")
             self.copy_btn.clicked.connect(self.on_copy_phrase)
@@ -86,6 +88,7 @@ class ConfirmDomainRemovalDialog(QDialog):
 
         del_btn = QPushButton(f"Eliminar {self.domain}")
         del_btn.setObjectName("dangerBtn")
+        del_btn.setIcon(get_themed_icon("trash-2", role="white", size=14))
         del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         del_btn.clicked.connect(self.on_confirm)
         btn_row.addWidget(del_btn)

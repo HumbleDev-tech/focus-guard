@@ -9,8 +9,10 @@ from PyQt6.QtWidgets import (
     QScrollArea, QFrame, QCheckBox, QTimeEdit, QSpinBox, QApplication
 )
 from PyQt6.QtCore import Qt, QTime, QTimer, pyqtSignal
+from PyQt6.QtGui import QPalette
 
 from client.autostart import is_autostart_enabled, set_autostart_enabled
+from client.icons import get_themed_icon
 
 
 class RulesTab(QWidget):
@@ -22,6 +24,28 @@ class RulesTab(QWidget):
         self.initial_config: Dict[str, Any] = {}
 
         self.setup_ui()
+
+    def is_dark_mode(self) -> bool:
+        if self.parent() and hasattr(self.parent(), "is_dark_mode"):
+            return self.parent().is_dark_mode()
+        bg = self.palette().color(QPalette.ColorRole.Window)
+        return bg.lightness() < 128
+
+    def update_icons(self, is_dark: bool | None = None):
+        if is_dark is None:
+            is_dark = self.is_dark_mode()
+        if hasattr(self, "boot_step_minus"):
+            self.boot_step_minus.setIcon(get_themed_icon("minus", is_dark, size=13))
+        if hasattr(self, "boot_step_plus"):
+            self.boot_step_plus.setIcon(get_themed_icon("plus", is_dark, size=13))
+        if hasattr(self, "curfew_start_minus"):
+            self.curfew_start_minus.setIcon(get_themed_icon("minus", is_dark, size=13))
+        if hasattr(self, "curfew_start_plus"):
+            self.curfew_start_plus.setIcon(get_themed_icon("plus", is_dark, size=13))
+        if hasattr(self, "curfew_end_minus"):
+            self.curfew_end_minus.setIcon(get_themed_icon("minus", is_dark, size=13))
+        if hasattr(self, "curfew_end_plus"):
+            self.curfew_end_plus.setIcon(get_themed_icon("plus", is_dark, size=13))
 
     def setup_ui(self):
         scroll = QScrollArea(self)
@@ -60,7 +84,7 @@ class RulesTab(QWidget):
         self.boot_dur_label.setObjectName("fieldLabel")
         dur_row.addWidget(self.boot_dur_label)
 
-        self.boot_step_minus = QPushButton("−")
+        self.boot_step_minus = QPushButton()
         self.boot_step_minus.setObjectName("stepBtn")
         self.boot_step_minus.setToolTip("Disminuir 5 minutos")
         self.boot_step_minus.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -75,7 +99,7 @@ class RulesTab(QWidget):
         self.boot_duration_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
         dur_row.addWidget(self.boot_duration_spin)
 
-        self.boot_step_plus = QPushButton("+")
+        self.boot_step_plus = QPushButton()
         self.boot_step_plus.setObjectName("stepBtn")
         self.boot_step_plus.setToolTip("Aumentar 5 minutos")
         self.boot_step_plus.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -121,7 +145,7 @@ class RulesTab(QWidget):
         self.curfew_start_lbl.setObjectName("fieldLabel")
         time_row.addWidget(self.curfew_start_lbl)
 
-        self.curfew_start_minus = QPushButton("−")
+        self.curfew_start_minus = QPushButton()
         self.curfew_start_minus.setObjectName("stepBtn")
         self.curfew_start_minus.setToolTip("Restar 15 minutos")
         self.curfew_start_minus.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -135,7 +159,7 @@ class RulesTab(QWidget):
         self.curfew_start_time.timeChanged.connect(self.update_curfew_summary)
         time_row.addWidget(self.curfew_start_time)
 
-        self.curfew_start_plus = QPushButton("+")
+        self.curfew_start_plus = QPushButton()
         self.curfew_start_plus.setObjectName("stepBtn")
         self.curfew_start_plus.setToolTip("Sumar 15 minutos")
         self.curfew_start_plus.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -148,7 +172,7 @@ class RulesTab(QWidget):
         self.curfew_end_lbl.setObjectName("fieldLabel")
         time_row.addWidget(self.curfew_end_lbl)
 
-        self.curfew_end_minus = QPushButton("−")
+        self.curfew_end_minus = QPushButton()
         self.curfew_end_minus.setObjectName("stepBtn")
         self.curfew_end_minus.setToolTip("Restar 15 minutos")
         self.curfew_end_minus.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -162,7 +186,7 @@ class RulesTab(QWidget):
         self.curfew_end_time.timeChanged.connect(self.update_curfew_summary)
         time_row.addWidget(self.curfew_end_time)
 
-        self.curfew_end_plus = QPushButton("+")
+        self.curfew_end_plus = QPushButton()
         self.curfew_end_plus.setObjectName("stepBtn")
         self.curfew_end_plus.setToolTip("Sumar 15 minutos")
         self.curfew_end_plus.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -297,6 +321,7 @@ class RulesTab(QWidget):
         self.curfew_emerg_cb.toggled.connect(self.rules_changed.emit)
         self.emergency_phrase_input.textChanged.connect(self.rules_changed.emit)
 
+        self.update_icons()
         layout.addStretch()
         scroll.setWidget(container)
 

@@ -15,6 +15,8 @@ from PyQt6.QtCore import QTimer, Qt
 
 from client.ipc_client import FocusIPCClient
 from client.settings_dialog import SettingsDialog, EmergencyPromptDialog, AboutDialog
+from client.icons import get_themed_icon
+from client.theme import get_theme_stylesheet
 
 logger = logging.getLogger("focus-guard.client.tray")
 
@@ -43,6 +45,7 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.curfew_warned: bool = False
 
         self.menu = QMenu()
+        self.menu.setStyleSheet(get_theme_stylesheet(is_dark=True, resource_dir=resource_dir))
         self.setup_menu()
         self.setContextMenu(self.menu)
 
@@ -55,7 +58,7 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.refresh_status()
 
     def setup_menu(self):
-        """Constructs the clean, minimalist system tray context menu."""
+        """Constructs the clean, minimalist system tray context menu with vector icons."""
         self.menu.clear()
 
         # 1. Header State Label
@@ -75,6 +78,7 @@ class FocusTrayApplet(QSystemTrayIcon):
 
         # 3. Settings / Dashboard Action
         self.settings_action = QAction("Panel de Control y Reglas...", self.menu)
+        self.settings_action.setIcon(get_themed_icon("settings", is_dark=True, size=16))
         self.settings_action.triggered.connect(self.show_settings_dialog)
         self.menu.addAction(self.settings_action)
 
@@ -82,56 +86,69 @@ class FocusTrayApplet(QSystemTrayIcon):
 
         # 4. Focus Sessions (Pomodoro & Indefinite) Submenu
         self.focus_menu = self.menu.addMenu("Sesión de Enfoque")
+        self.focus_menu.setIcon(get_themed_icon("timer", is_dark=True, size=16))
         
         self.focus_25_action = QAction("25 minutos (Pomodoro)", self.focus_menu)
+        self.focus_25_action.setIcon(get_themed_icon("timer", is_dark=True, size=16))
         self.focus_25_action.triggered.connect(lambda: self.on_start_focus_session(25))
         self.focus_menu.addAction(self.focus_25_action)
 
         self.focus_50_action = QAction("50 minutos (Trabajo Profundo)", self.focus_menu)
+        self.focus_50_action.setIcon(get_themed_icon("zap", is_dark=True, size=16))
         self.focus_50_action.triggered.connect(lambda: self.on_start_focus_session(50))
         self.focus_menu.addAction(self.focus_50_action)
 
         self.focus_indef_action = QAction("Bloqueo Indefinido", self.focus_menu)
+        self.focus_indef_action.setIcon(get_themed_icon("lock", is_dark=True, size=16))
         self.focus_indef_action.triggered.connect(lambda: self.on_start_focus_session(0))
         self.focus_menu.addAction(self.focus_indef_action)
 
         # 5. Standard Bypass Submenu
         self.bypass_menu = self.menu.addMenu("Pausa Temporal (Descanso)")
+        self.bypass_menu.setIcon(get_themed_icon("coffee", is_dark=True, size=16))
         
         self.bypass_15_action = QAction("15 minutos", self.bypass_menu)
+        self.bypass_15_action.setIcon(get_themed_icon("coffee", is_dark=True, size=16))
         self.bypass_15_action.triggered.connect(lambda: self.on_bypass_clicked(15))
         self.bypass_menu.addAction(self.bypass_15_action)
 
         self.bypass_30_action = QAction("30 minutos", self.bypass_menu)
+        self.bypass_30_action.setIcon(get_themed_icon("coffee", is_dark=True, size=16))
         self.bypass_30_action.triggered.connect(lambda: self.on_bypass_clicked(30))
         self.bypass_menu.addAction(self.bypass_30_action)
 
         self.bypass_45_action = QAction("45 minutos", self.bypass_menu)
+        self.bypass_45_action.setIcon(get_themed_icon("coffee", is_dark=True, size=16))
         self.bypass_45_action.triggered.connect(lambda: self.on_bypass_clicked(45))
         self.bypass_menu.addAction(self.bypass_45_action)
 
         self.bypass_menu.addSeparator()
         self.cancel_bypass_action = QAction("Finalizar Pausa", self.bypass_menu)
+        self.cancel_bypass_action.setIcon(get_themed_icon("unlock", is_dark=True, size=16))
         self.cancel_bypass_action.triggered.connect(self.on_cancel_bypass_clicked)
         self.bypass_menu.addAction(self.cancel_bypass_action)
 
         # 6. Emergency Bypass (for Curfew)
         self.emergency_action = QAction("Desbloqueo de Emergencia (15 min)...", self.menu)
+        self.emergency_action.setIcon(get_themed_icon("shield-alert", is_dark=True, role="danger", size=16))
         self.emergency_action.triggered.connect(self.on_emergency_bypass_clicked)
         self.emergency_action.setVisible(False)
         self.menu.addAction(self.emergency_action)
 
         # 7. Unlock Action
         self.unlock_action = QAction("Desbloquear Sitios", self.menu)
+        self.unlock_action.setIcon(get_themed_icon("unlock", is_dark=True, size=16))
         self.unlock_action.triggered.connect(self.on_unlock_clicked)
         self.menu.addAction(self.unlock_action)
 
         self.cancel_selective_action = QAction("Finalizar Bloqueo Selectivo", self.menu)
+        self.cancel_selective_action.setIcon(get_themed_icon("unlock", is_dark=True, size=16))
         self.cancel_selective_action.triggered.connect(self.on_cancel_selective_clicked)
         self.cancel_selective_action.setVisible(False)
         self.menu.addAction(self.cancel_selective_action)
 
         self.cancel_emergency_action = QAction("Finalizar Desbloqueo de Emergencia", self.menu)
+        self.cancel_emergency_action.setIcon(get_themed_icon("unlock", is_dark=True, size=16))
         self.cancel_emergency_action.triggered.connect(self.on_cancel_bypass_clicked)
         self.cancel_emergency_action.setVisible(False)
         self.menu.addAction(self.cancel_emergency_action)
@@ -140,6 +157,7 @@ class FocusTrayApplet(QSystemTrayIcon):
 
         # 8. Information Action
         self.info_action = QAction("Acerca de Focus-Guard", self.menu)
+        self.info_action.setIcon(get_themed_icon("info", is_dark=True, size=16))
         self.info_action.triggered.connect(self.show_info_dialog)
         self.menu.addAction(self.info_action)
 
@@ -147,6 +165,7 @@ class FocusTrayApplet(QSystemTrayIcon):
 
         # 10. Quit Action
         self.quit_action = QAction("Cerrar Focus-Guard", self.menu)
+        self.quit_action.setIcon(get_themed_icon("power", is_dark=True, size=16))
         self.quit_action.triggered.connect(QApplication.instance().quit)
         self.menu.addAction(self.quit_action)
 

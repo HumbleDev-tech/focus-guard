@@ -13,6 +13,7 @@ from PyQt6.QtGui import QPalette
 
 from client.utils import sanitize_domain
 from client.dialogs import ConfirmDomainRemovalDialog
+from client.icons import get_themed_icon, get_pixmap
 
 
 class DomainsTab(QWidget):
@@ -51,6 +52,7 @@ class DomainsTab(QWidget):
 
         add_btn = QPushButton("Añadir")
         add_btn.setObjectName("primaryBtn")
+        add_btn.setIcon(get_themed_icon("plus", self.is_dark_mode(), role="white", size=14))
         add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         add_btn.clicked.connect(self.on_add_domain_clicked)
         top_row.addWidget(add_btn)
@@ -194,9 +196,10 @@ class DomainsTab(QWidget):
             row_layout.setContentsMargins(12, 5, 12, 5)
             row_layout.setSpacing(10)
 
-            dot_lbl = QLabel("•")
-            dot_lbl.setStyleSheet("font-size: 14px; font-weight: 700; color: #58A6FF; border: none; background: transparent;")
-            row_layout.addWidget(dot_lbl)
+            icon_lbl = QLabel()
+            icon_lbl.setPixmap(get_pixmap("globe", color="#388BFD" if is_dark else "#0969DA", size=14))
+            icon_lbl.setStyleSheet("border: none; background: transparent;")
+            row_layout.addWidget(icon_lbl)
 
             name_lbl = QLabel(domain)
             name_lbl.setStyleSheet(f"font-weight: 600; font-size: 13px; border: none; background: transparent; color: {'#F0F6FC' if is_dark else '#1F2328'};")
@@ -219,8 +222,9 @@ class DomainsTab(QWidget):
             status_pill.setToolTip("Redirigido a localhost para bloqueo local")
             row_layout.addWidget(status_pill)
 
-            # Elegant minimalist remove button
-            del_btn = QPushButton("×")
+            # Elegant minimalist remove button with trash-2 icon
+            del_btn = QPushButton()
+            del_btn.setIcon(get_themed_icon("trash-2", is_dark, role="secondary", size=14))
             del_btn.setToolTip(f"Eliminar {domain}")
             del_btn.setObjectName("removeBtn")
             del_btn.setCursor(Qt.CursorShape.PointingHandCursor)

@@ -8,7 +8,9 @@ from PyQt6.QtWidgets import (
     QProgressBar, QFrame, QGridLayout
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QPalette
 from client.utils import format_human_time
+from client.icons import get_themed_icon
 
 
 class DashboardTab(QWidget):
@@ -22,6 +24,21 @@ class DashboardTab(QWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._setup_ui()
+
+    def is_dark_mode(self) -> bool:
+        if self.parent() and hasattr(self.parent(), "is_dark_mode"):
+            return self.parent().is_dark_mode()
+        bg = self.palette().color(QPalette.ColorRole.Window)
+        return bg.lightness() < 128
+
+    def update_icons(self, is_dark: bool | None = None):
+        if is_dark is None:
+            is_dark = self.is_dark_mode()
+        self.btn_pomodoro_25.setIcon(get_themed_icon("timer", is_dark, size=16))
+        self.btn_pomodoro_50.setIcon(get_themed_icon("zap", is_dark, size=16))
+        self.btn_primary_action.setIcon(get_themed_icon("lock", is_dark, role="white", size=16))
+        self.btn_secondary_action.setIcon(get_themed_icon("coffee", is_dark, size=16))
+        self.btn_stop_focus.setIcon(get_themed_icon("unlock", is_dark, role="white", size=16))
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -189,6 +206,7 @@ class DashboardTab(QWidget):
         layout.addWidget(self.dash_feedback_lbl)
 
         layout.addStretch()
+        self.update_icons()
 
     def show_feedback(self, message: str, timeout_ms: int = 3000):
         """Displays temporary feedback text."""

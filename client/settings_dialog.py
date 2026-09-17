@@ -23,6 +23,7 @@ from client.autostart import (
 )
 from client.utils import sanitize_domain, format_human_time
 from client.theme import get_theme_stylesheet
+from client.icons import get_themed_icon
 from client.dialogs import (
     EmergencyPromptDialog,
     ConfirmDomainRemovalDialog,
@@ -113,10 +114,10 @@ class SettingsDialog(QDialog):
         self.rules_tab = RulesTab(parent=self)
         self.dashboard_tab = DashboardTab(parent=self)
 
-        self.tabs.addTab(self.domains_tab, "Sitios Bloqueados")
-        self.tabs.addTab(self.selective_tab, "Bloqueo Selectivo")
-        self.tabs.addTab(self.rules_tab, "Horarios y Reglas")
-        self.tabs.addTab(self.dashboard_tab, "Estado y Control")
+        self.tabs.addTab(self.domains_tab, get_themed_icon("shield", self.is_dark_mode(), size=16), "Sitios Bloqueados")
+        self.tabs.addTab(self.selective_tab, get_themed_icon("sliders", self.is_dark_mode(), size=16), "Bloqueo Selectivo")
+        self.tabs.addTab(self.rules_tab, get_themed_icon("clock", self.is_dark_mode(), size=16), "Horarios y Reglas")
+        self.tabs.addTab(self.dashboard_tab, get_themed_icon("activity", self.is_dark_mode(), size=16), "Estado y Control")
 
         self.tabs.currentChanged.connect(self.on_tab_changed)
         self.main_layout.addWidget(self.tabs)
@@ -176,9 +177,45 @@ class SettingsDialog(QDialog):
         if hasattr(self, "selective_tab"):
             self.selective_tab.render_selective_domains_list()
 
+    def _update_tab_icons(self):
+        is_dark = self.is_dark_mode()
+        if hasattr(self, "tabs") and self.tabs.count() >= 4:
+            self.tabs.setTabIcon(0, get_themed_icon("shield", is_dark, size=16))
+            self.tabs.setTabIcon(1, get_themed_icon("sliders", is_dark, size=16))
+            self.tabs.setTabIcon(2, get_themed_icon("clock", is_dark, size=16))
+            self.tabs.setTabIcon(3, get_themed_icon("activity", is_dark, size=16))
+
+    def _update_theme_combo(self):
+        if not hasattr(self, "theme_combo"):
+            return
+        is_dark = self.is_dark_mode()
+        cur_mode = self.theme_combo.currentData() if self.theme_combo.count() > 0 else self.get_theme_mode()
+        self.theme_combo.blockSignals(True)
+        self.theme_combo.clear()
+        self.theme_combo.addItem(get_themed_icon("monitor", is_dark, size=14), "Sistema", "auto")
+        self.theme_combo.addItem(get_themed_icon("moon", is_dark, size=14), "Oscuro", "dark")
+        self.theme_combo.addItem(get_themed_icon("sun", is_dark, size=14), "Claro", "light")
+        cur_idx = self.theme_combo.findData(cur_mode)
+        if cur_idx >= 0:
+            self.theme_combo.setCurrentIndex(cur_idx)
+        self.theme_combo.blockSignals(False)
+
     def apply_theme_styles(self):
-        stylesheet = get_theme_stylesheet(self.is_dark_mode(), self.resource_dir)
+        is_dark = self.is_dark_mode()
+        stylesheet = get_theme_stylesheet(is_dark, self.resource_dir)
         self.setStyleSheet(stylesheet)
+        self._update_tab_icons()
+        self._update_theme_combo()
+        if hasattr(self, "discard_btn"):
+            self.discard_btn.setIcon(get_themed_icon("undo", is_dark, role="secondary", size=14))
+        if hasattr(self, "save_btn"):
+            self.save_btn.setIcon(get_themed_icon("check", is_dark, role="white", size=14))
+        if hasattr(self, "dashboard_tab") and hasattr(self.dashboard_tab, "update_icons"):
+            self.dashboard_tab.update_icons(is_dark)
+        if hasattr(self, "rules_tab") and hasattr(self.rules_tab, "update_icons"):
+            self.rules_tab.update_icons(is_dark)
+        if hasattr(self, "selective_tab") and hasattr(self.selective_tab, "update_icons"):
+            self.selective_tab.update_icons(is_dark)
 
     def setup_header(self):
         header = QHBoxLayout()
@@ -202,16 +239,10 @@ class SettingsDialog(QDialog):
 
         header.addStretch()
 
-        # Theme mode selector (Auto / Dark / Light)
+        # Theme mode selector (Auto / Dark / Light) with vector icons
         self.theme_combo = QComboBox()
-        self.theme_combo.addItem("⚙️ Sistema", "auto")
-        self.theme_combo.addItem("🌙 Oscuro", "dark")
-        self.theme_combo.addItem("☀️ Claro", "light")
         self.theme_combo.setToolTip("Tema visual de la interfaz")
-        cur_mode = self.get_theme_mode()
-        cur_idx = self.theme_combo.findData(cur_mode)
-        if cur_idx >= 0:
-            self.theme_combo.setCurrentIndex(cur_idx)
+        self._update_theme_combo()
         self.theme_combo.currentIndexChanged.connect(self.on_theme_changed)
         header.addWidget(self.theme_combo)
 
@@ -238,6 +269,7 @@ class SettingsDialog(QDialog):
 
         self.discard_btn = QPushButton("Descartar")
         self.discard_btn.setObjectName("secondaryBtn")
+        self.discard_btn.setIcon(get_themed_icon("undo", self.is_dark_mode(), role="secondary", size=14))
         self.discard_btn.setToolTip("Revertir y descartar las modificaciones no guardadas")
         self.discard_btn.clicked.connect(self.on_discard_clicked)
         self.discard_btn.setVisible(False)
@@ -245,6 +277,7 @@ class SettingsDialog(QDialog):
 
         self.save_btn = QPushButton("Guardar Reglas (Ctrl+S)")
         self.save_btn.setObjectName("primaryBtn")
+        self.save_btn.setIcon(get_themed_icon("check", self.is_dark_mode(), role="white", size=14))
         self.save_btn.clicked.connect(self.on_save_clicked)
         bottom.addWidget(self.save_btn)
 

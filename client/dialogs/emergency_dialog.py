@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer
 
 from client.theme import apply_dialog_theme
+from client.icons import get_themed_icon
 
 
 class EmergencyPromptDialog(QDialog):
@@ -51,6 +52,7 @@ class EmergencyPromptDialog(QDialog):
 
         self.copy_btn = QPushButton("Copiar Frase")
         self.copy_btn.setObjectName("secondaryBtn")
+        self.copy_btn.setIcon(get_themed_icon("copy", role="secondary", size=14))
         self.copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.copy_btn.setToolTip("Copiar frase al portapapeles")
         self.copy_btn.clicked.connect(self.on_copy_phrase)
@@ -74,6 +76,7 @@ class EmergencyPromptDialog(QDialog):
 
         confirm_btn = QPushButton("Confirmar Desbloqueo (15 min)")
         confirm_btn.setObjectName("primaryBtn")
+        confirm_btn.setIcon(get_themed_icon("unlock", role="white", size=15))
         confirm_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         confirm_btn.clicked.connect(self.on_confirm)
         btn_row.addWidget(confirm_btn)

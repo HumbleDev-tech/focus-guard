@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 
 from client.theme import apply_dialog_theme
+from client.icons import get_themed_icon
 
 
 class UnsavedChangesDialog(QDialog):
@@ -46,12 +47,14 @@ class UnsavedChangesDialog(QDialog):
 
         discard_btn = QPushButton("Descartar")
         discard_btn.setObjectName("dangerBtn")
+        discard_btn.setIcon(get_themed_icon("trash-2", role="white", size=14))
         discard_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         discard_btn.clicked.connect(self.on_discard)
         btn_row.addWidget(discard_btn)
 
         save_btn = QPushButton("Guardar y Salir")
         save_btn.setObjectName("primaryBtn")
+        save_btn.setIcon(get_themed_icon("check", role="white", size=14))
         save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         save_btn.clicked.connect(self.on_save)
         btn_row.addWidget(save_btn)

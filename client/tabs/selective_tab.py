@@ -14,6 +14,7 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QSize
 from PyQt6.QtGui import QPalette
 
 from client.utils import sanitize_domain
+from client.icons import get_themed_icon, get_pixmap
 
 
 class SelectiveTab(QWidget):
@@ -33,8 +34,24 @@ class SelectiveTab(QWidget):
         self.setup_ui()
 
     def is_dark_mode(self) -> bool:
+        if self.parent() and hasattr(self.parent(), "is_dark_mode"):
+            return self.parent().is_dark_mode()
         bg = self.palette().color(QPalette.ColorRole.Window)
         return bg.lightness() < 128
+
+    def update_icons(self, is_dark: bool | None = None):
+        if is_dark is None:
+            is_dark = self.is_dark_mode()
+        if hasattr(self, "sel_add_btn"):
+            self.sel_add_btn.setIcon(get_themed_icon("plus", is_dark, role="white", size=14))
+        if hasattr(self, "sel_step_minus"):
+            self.sel_step_minus.setIcon(get_themed_icon("minus", is_dark, size=13))
+        if hasattr(self, "sel_step_plus"):
+            self.sel_step_plus.setIcon(get_themed_icon("plus", is_dark, size=13))
+        if hasattr(self, "sel_start_btn"):
+            self.sel_start_btn.setIcon(get_themed_icon("lock", is_dark, role="white", size=15))
+        if hasattr(self, "sel_indefinite_btn"):
+            self.sel_indefinite_btn.setIcon(get_themed_icon("lock", is_dark, role="secondary", size=15))
 
     def setup_ui(self):
         scroll = QScrollArea(self)
@@ -222,7 +239,7 @@ class SelectiveTab(QWidget):
         stepper_row = QHBoxLayout()
         stepper_row.setSpacing(6)
 
-        self.sel_step_minus = QPushButton("−")
+        self.sel_step_minus = QPushButton()
         self.sel_step_minus.setObjectName("stepBtn")
         self.sel_step_minus.setToolTip("Disminuir 5 minutos")
         self.sel_step_minus.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -239,7 +256,7 @@ class SelectiveTab(QWidget):
         self.sel_duration_spin.valueChanged.connect(self.update_selective_summary)
         stepper_row.addWidget(self.sel_duration_spin)
 
-        self.sel_step_plus = QPushButton("+")
+        self.sel_step_plus = QPushButton()
         self.sel_step_plus.setObjectName("stepBtn")
         self.sel_step_plus.setToolTip("Aumentar 5 minutos")
         self.sel_step_plus.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -308,6 +325,8 @@ class SelectiveTab(QWidget):
 
         split_layout.addWidget(ctrl_card, stretch=45)
         main_layout.addLayout(split_layout, stretch=1)
+
+        self.update_icons()
 
         scroll.setWidget(container)
         root_layout = QVBoxLayout(self)
@@ -390,9 +409,10 @@ class SelectiveTab(QWidget):
             row_layout.setContentsMargins(12, 6, 12, 6)
             row_layout.setSpacing(10)
 
-            dot_lbl = QLabel("•")
-            dot_lbl.setStyleSheet("font-size: 14px; font-weight: 700; color: #58A6FF; border: none; background: transparent;")
-            row_layout.addWidget(dot_lbl)
+            icon_lbl = QLabel()
+            icon_lbl.setPixmap(get_pixmap("globe", color="#388BFD" if is_dark else "#0969DA", size=14))
+            icon_lbl.setStyleSheet("border: none; background: transparent;")
+            row_layout.addWidget(icon_lbl)
 
             info_layout = QVBoxLayout()
             info_layout.setSpacing(1)
