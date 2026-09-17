@@ -7,6 +7,7 @@ import os
 import sys
 import argparse
 import logging
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QIcon
 from PyQt6.QtNetwork import QLocalSocket, QLocalServer
@@ -94,6 +95,14 @@ def main():
     sock_path = args.socket_path
     if args.dev and not sock_path:
         sock_path = "/tmp/focus_guard_dev.sock"
+
+    # Enable native fractional High-DPI rendering without rounding blur (Wayland / KDE Plasma 6)
+    try:
+        QApplication.setHighDpiScaleFactorRoundingPolicy(
+            Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+        )
+    except Exception:
+        pass
 
     app = QApplication(sys.argv)
     app.setApplicationName("Focus-Guard")

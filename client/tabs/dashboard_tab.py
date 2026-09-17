@@ -5,7 +5,7 @@ Encapsulates the hero status card, Pomodoro/focus controls, and telemetry summar
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QProgressBar, QFrame, QGridLayout
+    QProgressBar, QFrame, QGridLayout, QScrollArea
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QPalette
@@ -29,9 +29,9 @@ class DashboardTab(QWidget):
 
     def is_dark_mode(self) -> bool:
         win = self.window()
-        if win and hasattr(win, "is_dark_mode"):
+        if win and win is not self and hasattr(win, "is_dark_mode"):
             return win.is_dark_mode()
-        if self.parent() and hasattr(self.parent(), "is_dark_mode"):
+        if self.parent() and self.parent() is not self and hasattr(self.parent(), "is_dark_mode"):
             return self.parent().is_dark_mode()
         from PyQt6.QtCore import QSettings
         mode = QSettings("FocusGuard", "FocusGuardTray").value("theme_mode", "auto")
@@ -52,7 +52,13 @@ class DashboardTab(QWidget):
         self.btn_stop_focus.setIcon(get_themed_icon("unlock", is_dark, role="white", size=16))
 
     def _setup_ui(self):
-        layout = QVBoxLayout(self)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+
+        container = QWidget()
+        container.setStyleSheet("background: transparent;")
+        layout = QVBoxLayout(container)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
@@ -217,6 +223,12 @@ class DashboardTab(QWidget):
         layout.addWidget(self.dash_feedback_lbl)
 
         layout.addStretch()
+        scroll.setWidget(container)
+
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.addWidget(scroll)
+
         self.update_icons()
 
     def show_feedback(self, message: str, timeout_ms: int = 3000):

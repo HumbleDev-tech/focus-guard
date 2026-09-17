@@ -10,8 +10,8 @@ from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTabWidget, QWidget, QApplication, QToolTip, QComboBox
 )
-from PyQt6.QtGui import QIcon, QPalette, QKeySequence, QShortcut
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QEvent, QSettings
+from PyQt6.QtGui import QIcon, QPalette, QKeySequence, QShortcut, QGuiApplication
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QEvent, QSettings, QRect
 
 from client.ipc_client import FocusIPCClient
 from client.autostart import (
@@ -92,10 +92,8 @@ class SettingsDialog(QDialog):
         self.blocked_domains: List[str] = []
 
         self.setWindowTitle(t("app.window_title"))
-        self.setMinimumSize(720, 640)
-        self.resize(760, 680)
-
         self.apply_theme_styles()
+        self.setup_adaptive_geometry()
 
         # Universal tooltip filter for disabled buttons
         self.tooltip_filter = UniversalToolTipFilter(self)
@@ -112,6 +110,7 @@ class SettingsDialog(QDialog):
 
         # 2. Modular Tabs
         self.tabs = QTabWidget()
+        self.tabs.setUsesScrollButtons(True)
         
         self.domains_tab = DomainsTab(
             get_protection_status_fn=self.ipc.get_status,
@@ -606,6 +605,7 @@ class SettingsDialog(QDialog):
             event.accept()
 
         if event.isAccepted():
+            self.save_current_geometry()
             if hasattr(self, "poll_timer") and self.poll_timer.isActive():
                 self.poll_timer.stop()
             app_inst = QApplication.instance()
@@ -628,6 +628,7 @@ class SettingsDialog(QDialog):
 
     def reject(self):
         """Intercepts Escape key to prompt user about unsaved changes."""
+        self.save_current_geometry()
         if self.has_unsaved_changes():
             dlg = UnsavedChangesDialog(parent=self)
             dlg.exec()
@@ -640,6 +641,67 @@ class SettingsDialog(QDialog):
                 return
         else:
             super().reject()
+
+    def save_current_geometry(self):
+        """Persists the current window geometry to QSettings."""
+        try:
+            settings = QSettings("FocusGuard", "FocusGuardTray")
+            settings.setValue("window_geometry", self.saveGeometry())
+        except Exception:
+            pass
+
+    def setup_adaptive_geometry(self):
+        """Calculates optimal window sizing and positioning based on the active screen's available geometry."""
+        screen = self.screen() or QGuiApplication.primaryScreen()
+        avail = screen.availableGeometry() if screen else QRect(0, 0, 1920, 1080)
+        avail_w = max(640, avail.width())
+        avail_h = max(480, avail.height())
+
+        # Adaptive minimum dimensions:
+        # Ensures window fits comfortably on compact screens (e.g. 1366x768 or 1080p @ 150%)
+        # without pushing the bottom action bar below taskbars or screen edge.
+        min_w = min(640, int(avail_w * 0.90))
+        min_h = min(480, int(avail_h * 0.82))
+        self.setMinimumSize(min_w, min_h)
+
+        # Adaptive initial target dimensions:
+        if avail_h <= 768 or avail_w <= 1366:
+            # 768p / 720p / 150% scaled displays
+            def_w = min(740, int(avail_w * 0.88))
+            def_h = min(580, int(avail_h * 0.86))
+        elif avail_w >= 2400 or avail_h >= 1300:
+            # 2K / 4K / Ultrawide displays
+            def_w = min(920, int(avail_w * 0.45))
+            def_h = min(780, int(avail_h * 0.65))
+        else:
+            # Full HD (1080p @ 100% or 125%)
+            def_w = min(800, int(avail_w * 0.60))
+            def_h = min(680, int(avail_h * 0.75))
+
+        # Check for user-persisted window geometry
+        settings = QSettings("FocusGuard", "FocusGuardTray")
+        saved_geom = settings.value("window_geometry")
+        restored = False
+        if saved_geom:
+            try:
+                if self.restoreGeometry(saved_geom):
+                    frame = self.frameGeometry()
+                    # Validate that the restored window is still within current screen limits
+                    if (avail.intersects(frame) and
+                            frame.width() <= avail_w and
+                            frame.height() <= avail_h and
+                            frame.width() >= min_w and
+                            frame.height() >= min_h):
+                        restored = True
+            except Exception:
+                restored = False
+
+        if not restored:
+            self.resize(def_w, def_h)
+            # Center inside available screen bounds (respecting docks, taskbars)
+            x = avail.x() + (avail_w - def_w) // 2
+            y = avail.y() + (avail_h - def_h) // 2
+            self.move(x, y)
 
     # -------------------------------------------------------------------------
     # Live Status Refresh

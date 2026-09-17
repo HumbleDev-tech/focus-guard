@@ -24,7 +24,8 @@ class AboutDialog(QDialog):
         self.resource_dir = resource_dir
         self.config = config or {}
         self.setWindowTitle(t("dialog.about_title"))
-        self.setFixedSize(480, 420)
+        self.setMinimumWidth(400)
+        self.setMaximumWidth(520)
         apply_dialog_theme(self, resource_dir=resource_dir)
 
         layout = QVBoxLayout(self)
