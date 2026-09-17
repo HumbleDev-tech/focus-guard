@@ -90,6 +90,7 @@ class SettingsDialog(QDialog):
         self.resource_dir = resource_dir
         self.config_data: Dict[str, Any] = {}
         self.blocked_domains: List[str] = []
+        self._last_header_state_key = None
 
         self.setWindowTitle(t("app.window_title"))
         self.apply_theme_styles()
@@ -716,11 +717,14 @@ class SettingsDialog(QDialog):
         is_dark = self.is_dark_mode()
         res = self.ipc.get_status()
         if res.get("status") != "ok":
-            self.status_badge.setText(t("app.status_offline"))
-            self.status_badge.setStyleSheet(get_status_badge_style("OFFLINE", is_dark))
-            icon_off = os.path.join(self.resource_dir, "icon-offline.svg")
-            if os.path.exists(icon_off):
-                self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_off, 28))
+            header_key = ("OFFLINE", "OFFLINE", is_dark)
+            if header_key != self._last_header_state_key:
+                self.status_badge.setText(t("app.status_offline"))
+                self.status_badge.setStyleSheet(get_status_badge_style("OFFLINE", is_dark))
+                icon_off = os.path.join(self.resource_dir, "icon-offline.svg")
+                if os.path.exists(icon_off):
+                    self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_off, 28))
+                self._last_header_state_key = header_key
             self.dashboard_tab.update_status(res, self.config_data, len(self.blocked_domains), False)
             return
 
@@ -732,52 +736,56 @@ class SettingsDialog(QDialog):
 
         human_time = format_human_time(rem)
 
-        # 1. Header Badge: UNLOCKED
-        if state == "UNLOCKED":
-            self.status_badge.setText(t("dash.status_free"))
-            self.status_badge.setStyleSheet(get_status_badge_style("UNLOCKED", is_dark))
-            icon_idle = os.path.join(self.resource_dir, "icon-idle.svg")
-            if os.path.exists(icon_idle):
-                self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_idle, 28))
+        header_key = (state, reason, is_dark, is_blocking)
+        if header_key != self._last_header_state_key:
+            # 1. Header Badge: UNLOCKED
+            if state == "UNLOCKED":
+                self.status_badge.setText(t("dash.status_free"))
+                self.status_badge.setStyleSheet(get_status_badge_style("UNLOCKED", is_dark))
+                icon_idle = os.path.join(self.resource_dir, "icon-idle.svg")
+                if os.path.exists(icon_idle):
+                    self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_idle, 28))
 
-        # 2. Header Badge: BYPASS
-        elif state == "BYPASS":
-            self.status_badge.setText(t("dash.status_pause"))
-            self.status_badge.setStyleSheet(get_status_badge_style("BYPASS", is_dark))
-            icon_byp = os.path.join(self.resource_dir, "icon-bypass.svg")
-            if os.path.exists(icon_byp):
-                self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_byp, 28))
+            # 2. Header Badge: BYPASS
+            elif state == "BYPASS":
+                self.status_badge.setText(t("dash.status_pause"))
+                self.status_badge.setStyleSheet(get_status_badge_style("BYPASS", is_dark))
+                icon_byp = os.path.join(self.resource_dir, "icon-bypass.svg")
+                if os.path.exists(icon_byp):
+                    self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_byp, 28))
 
-        # 3. Header Badge: LOCKED
-        elif is_blocking:
-            if reason == "CURFEW":
-                self.status_badge.setText(t("dash.status_curfew"))
-                self.status_badge.setStyleSheet(get_status_badge_style("CURFEW", is_dark))
-                icon_curf = os.path.join(self.resource_dir, "icon-curfew.svg")
-                if os.path.exists(icon_curf):
-                    self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_curf, 28))
-            elif reason == "BOOT_COOLDOWN":
-                self.status_badge.setText(t("dash.status_boot"))
-                self.status_badge.setStyleSheet(get_status_badge_style("BOOT_COOLDOWN", is_dark))
-                icon_bt = os.path.join(self.resource_dir, "icon-boot.svg")
-                if os.path.exists(icon_bt):
-                    self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_bt, 28))
-            elif reason == "MANUAL_LOCK":
-                self.status_badge.setText(t("dash.status_focus"))
-                self.status_badge.setStyleSheet(get_status_badge_style("MANUAL_LOCK", is_dark))
-                icon_act = os.path.join(self.resource_dir, "icon-active.svg")
-                if os.path.exists(icon_act):
-                    self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_act, 28))
-            elif reason == "SELECTIVE_LOCK":
-                self.status_badge.setText(t("dash.status_selective"))
-                self.status_badge.setStyleSheet(get_status_badge_style("SELECTIVE_LOCK", is_dark))
-                icon_sel = os.path.join(self.resource_dir, "icon-selective.svg")
-                if os.path.exists(icon_sel):
-                    self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_sel, 28))
-                else:
+            # 3. Header Badge: LOCKED
+            elif is_blocking:
+                if reason == "CURFEW":
+                    self.status_badge.setText(t("dash.status_curfew"))
+                    self.status_badge.setStyleSheet(get_status_badge_style("CURFEW", is_dark))
+                    icon_curf = os.path.join(self.resource_dir, "icon-curfew.svg")
+                    if os.path.exists(icon_curf):
+                        self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_curf, 28))
+                elif reason == "BOOT_COOLDOWN":
+                    self.status_badge.setText(t("dash.status_boot"))
+                    self.status_badge.setStyleSheet(get_status_badge_style("BOOT_COOLDOWN", is_dark))
+                    icon_bt = os.path.join(self.resource_dir, "icon-boot.svg")
+                    if os.path.exists(icon_bt):
+                        self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_bt, 28))
+                elif reason == "MANUAL_LOCK":
+                    self.status_badge.setText(t("dash.status_focus"))
+                    self.status_badge.setStyleSheet(get_status_badge_style("MANUAL_LOCK", is_dark))
                     icon_act = os.path.join(self.resource_dir, "icon-active.svg")
                     if os.path.exists(icon_act):
                         self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_act, 28))
+                elif reason == "SELECTIVE_LOCK":
+                    self.status_badge.setText(t("dash.status_selective"))
+                    self.status_badge.setStyleSheet(get_status_badge_style("SELECTIVE_LOCK", is_dark))
+                    icon_sel = os.path.join(self.resource_dir, "icon-selective.svg")
+                    if os.path.exists(icon_sel):
+                        self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_sel, 28))
+                    else:
+                        icon_act = os.path.join(self.resource_dir, "icon-active.svg")
+                        if os.path.exists(icon_act):
+                            self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_act, 28))
+
+            self._last_header_state_key = header_key
 
         # Dashboard Tab Status Update
         rules = self.rules_tab.get_rules_dict()

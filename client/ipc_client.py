@@ -18,6 +18,7 @@ DEFAULT_SOCKET_PATHS = [
 class FocusIPCClient:
     def __init__(self, socket_path: Optional[str] = None):
         self.socket_path = socket_path
+        self.timeout = 1.0
 
     def _resolve_socket_path(self) -> Optional[str]:
         """Finds the first existing socket path."""
@@ -28,8 +29,9 @@ class FocusIPCClient:
                 return p
         return self.socket_path or DEFAULT_SOCKET_PATHS[0]
 
-    def send_command(self, payload: Dict[str, Any], timeout: float = 3.0) -> Dict[str, Any]:
+    def send_command(self, payload: Dict[str, Any], timeout: Optional[float] = None) -> Dict[str, Any]:
         """Sends a JSON request to the daemon and returns parsed JSON response."""
+        effective_timeout = timeout if timeout is not None else self.timeout
         sock_path = self._resolve_socket_path()
         if not sock_path or not os.path.exists(sock_path):
             return {
@@ -38,7 +40,7 @@ class FocusIPCClient:
             }
 
         client_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client_sock.settimeout(timeout)
+        client_sock.settimeout(effective_timeout)
 
         try:
             client_sock.connect(sock_path)
@@ -72,8 +74,8 @@ class FocusIPCClient:
                 pass
 
     def get_status(self) -> Dict[str, Any]:
-        """Fetches current blocking state and remaining times."""
-        return self.send_command({"action": "status"})
+        """Fetches current blocking state and remaining times with fast 0.8s timeout."""
+        return self.send_command({"action": "status"}, timeout=0.8)
 
     def get_config(self) -> Dict[str, Any]:
         """Fetches configuration from daemon."""
@@ -130,3 +132,8 @@ class FocusIPCClient:
         """Pings daemon to check health."""
         res = self.get_status()
         return res.get("status") == "ok"
+
+
+IPCClient = FocusIPCClient
+ipc_client = FocusIPCClient()
+

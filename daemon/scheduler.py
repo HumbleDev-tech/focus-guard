@@ -11,18 +11,26 @@ from typing import Dict, Any, Tuple, Optional, List
 logger = logging.getLogger("focus-guard.scheduler")
 
 
+_CACHED_BOOT_EPOCH: Optional[float] = None
+
+
 def get_real_seconds_since_boot() -> Optional[float]:
     """
     Calculates actual wall-clock seconds since system boot using /proc/stat 'btime'.
     Accurate across laptop suspend/sleep cycles.
+    Caches btime in memory to avoid redundant /proc/stat reads every 2 seconds.
     """
+    global _CACHED_BOOT_EPOCH
+    if _CACHED_BOOT_EPOCH is not None:
+        return max(0.0, time.time() - _CACHED_BOOT_EPOCH)
+
     try:
         if os.path.exists("/proc/stat"):
             with open("/proc/stat", "r") as f:
                 for line in f:
                     if line.startswith("btime"):
-                        boot_epoch = float(line.split()[1])
-                        return max(0.0, time.time() - boot_epoch)
+                        _CACHED_BOOT_EPOCH = float(line.split()[1])
+                        return max(0.0, time.time() - _CACHED_BOOT_EPOCH)
         # Fallback to /proc/uptime if /proc/stat is unreadable
         if os.path.exists("/proc/uptime"):
             with open("/proc/uptime", "r") as f:

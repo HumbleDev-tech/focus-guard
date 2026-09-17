@@ -107,7 +107,11 @@ class DomainsTab(QWidget):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText(t("domains.search_placeholder"))
         self.search_input.setFixedWidth(170)
-        self.search_input.textChanged.connect(lambda: self.render_domains_list())
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(150)
+        self._search_timer.timeout.connect(self.render_domains_list)
+        self.search_input.textChanged.connect(self._search_timer.start)
         count_row.addWidget(self.search_input)
 
         self.domain_auto_feedback_lbl = QLabel("")

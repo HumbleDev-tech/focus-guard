@@ -9,6 +9,7 @@ license=('MIT')
 depends=(
     'python'
     'python-pyqt6'
+    'qt6-svg'
     'systemd'
 )
 makedepends=(
@@ -41,7 +42,7 @@ package() {
         "$pkgdir/usr/lib/systemd/system/focus-guard.service"
 
     # Install default configuration
-    install -Dm644 config/config.default.json \
+    install -Dm644 config/default_config.json \
         "$pkgdir/etc/focus-guard/config.json"
 
     # Install desktop launcher entry

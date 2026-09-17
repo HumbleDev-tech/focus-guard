@@ -249,28 +249,10 @@ def get_themed_icon(
     return get_icon(name, color=color_hex, active_color=act_color_hex, size=size)
 
 
-def clear_icon_cache() -> None:
-    """Clears all in-memory LRU caches for templates, pixmaps, and icons."""
-    _read_svg_template.cache_clear()
-    _render_pixmap_cached.cache_clear()
-    get_icon.cache_clear()
-
-
-def get_svg_pixmap(file_path: str, size: int, dpr: Optional[float] = None) -> QPixmap:
-    """
-    Renders any SVG file to a crisp QPixmap with exact High-DPI / Wayland scaling.
-    Automatically accounts for screen DPR if not explicitly provided.
-    """
-    if not os.path.isfile(file_path):
-        return QPixmap()
-    if dpr is None:
-        app = QGuiApplication.instance()
-        if app and app.primaryScreen():
-            dpr = app.primaryScreen().devicePixelRatio()
-        else:
-            dpr = 1.0
-
-    pixel_size = max(1, int(round(size * float(dpr))))
+@functools.lru_cache(maxsize=64)
+def _render_svg_file_cached(file_path: str, size: int, dpr: float) -> QPixmap:
+    """Internal cached SVG file rasterizer for High-DPI / Wayland scaling."""
+    pixel_size = max(1, int(round(size * dpr)))
     renderer = QSvgRenderer(file_path)
     if not renderer.isValid():
         return QPixmap()
@@ -282,7 +264,32 @@ def get_svg_pixmap(file_path: str, size: int, dpr: Optional[float] = None) -> QP
     renderer.render(painter)
     painter.end()
 
-    pixmap.setDevicePixelRatio(float(dpr))
+    pixmap.setDevicePixelRatio(dpr)
     return pixmap
+
+
+def clear_icon_cache() -> None:
+    """Clears all in-memory LRU caches for templates, pixmaps, and icons."""
+    _read_svg_template.cache_clear()
+    _render_pixmap_cached.cache_clear()
+    _render_svg_file_cached.cache_clear()
+    get_icon.cache_clear()
+
+
+def get_svg_pixmap(file_path: str, size: int, dpr: Optional[float] = None) -> QPixmap:
+    """
+    Renders any SVG file to a crisp QPixmap with exact High-DPI / Wayland scaling.
+    Automatically accounts for screen DPR if not explicitly provided and utilizes memory caching.
+    """
+    if not os.path.isfile(file_path):
+        return QPixmap()
+    if dpr is None:
+        app = QGuiApplication.instance()
+        if app and app.primaryScreen():
+            dpr = app.primaryScreen().devicePixelRatio()
+        else:
+            dpr = 1.0
+
+    return _render_svg_file_cached(file_path, size, float(dpr))
 
 

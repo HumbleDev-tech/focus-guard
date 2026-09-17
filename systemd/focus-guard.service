@@ -12,9 +12,18 @@ RestartSec=3
 KillSignal=SIGTERM
 TimeoutStopSec=5
 
+# State & Runtime Directory Management
+StateDirectory=focus-guard
+ReadWritePaths=/etc/hosts /run /etc/focus-guard /var/lib/focus-guard
+
 # Security hardening
 ProtectSystem=strict
-ReadWritePaths=/etc/hosts /run /etc/focus-guard
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+NoNewPrivileges=yes
+LockPersonality=yes
+RestrictRealtime=yes
 PrivateTmp=true
 
 [Install]

@@ -12,6 +12,7 @@ pkgbase = focus-guard
 	makedepends = python-setuptools
 	depends = python
 	depends = python-pyqt6
+	depends = qt6-svg
 	depends = systemd
 	optdepends = socat: For debugging or sending raw commands via UNIX socket
 	backup = etc/focus-guard/config.json

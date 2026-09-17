@@ -18,9 +18,10 @@ cp -r "$SOURCE_DIR/resources" /opt/focus-guard/
 cp -r "$SOURCE_DIR/config" /opt/focus-guard/
 
 echo "2. Setting up executable binaries in /usr/bin..."
-chmod +x /opt/focus-guard/daemon/focus_daemon.py /opt/focus-guard/client/main.py
+chmod +x /opt/focus-guard/daemon/focus_daemon.py /opt/focus-guard/client/main.py /opt/focus-guard/client/cli.py
 ln -sf /opt/focus-guard/daemon/focus_daemon.py /usr/bin/focus-guard-daemon
 ln -sf /opt/focus-guard/client/main.py /usr/bin/focus-guard-tray
+ln -sf /opt/focus-guard/client/cli.py /usr/bin/focus-guard-cli
 
 echo "3. Installing icons and desktop files..."
 mkdir -p /usr/share/icons/hicolor/scalable/apps

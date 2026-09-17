@@ -26,6 +26,7 @@ class DashboardTab(QWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.last_status_args = None
+        self._last_state_key = None
         self._setup_ui()
 
     def is_dark_mode(self) -> bool:
@@ -46,6 +47,7 @@ class DashboardTab(QWidget):
     def update_icons(self, is_dark: bool | None = None):
         if is_dark is None:
             is_dark = self.is_dark_mode()
+        self._last_state_key = None
         self.btn_pomodoro_25.setIcon(get_themed_icon("timer", is_dark, size=16))
         self.btn_pomodoro_50.setIcon(get_themed_icon("zap", is_dark, size=16))
         self.btn_primary_action.setIcon(get_themed_icon("lock", is_dark, role="white", size=16))
@@ -255,29 +257,32 @@ class DashboardTab(QWidget):
 
         is_dark = self.is_dark_mode()
         if res.get("status") != "ok":
-            tok = get_status_tokens("OFFLINE", is_dark)
-            self.dash_state_pill.setText(t("dash.pill_offline"))
-            self.dash_state_pill.setStyleSheet(
-                f"border: 1px solid {tok['border']}; color: {tok['text']}; font-size: 10px; font-weight: 700; "
-                f"padding: 3px 10px; border-radius: 12px; background-color: {tok['bg']};"
-            )
-            self.dash_state_title.setText(t("dash.offline_title"))
-            self.dash_countdown_lbl.setText(t("dash.offline_countdown"))
-            self.dash_countdown_lbl.setStyleSheet(
-                f"font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
-                f"font-size: 20px; font-weight: 700; color: {tok['text']}; letter-spacing: -0.5px;"
-            )
-            self.dash_desc_lbl.setText(t("dash.offline_desc"))
-            self.dash_progress_bar.setValue(0)
-            self.btn_primary_action.setEnabled(False)
-            self.btn_primary_action.setToolTip(t("dash.offline_tooltip"))
-            self.btn_pomodoro_25.setEnabled(False)
-            self.btn_pomodoro_25.setToolTip(t("dash.offline_tooltip"))
-            self.btn_pomodoro_50.setEnabled(False)
-            self.btn_pomodoro_50.setToolTip(t("dash.offline_tooltip"))
-            self.btn_secondary_action.setEnabled(False)
-            self.btn_secondary_action.setToolTip(t("dash.offline_tooltip"))
-            self.btn_stop_focus.setVisible(False)
+            state_key = ("OFFLINE", is_dark)
+            if state_key != self._last_state_key:
+                self._last_state_key = state_key
+                tok = get_status_tokens("OFFLINE", is_dark)
+                self.dash_state_pill.setText(t("dash.pill_offline"))
+                self.dash_state_pill.setStyleSheet(
+                    f"border: 1px solid {tok['border']}; color: {tok['text']}; font-size: 10px; font-weight: 700; "
+                    f"padding: 3px 10px; border-radius: 12px; background-color: {tok['bg']};"
+                )
+                self.dash_state_title.setText(t("dash.offline_title"))
+                self.dash_countdown_lbl.setText(t("dash.offline_countdown"))
+                self.dash_countdown_lbl.setStyleSheet(
+                    f"font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
+                    f"font-size: 20px; font-weight: 700; color: {tok['text']}; letter-spacing: -0.5px;"
+                )
+                self.dash_desc_lbl.setText(t("dash.offline_desc"))
+                self.dash_progress_bar.setValue(0)
+                self.btn_primary_action.setEnabled(False)
+                self.btn_primary_action.setToolTip(t("dash.offline_tooltip"))
+                self.btn_pomodoro_25.setEnabled(False)
+                self.btn_pomodoro_25.setToolTip(t("dash.offline_tooltip"))
+                self.btn_pomodoro_50.setEnabled(False)
+                self.btn_pomodoro_50.setToolTip(t("dash.offline_tooltip"))
+                self.btn_secondary_action.setEnabled(False)
+                self.btn_secondary_action.setToolTip(t("dash.offline_tooltip"))
+                self.btn_stop_focus.setVisible(False)
             return
 
         state = res.get("state", "UNLOCKED")
@@ -287,10 +292,12 @@ class DashboardTab(QWidget):
         is_blocking = res.get("is_blocking", False)
         bypasses_enabled = res.get("bypasses_enabled", True)
         domains_cnt = res.get("domains_count", blocked_domains_count)
+        sel_domains = res.get("selective_domains", [])
+        is_indef = res.get("is_indefinite", False)
 
         human_time = format_human_time(rem)
 
-        # Update Telemetry Widget
+        # Update Telemetry Widget (lightweight text updates)
         self.kpi_domains_val.setText(t("dash.kpi_domains_val", count=domains_cnt))
         curfew = config_data.get("curfew", {})
         curfew_str = (
@@ -307,190 +314,202 @@ class DashboardTab(QWidget):
         )
         self.kpi_boot_val.setText(boot_str)
 
+        # State key for styling & widget structure
+        state_key = (state, reason, is_dark, curfew_emerg_enabled, bypasses_enabled, target, len(sel_domains), is_indef)
+        state_changed = (state_key != self._last_state_key)
+        if state_changed:
+            self._last_state_key = state_key
+
         # 1. State: UNLOCKED / FREE TIME
         if state == "UNLOCKED":
-            tok = get_status_tokens("UNLOCKED", is_dark)
-            self.dash_state_pill.setText(t("dash.pill_free"))
-            self.dash_state_pill.setStyleSheet(
-                f"border: 1px solid {tok['border']}; color: {tok['text']}; font-size: 10px; font-weight: 700; "
-                f"padding: 3px 10px; border-radius: 12px; background-color: {tok['bg']};"
-            )
-            self.dash_state_title.setText(t("dash.state_unlocked_title"))
-            self.dash_countdown_lbl.setText(t("dash.state_unlocked_countdown"))
-            self.dash_countdown_lbl.setStyleSheet(
-                f"font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
-                f"font-size: 20px; font-weight: 700; color: {tok['text']}; letter-spacing: -0.5px;"
-            )
-            self.dash_desc_lbl.setText(t("dash.state_unlocked_desc"))
-            self.dash_progress_bar.setValue(0)
-            self.dash_progress_bar.setStyleSheet(f"QProgressBar::chunk {{ background-color: {tok['progress_chunk']}; }}")
-            self.btn_stop_focus.setVisible(False)
+            if state_changed:
+                tok = get_status_tokens("UNLOCKED", is_dark)
+                self.dash_state_pill.setText(t("dash.pill_free"))
+                self.dash_state_pill.setStyleSheet(
+                    f"border: 1px solid {tok['border']}; color: {tok['text']}; font-size: 10px; font-weight: 700; "
+                    f"padding: 3px 10px; border-radius: 12px; background-color: {tok['bg']};"
+                )
+                self.dash_state_title.setText(t("dash.state_unlocked_title"))
+                self.dash_countdown_lbl.setText(t("dash.state_unlocked_countdown"))
+                self.dash_countdown_lbl.setStyleSheet(
+                    f"font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
+                    f"font-size: 20px; font-weight: 700; color: {tok['text']}; letter-spacing: -0.5px;"
+                )
+                self.dash_desc_lbl.setText(t("dash.state_unlocked_desc"))
+                self.dash_progress_bar.setValue(0)
+                self.dash_progress_bar.setStyleSheet(f"QProgressBar::chunk {{ background-color: {tok['progress_chunk']}; }}")
+                self.btn_stop_focus.setVisible(False)
 
-            self.btn_primary_action.setText(t("dash.btn_lock_now"))
-            self.btn_primary_action.setEnabled(True)
-            self.btn_primary_action.setToolTip(t("dash.btn_lock_now"))
-            self.btn_pomodoro_25.setEnabled(True)
-            self.btn_pomodoro_25.setToolTip(t("dash.btn_pomodoro_25"))
-            self.btn_pomodoro_50.setEnabled(True)
-            self.btn_pomodoro_50.setToolTip(t("dash.btn_pomodoro_50"))
-            self.btn_secondary_action.setText(t("dash.btn_pause_15"))
-            self.btn_secondary_action.setEnabled(False)
-            self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
+                self.btn_primary_action.setText(t("dash.btn_lock_now"))
+                self.btn_primary_action.setEnabled(True)
+                self.btn_primary_action.setToolTip(t("dash.btn_lock_now"))
+                self.btn_pomodoro_25.setEnabled(True)
+                self.btn_pomodoro_25.setToolTip(t("dash.btn_pomodoro_25"))
+                self.btn_pomodoro_50.setEnabled(True)
+                self.btn_pomodoro_50.setToolTip(t("dash.btn_pomodoro_50"))
+                self.btn_secondary_action.setText(t("dash.btn_pause_15"))
+                self.btn_secondary_action.setEnabled(False)
+                self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
 
         # 2. State: BYPASS / BREAK
         elif state == "BYPASS":
-            tok = get_status_tokens("BYPASS", is_dark)
-            self.dash_state_pill.setText(t("dash.pill_pause"))
-            self.dash_state_pill.setStyleSheet(
-                f"border: 1px solid {tok['border']}; color: {tok['text']}; font-size: 10px; font-weight: 700; "
-                f"padding: 3px 10px; border-radius: 12px; background-color: {tok['bg']};"
-            )
-            self.dash_state_title.setText(t("dash.state_bypass_title"))
-            self.dash_countdown_lbl.setText(f"{human_time}")
-            self.dash_countdown_lbl.setStyleSheet(
-                f"font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
-                f"font-size: 22px; font-weight: 700; color: {tok['text']}; letter-spacing: -0.5px;"
-            )
-            self.dash_desc_lbl.setText(t("dash.state_bypass_desc"))
-            self.dash_progress_bar.setValue(max(5, min(100, int((rem / 900) * 100))))
-            self.dash_progress_bar.setStyleSheet(f"QProgressBar::chunk {{ background-color: {tok['progress_chunk']}; }}")
-            self.btn_stop_focus.setVisible(False)
+            if state_changed:
+                tok = get_status_tokens("BYPASS", is_dark)
+                self.dash_state_pill.setText(t("dash.pill_pause"))
+                self.dash_state_pill.setStyleSheet(
+                    f"border: 1px solid {tok['border']}; color: {tok['text']}; font-size: 10px; font-weight: 700; "
+                    f"padding: 3px 10px; border-radius: 12px; background-color: {tok['bg']};"
+                )
+                self.dash_state_title.setText(t("dash.state_bypass_title"))
+                self.dash_countdown_lbl.setStyleSheet(
+                    f"font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
+                    f"font-size: 22px; font-weight: 700; color: {tok['text']}; letter-spacing: -0.5px;"
+                )
+                self.dash_desc_lbl.setText(t("dash.state_bypass_desc"))
+                self.dash_progress_bar.setStyleSheet(f"QProgressBar::chunk {{ background-color: {tok['progress_chunk']}; }}")
+                self.btn_stop_focus.setVisible(False)
 
-            self.btn_primary_action.setText(t("dash.btn_end_pause"))
-            self.btn_primary_action.setEnabled(True)
-            self.btn_primary_action.setToolTip(t("dash.btn_end_pause"))
-            self.btn_pomodoro_25.setEnabled(False)
-            self.btn_pomodoro_25.setToolTip(t("dash.btn_pause_running"))
-            self.btn_pomodoro_50.setEnabled(False)
-            self.btn_pomodoro_50.setToolTip(t("dash.btn_pause_running"))
-            self.btn_secondary_action.setText(t("dash.btn_pause_running"))
-            self.btn_secondary_action.setEnabled(False)
-            self.btn_secondary_action.setToolTip(t("dash.btn_pause_running"))
+                self.btn_primary_action.setText(t("dash.btn_end_pause"))
+                self.btn_primary_action.setEnabled(True)
+                self.btn_primary_action.setToolTip(t("dash.btn_end_pause"))
+                self.btn_pomodoro_25.setEnabled(False)
+                self.btn_pomodoro_25.setToolTip(t("dash.btn_pause_running"))
+                self.btn_pomodoro_50.setEnabled(False)
+                self.btn_pomodoro_50.setToolTip(t("dash.btn_pause_running"))
+                self.btn_secondary_action.setText(t("dash.btn_pause_running"))
+                self.btn_secondary_action.setEnabled(False)
+                self.btn_secondary_action.setToolTip(t("dash.btn_pause_running"))
+
+            # Dynamic updates on tick
+            self.dash_countdown_lbl.setText(f"{human_time}")
+            self.dash_progress_bar.setValue(max(5, min(100, int((rem / 900) * 100))))
 
         # 3. State: LOCKED / ACTIVE PROTECTION
         elif is_blocking:
-            tok = get_status_tokens(reason, is_dark)
-            pill_style = (
-                f"border: 1px solid {tok['border']}; color: {tok['text']}; font-size: 10px; font-weight: 700; "
-                f"padding: 3px 10px; border-radius: 12px; background-color: {tok['bg']};"
-            )
-            lbl_style = (
-                f"font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
-                f"font-size: 22px; font-weight: 700; color: {tok['text']}; letter-spacing: -0.5px;"
-            )
-            chunk_style = f"QProgressBar::chunk {{ background-color: {tok['progress_chunk']}; }}"
+            if state_changed:
+                tok = get_status_tokens(reason, is_dark)
+                pill_style = (
+                    f"border: 1px solid {tok['border']}; color: {tok['text']}; font-size: 10px; font-weight: 700; "
+                    f"padding: 3px 10px; border-radius: 12px; background-color: {tok['bg']};"
+                )
+                lbl_style = (
+                    f"font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
+                    f"font-size: 22px; font-weight: 700; color: {tok['text']}; letter-spacing: -0.5px;"
+                )
+                chunk_style = f"QProgressBar::chunk {{ background-color: {tok['progress_chunk']}; }}"
 
-            if reason == "CURFEW":
-                self.dash_state_pill.setText(t("dash.pill_curfew"))
-                self.dash_state_pill.setStyleSheet(pill_style)
-                self.dash_state_title.setText(t("dash.state_curfew_title"))
-                self.dash_desc_lbl.setText(t("dash.state_curfew_desc", target=target))
-                self.dash_countdown_lbl.setStyleSheet(lbl_style)
-                self.dash_progress_bar.setValue(100)
-                self.dash_progress_bar.setStyleSheet(chunk_style)
-                self.btn_stop_focus.setVisible(False)
+                if reason == "CURFEW":
+                    self.dash_state_pill.setText(t("dash.pill_curfew"))
+                    self.dash_state_pill.setStyleSheet(pill_style)
+                    self.dash_state_title.setText(t("dash.state_curfew_title"))
+                    self.dash_desc_lbl.setText(t("dash.state_curfew_desc", target=target))
+                    self.dash_countdown_lbl.setStyleSheet(lbl_style)
+                    self.dash_progress_bar.setValue(100)
+                    self.dash_progress_bar.setStyleSheet(chunk_style)
+                    self.btn_stop_focus.setVisible(False)
 
-                self.btn_primary_action.setText(t("dash.btn_night_lock"))
-                self.btn_primary_action.setEnabled(False)
-                self.btn_primary_action.setToolTip(t("dash.btn_night_lock"))
-                self.btn_pomodoro_25.setEnabled(False)
-                self.btn_pomodoro_25.setToolTip(t("dash.btn_night_lock"))
-                self.btn_pomodoro_50.setEnabled(False)
-                self.btn_pomodoro_50.setToolTip(t("dash.btn_night_lock"))
+                    self.btn_primary_action.setText(t("dash.btn_night_lock"))
+                    self.btn_primary_action.setEnabled(False)
+                    self.btn_primary_action.setToolTip(t("dash.btn_night_lock"))
+                    self.btn_pomodoro_25.setEnabled(False)
+                    self.btn_pomodoro_25.setToolTip(t("dash.btn_night_lock"))
+                    self.btn_pomodoro_50.setEnabled(False)
+                    self.btn_pomodoro_50.setToolTip(t("dash.btn_night_lock"))
 
-                if curfew_emerg_enabled:
-                    self.btn_secondary_action.setText(t("dash.btn_emergency_unlock"))
-                    self.btn_secondary_action.setEnabled(True)
-                    self.btn_secondary_action.setToolTip(t("dash.btn_emergency_unlock"))
-                else:
-                    self.btn_secondary_action.setText(t("dash.btn_break_disabled"))
-                    self.btn_secondary_action.setEnabled(False)
-                    self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
+                    if curfew_emerg_enabled:
+                        self.btn_secondary_action.setText(t("dash.btn_emergency_unlock"))
+                        self.btn_secondary_action.setEnabled(True)
+                        self.btn_secondary_action.setToolTip(t("dash.btn_emergency_unlock"))
+                    else:
+                        self.btn_secondary_action.setText(t("dash.btn_break_disabled"))
+                        self.btn_secondary_action.setEnabled(False)
+                        self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
 
-            elif reason == "BOOT_COOLDOWN":
-                self.dash_state_pill.setText(t("dash.pill_boot"))
-                self.dash_state_pill.setStyleSheet(pill_style)
-                self.dash_state_title.setText(t("dash.state_boot_title"))
-                self.dash_desc_lbl.setText(t("dash.state_boot_desc", target=target))
-                self.dash_countdown_lbl.setStyleSheet(lbl_style)
+                elif reason == "BOOT_COOLDOWN":
+                    self.dash_state_pill.setText(t("dash.pill_boot"))
+                    self.dash_state_pill.setStyleSheet(pill_style)
+                    self.dash_state_title.setText(t("dash.state_boot_title"))
+                    self.dash_desc_lbl.setText(t("dash.state_boot_desc", target=target))
+                    self.dash_countdown_lbl.setStyleSheet(lbl_style)
+                    self.dash_progress_bar.setStyleSheet(chunk_style)
+                    self.btn_stop_focus.setVisible(False)
+
+                    self.btn_primary_action.setText(t("dash.btn_boot_active"))
+                    self.btn_primary_action.setEnabled(False)
+                    self.btn_primary_action.setToolTip(t("dash.btn_boot_active"))
+                    self.btn_pomodoro_25.setEnabled(False)
+                    self.btn_pomodoro_25.setToolTip(t("dash.btn_boot_active"))
+                    self.btn_pomodoro_50.setEnabled(False)
+                    self.btn_pomodoro_50.setToolTip(t("dash.btn_boot_active"))
+
+                    if bypasses_enabled:
+                        self.btn_secondary_action.setText(t("dash.btn_pause_15"))
+                        self.btn_secondary_action.setEnabled(True)
+                        self.btn_secondary_action.setToolTip(t("dash.btn_pause_15"))
+                    else:
+                        self.btn_secondary_action.setText(t("dash.btn_break_disabled"))
+                        self.btn_secondary_action.setEnabled(False)
+                        self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
+
+                elif reason == "MANUAL_LOCK":
+                    self.dash_state_pill.setText(t("dash.pill_focus"))
+                    self.dash_state_pill.setStyleSheet(pill_style)
+                    self.dash_state_title.setText(t("dash.state_manual_title"))
+                    self.dash_desc_lbl.setText(t("dash.state_manual_desc"))
+                    self.dash_countdown_lbl.setStyleSheet(lbl_style)
+                    self.dash_progress_bar.setValue(100)
+                    self.dash_progress_bar.setStyleSheet(chunk_style)
+                    self.btn_stop_focus.setVisible(True)
+                    self.btn_stop_focus.setText(t("dash.btn_stop_focus"))
+                    self.btn_stop_focus.setToolTip(t("dash.btn_stop_focus"))
+
+                    self.btn_primary_action.setText(t("dash.btn_focus_running"))
+                    self.btn_primary_action.setEnabled(False)
+                    self.btn_primary_action.setToolTip(t("dash.btn_focus_running"))
+                    self.btn_pomodoro_25.setEnabled(False)
+                    self.btn_pomodoro_25.setToolTip(t("dash.btn_focus_running"))
+                    self.btn_pomodoro_50.setEnabled(False)
+                    self.btn_pomodoro_50.setToolTip(t("dash.btn_focus_running"))
+
+                    if bypasses_enabled:
+                        self.btn_secondary_action.setText(t("dash.btn_pause_15"))
+                        self.btn_secondary_action.setEnabled(True)
+                        self.btn_secondary_action.setToolTip(t("dash.btn_pause_15"))
+                    else:
+                        self.btn_secondary_action.setText(t("dash.btn_break_disabled"))
+                        self.btn_secondary_action.setEnabled(False)
+                        self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
+
+                elif reason == "SELECTIVE_LOCK":
+                    self.dash_state_pill.setText(t("dash.pill_indefinite") if is_indef else t("dash.pill_timed"))
+                    self.dash_state_pill.setStyleSheet(pill_style)
+                    self.dash_state_title.setText(t("dash.state_selective_title", count=len(sel_domains)))
+                    self.dash_desc_lbl.setText(t("dash.state_selective_desc", count=len(sel_domains)))
+                    self.dash_countdown_lbl.setStyleSheet(lbl_style)
+                    self.dash_progress_bar.setValue(100)
+                    self.dash_progress_bar.setStyleSheet(chunk_style)
+                    self.btn_stop_focus.setVisible(True)
+                    self.btn_stop_focus.setText(t("dash.btn_end_selective"))
+                    self.btn_stop_focus.setToolTip(t("dash.btn_end_selective"))
+
+                    self.btn_primary_action.setText(t("dash.btn_lock_running"))
+                    self.btn_primary_action.setEnabled(False)
+                    self.btn_pomodoro_25.setEnabled(False)
+                    self.btn_pomodoro_50.setEnabled(False)
+
+                    if bypasses_enabled:
+                        self.btn_secondary_action.setText(t("dash.btn_pause_15"))
+                        self.btn_secondary_action.setEnabled(True)
+                        self.btn_secondary_action.setToolTip(t("dash.btn_pause_15"))
+                    else:
+                        self.btn_secondary_action.setText(t("dash.btn_break_disabled"))
+                        self.btn_secondary_action.setEnabled(False)
+                        self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
+
+            # Dynamic progress/countdown updates on tick
+            if reason == "BOOT_COOLDOWN":
                 total_boot = max(1, config_data.get("boot_cooldown", {}).get("duration_minutes", 30) * 60)
                 self.dash_progress_bar.setValue(max(5, min(100, int((rem / total_boot) * 100))))
-                self.dash_progress_bar.setStyleSheet(chunk_style)
-                self.btn_stop_focus.setVisible(False)
-
-                self.btn_primary_action.setText(t("dash.btn_boot_active"))
-                self.btn_primary_action.setEnabled(False)
-                self.btn_primary_action.setToolTip(t("dash.btn_boot_active"))
-                self.btn_pomodoro_25.setEnabled(False)
-                self.btn_pomodoro_25.setToolTip(t("dash.btn_boot_active"))
-                self.btn_pomodoro_50.setEnabled(False)
-                self.btn_pomodoro_50.setToolTip(t("dash.btn_boot_active"))
-
-                if bypasses_enabled:
-                    self.btn_secondary_action.setText(t("dash.btn_pause_15"))
-                    self.btn_secondary_action.setEnabled(True)
-                    self.btn_secondary_action.setToolTip(t("dash.btn_pause_15"))
-                else:
-                    self.btn_secondary_action.setText(t("dash.btn_break_disabled"))
-                    self.btn_secondary_action.setEnabled(False)
-                    self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
-
-            elif reason == "MANUAL_LOCK":
-                self.dash_state_pill.setText(t("dash.pill_focus"))
-                self.dash_state_pill.setStyleSheet(pill_style)
-                self.dash_state_title.setText(t("dash.state_manual_title"))
-                self.dash_desc_lbl.setText(t("dash.state_manual_desc"))
-                self.dash_countdown_lbl.setStyleSheet(lbl_style)
-                self.dash_progress_bar.setValue(100)
-                self.dash_progress_bar.setStyleSheet(chunk_style)
-                self.btn_stop_focus.setVisible(True)
-                self.btn_stop_focus.setText(t("dash.btn_stop_focus"))
-                self.btn_stop_focus.setToolTip(t("dash.btn_stop_focus"))
-
-                self.btn_primary_action.setText(t("dash.btn_focus_running"))
-                self.btn_primary_action.setEnabled(False)
-                self.btn_primary_action.setToolTip(t("dash.btn_focus_running"))
-                self.btn_pomodoro_25.setEnabled(False)
-                self.btn_pomodoro_25.setToolTip(t("dash.btn_focus_running"))
-                self.btn_pomodoro_50.setEnabled(False)
-                self.btn_pomodoro_50.setToolTip(t("dash.btn_focus_running"))
-
-                if bypasses_enabled:
-                    self.btn_secondary_action.setText(t("dash.btn_pause_15"))
-                    self.btn_secondary_action.setEnabled(True)
-                    self.btn_secondary_action.setToolTip(t("dash.btn_pause_15"))
-                else:
-                    self.btn_secondary_action.setText(t("dash.btn_break_disabled"))
-                    self.btn_secondary_action.setEnabled(False)
-                    self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
-
-            elif reason == "SELECTIVE_LOCK":
-                sel_count = len(res.get("selective_domains", []))
-                is_indef = res.get("is_indefinite", False)
-                self.dash_state_pill.setText(t("dash.pill_indefinite") if is_indef else t("dash.pill_timed"))
-                self.dash_state_pill.setStyleSheet(pill_style)
-                self.dash_state_title.setText(t("dash.state_selective_title", count=sel_count))
-                self.dash_desc_lbl.setText(t("dash.state_selective_desc", count=sel_count))
-                self.dash_countdown_lbl.setStyleSheet(lbl_style)
-                self.dash_progress_bar.setValue(100)
-                self.dash_progress_bar.setStyleSheet(chunk_style)
-                self.btn_stop_focus.setVisible(True)
-                self.btn_stop_focus.setText(t("dash.btn_end_selective"))
-                self.btn_stop_focus.setToolTip(t("dash.btn_end_selective"))
-
-                self.btn_primary_action.setText(t("dash.btn_lock_running"))
-                self.btn_primary_action.setEnabled(False)
-                self.btn_pomodoro_25.setEnabled(False)
-                self.btn_pomodoro_50.setEnabled(False)
-
-                if bypasses_enabled:
-                    self.btn_secondary_action.setText(t("dash.btn_pause_15"))
-                    self.btn_secondary_action.setEnabled(True)
-                    self.btn_secondary_action.setToolTip(t("dash.btn_pause_15"))
-                else:
-                    self.btn_secondary_action.setText(t("dash.btn_break_disabled"))
-                    self.btn_secondary_action.setEnabled(False)
-                    self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
 
             if rem > 0:
                 self.dash_countdown_lbl.setText(f"{human_time}")
@@ -501,6 +520,7 @@ class DashboardTab(QWidget):
 
     def retranslate_ui(self):
         """Retranslates all static text in Dashboard tab."""
+        self._last_state_key = None
         if hasattr(self, "dash_state_title") and not self.last_status_args:
             self.dash_state_title.setText(t("dash.state_title"))
         if hasattr(self, "act_title"):

@@ -33,6 +33,7 @@ class SelectiveTab(QWidget):
         self.domain_tile_widgets: Dict[str, Any] = {}
         self.is_active_selective: bool = False
         self.is_indefinite_selective: bool = False
+        self._last_active_state_key = None
 
         self.setup_ui()
 
@@ -54,6 +55,7 @@ class SelectiveTab(QWidget):
     def update_icons(self, is_dark: bool | None = None):
         if is_dark is None:
             is_dark = self.is_dark_mode()
+        self._last_active_state_key = None
         if hasattr(self, "sel_add_btn"):
             self.sel_add_btn.setIcon(get_themed_icon("plus", is_dark, role="white", size=14))
         if hasattr(self, "sel_step_minus"):
@@ -201,7 +203,11 @@ class SelectiveTab(QWidget):
         self.sel_search_input.setPlaceholderText(t("selective.search_placeholder"))
         self.sel_search_input.setMinimumWidth(90)
         self.sel_search_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.sel_search_input.textChanged.connect(lambda: self.render_selective_domains_list())
+        self._sel_search_timer = QTimer(self)
+        self._sel_search_timer.setSingleShot(True)
+        self._sel_search_timer.setInterval(150)
+        self._sel_search_timer.timeout.connect(self.render_selective_domains_list)
+        self.sel_search_input.textChanged.connect(self._sel_search_timer.start)
         toolbar_row.addWidget(self.sel_search_input)
 
         self.sel_all_btn = QPushButton(t("selective.btn_select_all"))
@@ -690,32 +696,45 @@ class SelectiveTab(QWidget):
                 self.selected_selective_domains = active_set
                 self.render_selective_domains_list()
 
-        if hasattr(self, "header_frame"):
-            self.header_frame.setVisible(not session_running)
+        is_dark = self.is_dark_mode()
+        state_key = (
+            is_selective,
+            is_indefinite,
+            has_pending_selective,
+            tuple(sorted(domains_list)),
+            target_time,
+            is_dark,
+            len(self.blocked_domains)
+        )
+        state_changed = (state_key != self._last_active_state_key)
+        if state_changed:
+            self._last_active_state_key = state_key
 
-        if hasattr(self, "sel_domains_list"):
-            self.sel_domains_list.setEnabled(not session_running)
-        if hasattr(self, "sel_all_btn"):
-            self.sel_all_btn.setEnabled(not session_running)
-        if hasattr(self, "sel_desel_btn"):
-            self.sel_desel_btn.setEnabled(not session_running)
-        if hasattr(self, "sel_add_input"):
-            self.sel_add_input.setEnabled(not session_running)
-        if hasattr(self, "sel_add_btn"):
-            self.sel_add_btn.setEnabled(not session_running)
-        if hasattr(self, "sel_search_input"):
-            has_domains = len(self.blocked_domains) > 0
-            self.sel_search_input.setEnabled(has_domains and not session_running)
-            self.sel_search_input.setPlaceholderText(t("selective.search_empty") if not has_domains else t("selective.search_placeholder"))
-        if hasattr(self, "sel_duration_spin"):
-            self.sel_duration_spin.setEnabled(not session_running)
-        if hasattr(self, "sel_step_minus"):
-            self.sel_step_minus.setEnabled(not session_running)
-        if hasattr(self, "sel_step_plus"):
-            self.sel_step_plus.setEnabled(not session_running)
+            if hasattr(self, "header_frame"):
+                self.header_frame.setVisible(not session_running)
+
+            if hasattr(self, "sel_domains_list"):
+                self.sel_domains_list.setEnabled(not session_running)
+            if hasattr(self, "sel_all_btn"):
+                self.sel_all_btn.setEnabled(not session_running)
+            if hasattr(self, "sel_desel_btn"):
+                self.sel_desel_btn.setEnabled(not session_running)
+            if hasattr(self, "sel_add_input"):
+                self.sel_add_input.setEnabled(not session_running)
+            if hasattr(self, "sel_add_btn"):
+                self.sel_add_btn.setEnabled(not session_running)
+            if hasattr(self, "sel_search_input"):
+                has_domains = len(self.blocked_domains) > 0
+                self.sel_search_input.setEnabled(has_domains and not session_running)
+                self.sel_search_input.setPlaceholderText(t("selective.search_empty") if not has_domains else t("selective.search_placeholder"))
+            if hasattr(self, "sel_duration_spin"):
+                self.sel_duration_spin.setEnabled(not session_running)
+            if hasattr(self, "sel_step_minus"):
+                self.sel_step_minus.setEnabled(not session_running)
+            if hasattr(self, "sel_step_plus"):
+                self.sel_step_plus.setEnabled(not session_running)
 
         if is_selective and domains_list:
-            is_dark = self.is_dark_mode()
             num_domains = len(domains_list)
             domains_preview = ", ".join(domains_list[:3])
             if num_domains > 3:
@@ -725,93 +744,98 @@ class SelectiveTab(QWidget):
             self.sel_active_domains_lbl.setText(t("selective.active_blocking_domains", count=num_domains, preview=domains_preview))
 
             if is_indefinite:
-                tok_indef = get_status_tokens("CURFEW", is_dark)
-                self.sel_status_badge.setText(t("selective.badge_indefinite"))
-                self.sel_status_badge.setStyleSheet(
-                    f"font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
-                    f"border: 1px solid {tok_indef['border']}; color: {tok_indef['text']}; background-color: {tok_indef['bg']};"
-                )
-                self.sel_active_countdown_lbl.setText(t("selective.hero_no_limit"))
-                self.sel_active_countdown_lbl.setStyleSheet(
-                    f"font-family: ui-monospace, SFMono-Regular, monospace; font-size: 16px; font-weight: 700; color: {tok_indef['text']};"
-                )
-                self.sel_active_end_lbl.setText(t("selective.hero_indefinite_end"))
+                if state_changed:
+                    tok_indef = get_status_tokens("CURFEW", is_dark)
+                    self.sel_status_badge.setText(t("selective.badge_indefinite"))
+                    self.sel_status_badge.setStyleSheet(
+                        f"font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
+                        f"border: 1px solid {tok_indef['border']}; color: {tok_indef['text']}; background-color: {tok_indef['bg']};"
+                    )
+                    self.sel_active_countdown_lbl.setText(t("selective.hero_no_limit"))
+                    self.sel_active_countdown_lbl.setStyleSheet(
+                        f"font-family: ui-monospace, SFMono-Regular, monospace; font-size: 16px; font-weight: 700; color: {tok_indef['text']};"
+                    )
+                    self.sel_active_end_lbl.setText(t("selective.hero_indefinite_end"))
 
-                self.sel_start_btn.setEnabled(False)
-                self.sel_start_btn.setText(t("selective.btn_indefinite_running"))
+                    self.sel_start_btn.setEnabled(False)
+                    self.sel_start_btn.setText(t("selective.btn_indefinite_running"))
 
-                self.sel_indefinite_btn.setEnabled(False)
-                self.sel_indefinite_btn.setText(t("selective.btn_lock_running"))
-                self.sel_indefinite_btn.setObjectName("secondaryBtn")
-                self.sel_indefinite_btn.setStyleSheet("")
+                    self.sel_indefinite_btn.setEnabled(False)
+                    self.sel_indefinite_btn.setText(t("selective.btn_lock_running"))
+                    self.sel_indefinite_btn.setObjectName("secondaryBtn")
+                    self.sel_indefinite_btn.setStyleSheet("")
             else:
-                tok_focus = get_status_tokens("FOCUS", is_dark)
-                self.sel_status_badge.setText(t("selective.badge_in_progress"))
-                self.sel_status_badge.setStyleSheet(
-                    f"font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
-                    f"border: 1px solid {tok_focus['border']}; color: {tok_focus['text']}; background-color: {tok_focus['bg']};"
-                )
+                if state_changed:
+                    tok_focus = get_status_tokens("FOCUS", is_dark)
+                    self.sel_status_badge.setText(t("selective.badge_in_progress"))
+                    self.sel_status_badge.setStyleSheet(
+                        f"font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
+                        f"border: 1px solid {tok_focus['border']}; color: {tok_focus['text']}; background-color: {tok_focus['bg']};"
+                    )
+                    self.sel_active_countdown_lbl.setStyleSheet(
+                        f"font-family: ui-monospace, SFMono-Regular, monospace; font-size: 18px; font-weight: 700; color: {tok_focus['text']};"
+                    )
+                    self.sel_active_end_lbl.setText(t("selective.hero_ends_at", time=target_time) if target_time else "")
+
+                    self.sel_start_btn.setEnabled(False)
+                    self.sel_start_btn.setText(t("selective.btn_timed_running"))
+
+                    self.sel_indefinite_btn.setEnabled(False)
+                    self.sel_indefinite_btn.setText(t("selective.btn_timed_running"))
+                    self.sel_indefinite_btn.setObjectName("secondaryBtn")
+                    self.sel_indefinite_btn.setStyleSheet("")
+
                 if human_time:
                     self.sel_active_countdown_lbl.setText(t("selective.hero_remaining", time=human_time.upper()))
                 else:
                     mins = remaining_sec // 60
                     secs = remaining_sec % 60
                     self.sel_active_countdown_lbl.setText(t("selective.hero_remaining", time=f"{mins:02d}:{secs:02d}"))
-                self.sel_active_countdown_lbl.setStyleSheet(
-                    f"font-family: ui-monospace, SFMono-Regular, monospace; font-size: 18px; font-weight: 700; color: {tok_focus['text']};"
+            if state_changed:
+                self.update_selective_summary()
+        elif has_pending_selective and domains_list:
+            if state_changed:
+                tok_focus = get_status_tokens("FOCUS", is_dark)
+                num_domains = len(domains_list)
+                domains_preview = ", ".join(domains_list[:3])
+                if num_domains > 3:
+                    domains_preview += f" {t('selective.plus_more', count=num_domains - 3)}"
+
+                self.sel_active_card.setVisible(True)
+                self.sel_active_domains_lbl.setText(t("selective.active_blocking_domains", count=num_domains, preview=domains_preview))
+                self.sel_status_badge.setText(t("selective.badge_pending"))
+                self.sel_status_badge.setStyleSheet(
+                    f"font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
+                    f"border: 1px solid {tok_focus['border']}; color: {tok_focus['text']}; background-color: {tok_focus['bg']};"
                 )
-                self.sel_active_end_lbl.setText(t("selective.hero_ends_at", time=target_time) if target_time else "")
+                self.sel_active_countdown_lbl.setText(t("selective.hero_cooldown"))
+                self.sel_active_countdown_lbl.setStyleSheet(
+                    f"font-family: ui-monospace, SFMono-Regular, monospace; font-size: 16px; font-weight: 700; color: {tok_focus['text']};"
+                )
+                self.sel_active_end_lbl.setText(t("selective.hero_pending_end"))
 
                 self.sel_start_btn.setEnabled(False)
-                self.sel_start_btn.setText(t("selective.btn_timed_running"))
+                self.sel_start_btn.setText(t("selective.btn_indefinite_scheduled"))
 
                 self.sel_indefinite_btn.setEnabled(False)
-                self.sel_indefinite_btn.setText(t("selective.btn_timed_running"))
+                self.sel_indefinite_btn.setText(t("selective.btn_lock_running"))
                 self.sel_indefinite_btn.setObjectName("secondaryBtn")
                 self.sel_indefinite_btn.setStyleSheet("")
-            self.update_selective_summary()
-        elif has_pending_selective and domains_list:
-            is_dark = self.is_dark_mode()
-            tok_focus = get_status_tokens("FOCUS", is_dark)
-            num_domains = len(domains_list)
-            domains_preview = ", ".join(domains_list[:3])
-            if num_domains > 3:
-                domains_preview += f" {t('selective.plus_more', count=num_domains - 3)}"
-
-            self.sel_active_card.setVisible(True)
-            self.sel_active_domains_lbl.setText(t("selective.active_blocking_domains", count=num_domains, preview=domains_preview))
-            self.sel_status_badge.setText(t("selective.badge_pending"))
-            self.sel_status_badge.setStyleSheet(
-                f"font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
-                f"border: 1px solid {tok_focus['border']}; color: {tok_focus['text']}; background-color: {tok_focus['bg']};"
-            )
-            self.sel_active_countdown_lbl.setText(t("selective.hero_cooldown"))
-            self.sel_active_countdown_lbl.setStyleSheet(
-                f"font-family: ui-monospace, SFMono-Regular, monospace; font-size: 16px; font-weight: 700; color: {tok_focus['text']};"
-            )
-            self.sel_active_end_lbl.setText(t("selective.hero_pending_end"))
-
-            self.sel_start_btn.setEnabled(False)
-            self.sel_start_btn.setText(t("selective.btn_indefinite_scheduled"))
-
-            self.sel_indefinite_btn.setEnabled(False)
-            self.sel_indefinite_btn.setText(t("selective.btn_lock_running"))
-            self.sel_indefinite_btn.setObjectName("secondaryBtn")
-            self.sel_indefinite_btn.setStyleSheet("")
-            self.update_selective_summary()
+                self.update_selective_summary()
         else:
-            is_dark = self.is_dark_mode()
-            tok_idle = get_status_tokens("OFFLINE", is_dark)
-            self.sel_status_badge.setText(t("selective.badge_idle"))
-            self.sel_status_badge.setStyleSheet(
-                f"font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
-                f"border: 1px solid {tok_idle['border']}; color: {tok_idle['text']}; background-color: {tok_idle['bg']};"
-            )
-            self.sel_active_card.setVisible(False)
-            self.update_selective_summary()
+            if state_changed:
+                tok_idle = get_status_tokens("OFFLINE", is_dark)
+                self.sel_status_badge.setText(t("selective.badge_idle"))
+                self.sel_status_badge.setStyleSheet(
+                    f"font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
+                    f"border: 1px solid {tok_idle['border']}; color: {tok_idle['text']}; background-color: {tok_idle['bg']};"
+                )
+                self.sel_active_card.setVisible(False)
+                self.update_selective_summary()
 
     def retranslate_ui(self):
         """Retranslates all text elements on the Selective tab dynamically."""
+        self._last_active_state_key = None
         if hasattr(self, "hdr_title"):
             self.hdr_title.setText(t("selective.header_title"))
         if hasattr(self, "hdr_sub"):

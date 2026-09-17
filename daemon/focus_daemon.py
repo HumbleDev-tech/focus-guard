@@ -35,6 +35,7 @@ DEFAULT_CONFIG_LOCATIONS = [
 
 class FocusDaemon:
     def __init__(self, config_path: Optional[str] = None, hosts_path: Optional[str] = None, socket_path: Optional[str] = None, state_path: Optional[str] = None, dev_mode: bool = False):
+        self._lock = threading.RLock()
         self.config_path = self._resolve_config_path(config_path)
         self.config = self._load_config()
         self.hosts_path = hosts_path or self.config.get("hosts_path", "/etc/hosts")
@@ -46,8 +47,23 @@ class FocusDaemon:
         elif self.dev_mode:
             self.state_path = "/tmp/focus_guard_dev_state.json"
         else:
+            primary_var_path = "/var/lib/focus-guard/state.json"
             cfg_dir = os.path.dirname(os.path.abspath(self.config_path))
-            self.state_path = os.path.join(cfg_dir, "state.json")
+            legacy_etc_path = os.path.join(cfg_dir, "state.json")
+
+            if os.path.exists(legacy_etc_path) and not os.path.exists(primary_var_path):
+                try:
+                    os.makedirs("/var/lib/focus-guard", exist_ok=True)
+                    import shutil
+                    shutil.copy2(legacy_etc_path, primary_var_path)
+                    self.state_path = primary_var_path
+                    logger.info(f"Migrated persistent state from {legacy_etc_path} to {primary_var_path}")
+                except Exception:
+                    self.state_path = legacy_etc_path
+            elif os.path.exists(primary_var_path) or os.path.exists("/var/lib/focus-guard") or os.path.exists("/var/lib"):
+                self.state_path = primary_var_path
+            else:
+                self.state_path = legacy_etc_path
 
         self.hosts_mgr = HostsManager(self.hosts_path)
         self.scheduler = StateScheduler(self.config, dev_mode=self.dev_mode)
@@ -93,74 +109,82 @@ class FocusDaemon:
 
     def _save_config(self, new_config: Dict[str, Any]) -> bool:
         """Saves updated configuration to disk safely."""
-        try:
-            cfg_dir = os.path.dirname(os.path.abspath(self.config_path))
-            os.makedirs(cfg_dir, exist_ok=True)
+        with self._lock:
+            try:
+                cfg_dir = os.path.dirname(os.path.abspath(self.config_path))
+                os.makedirs(cfg_dir, exist_ok=True)
 
-            with open(self.config_path, "w", encoding="utf-8") as f:
-                json.dump(new_config, f, indent=2, ensure_ascii=False)
-            
-            self.config = new_config
-            self.scheduler.update_config(new_config)
-            logger.info(f"Configuration successfully updated in {self.config_path}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to save configuration: {e}")
-            return False
+                with open(self.config_path, "w", encoding="utf-8") as f:
+                    json.dump(new_config, f, indent=2, ensure_ascii=False)
+                
+                self.config = new_config
+                self.scheduler.update_config(new_config)
+                logger.info(f"Configuration successfully updated in {self.config_path}")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to save configuration: {e}")
+                return False
 
     def _load_state(self) -> Dict[str, Any]:
         """Loads persistent runtime state from disk if available."""
-        if os.path.exists(self.state_path):
-            try:
-                with open(self.state_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    logger.info(f"Loaded persistent runtime state from {self.state_path}")
-                    return data
-            except Exception as e:
-                logger.error(f"Error loading state from {self.state_path}: {e}")
-        return {}
+        with self._lock:
+            if os.path.exists(self.state_path):
+                try:
+                    with open(self.state_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        logger.info(f"Loaded persistent runtime state from {self.state_path}")
+                        return data
+                except Exception as e:
+                    logger.error(f"Error loading state from {self.state_path}: {e}")
+            return {}
 
     def _save_state(self, state_dict: Dict[str, Any]) -> bool:
         """Saves persistent runtime state to disk safely."""
-        try:
-            state_dir = os.path.dirname(os.path.abspath(self.state_path))
-            os.makedirs(state_dir, exist_ok=True)
-            with open(self.state_path, "w", encoding="utf-8") as f:
-                json.dump(state_dict, f, indent=2, ensure_ascii=False)
-            logger.debug(f"Saved persistent state to {self.state_path}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to save persistent state to {self.state_path}: {e}")
-            return False
+        with self._lock:
+            try:
+                state_dir = os.path.dirname(os.path.abspath(self.state_path))
+                os.makedirs(state_dir, exist_ok=True)
+                with open(self.state_path, "w", encoding="utf-8") as f:
+                    json.dump(state_dict, f, indent=2, ensure_ascii=False)
+                logger.debug(f"Saved persistent state to {self.state_path}")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to save persistent state to {self.state_path}: {e}")
+                return False
 
     def _apply_current_state(self, force: bool = False):
         """Evaluates scheduler and applies or removes the /etc/hosts block only when state or domains change."""
-        state = self.scheduler.evaluate_state()
-        should_block = state.get("is_blocking", False)
+        with self._lock:
+            state = self.scheduler.evaluate_state()
+            should_block = state.get("is_blocking", False)
 
-        # Domains to block: if specified by state (e.g. selective lock), use that; else config blocked_domains
-        domains_to_apply = state.get("domains_to_block")
-        if domains_to_apply is None:
-            domains_to_apply = self.config.get("blocked_domains", []) if should_block else []
+            # Domains to block: if specified by state (e.g. selective lock), use that; else config blocked_domains
+            domains_to_apply = state.get("domains_to_block")
+            if domains_to_apply is None:
+                domains_to_apply = self.config.get("blocked_domains", []) if should_block else []
 
-        current_domains = tuple(sorted(domains_to_apply))
+            current_domains = tuple(sorted(domains_to_apply))
 
-        state_changed = (should_block != self._last_block_state)
-        domains_changed = (current_domains != self._last_applied_domains)
+            state_changed = (should_block != self._last_block_state)
+            domains_changed = (current_domains != self._last_applied_domains)
 
-        if state_changed or (should_block and domains_changed) or force:
-            ipv4 = self.config.get("redirect_ipv4", "0.0.0.0")
-            ipv6 = self.config.get("redirect_ipv6", "::1")
+            if state_changed or (should_block and domains_changed) or force:
+                ipv4 = self.config.get("redirect_ipv4", "0.0.0.0")
+                ipv6 = self.config.get("redirect_ipv6", "::1")
 
-            if should_block and current_domains:
-                logger.info(f"Applying block ({len(current_domains)} domains): {state.get('reason')} - {state.get('message')}")
-                self.hosts_mgr.apply_block(list(current_domains), ipv4, ipv6)
-            else:
-                logger.info(f"Removing block: {state.get('reason')} - {state.get('message')}")
-                self.hosts_mgr.remove_block()
+                success = False
+                if should_block and current_domains:
+                    logger.info(f"Applying block ({len(current_domains)} domains): {state.get('reason')} - {state.get('message')}")
+                    success = self.hosts_mgr.apply_block(list(current_domains), ipv4, ipv6)
+                else:
+                    logger.info(f"Removing block: {state.get('reason')} - {state.get('message')}")
+                    success = self.hosts_mgr.remove_block()
 
-            self._last_block_state = should_block
-            self._last_applied_domains = current_domains
+                if success:
+                    self._last_block_state = should_block
+                    self._last_applied_domains = current_domains
+                else:
+                    logger.warning("Failed to update hosts file; state change will be retried on next check.")
 
     def _state_worker_loop(self):
         """Periodic background loop that monitors curfew and timers."""
@@ -180,188 +204,198 @@ class FocusDaemon:
 
         action = req.get("action", "status")
 
-        if action == "status":
-            state = self.scheduler.evaluate_state()
-            return {
-                "status": "ok",
-                "state": state.get("state"),
-                "reason": state.get("reason"),
-                "remaining_seconds": state.get("remaining_seconds", 0),
-                "target_time_str": state.get("target_time_str", ""),
-                "message": state.get("message", ""),
-                "can_bypass": state.get("can_bypass", True),
-                "is_blocking": state.get("is_blocking", False),
-                "is_selective": state.get("is_selective", False),
-                "selective_domains": state.get("selective_domains", []),
-                "is_indefinite": state.get("is_indefinite", False),
-                "has_pending_selective": state.get("has_pending_selective", False),
-                "selective_is_indefinite": state.get("selective_is_indefinite", False),
-                "in_curfew": state.get("in_curfew", False),
-                "curfew_warning": state.get("curfew_warning", False),
-                "curfew_warning_seconds": state.get("curfew_warning_seconds", 0),
-                "domains_count": len(self.config.get("blocked_domains", [])),
-                "version": self.config.get("version", "1.0.0")
-            }
+        with self._lock:
+            if action == "status":
+                state = self.scheduler.evaluate_state()
+                return {
+                    "status": "ok",
+                    "state": state.get("state"),
+                    "reason": state.get("reason"),
+                    "remaining_seconds": state.get("remaining_seconds", 0),
+                    "target_time_str": state.get("target_time_str", ""),
+                    "message": state.get("message", ""),
+                    "can_bypass": state.get("can_bypass", True),
+                    "is_blocking": state.get("is_blocking", False),
+                    "is_selective": state.get("is_selective", False),
+                    "selective_domains": state.get("selective_domains", []),
+                    "is_indefinite": state.get("is_indefinite", False),
+                    "has_pending_selective": state.get("has_pending_selective", False),
+                    "selective_is_indefinite": state.get("selective_is_indefinite", False),
+                    "in_curfew": state.get("in_curfew", False),
+                    "curfew_warning": state.get("curfew_warning", False),
+                    "curfew_warning_seconds": state.get("curfew_warning_seconds", 0),
+                    "domains_count": len(self.config.get("blocked_domains", [])),
+                    "version": self.config.get("version", "1.0.0")
+                }
 
-        elif action == "bypass":
-            duration = int(req.get("duration_minutes", 15))
-            force = bool(req.get("force", False))
-            ok, msg = self.scheduler.request_bypass(duration, force=force)
-            self._save_state(self.scheduler.export_persistent_state())
-            self._apply_current_state(force=True)
-            return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
-
-        elif action == "emergency_bypass":
-            duration = int(req.get("duration_minutes", 15))
-            ok, msg = self.scheduler.request_bypass(duration, force=True)
-            self._save_state(self.scheduler.export_persistent_state())
-            self._apply_current_state(force=True)
-            return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
-
-        elif action == "cancel_bypass":
-            ok, msg = self.scheduler.cancel_bypass()
-            self._save_state(self.scheduler.export_persistent_state())
-            self._apply_current_state(force=True)
-            return {"status": "ok", "message": msg, "success": ok}
-
-        elif action == "lock":
-            duration = int(req.get("duration_minutes", 0))
-            ok, msg = self.scheduler.request_lock(duration)
-            self._save_state(self.scheduler.export_persistent_state())
-            self._apply_current_state(force=True)
-            return {"status": "ok", "message": msg, "success": ok}
-
-        elif action == "unlock":
-            ok, msg = self.scheduler.request_unlock()
-            self._save_state(self.scheduler.export_persistent_state())
-            self._apply_current_state(force=True)
-            return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
-
-        elif action == "selective_lock":
-            raw_domains = req.get("domains", [])
-            duration = int(req.get("duration_minutes", 15))
-            if not isinstance(raw_domains, list):
-                return {"status": "error", "error": "'domains' must be a list of strings"}
-
-            valid_domains = [
-                d.strip().lower() for d in raw_domains
-                if isinstance(d, str) and is_valid_domain(d.strip())
-            ]
-            if not valid_domains:
-                return {"status": "error", "error": "No valid domains provided"}
-
-            ok, msg = self.scheduler.request_selective_lock(valid_domains, duration)
-            self._save_state(self.scheduler.export_persistent_state())
-            self._apply_current_state(force=True)
-            return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
-
-        elif action == "cancel_selective_lock":
-            ok, msg = self.scheduler.cancel_selective_lock()
-            self._save_state(self.scheduler.export_persistent_state())
-            self._apply_current_state(force=True)
-            return {"status": "ok", "message": msg, "success": ok}
-
-
-        elif action == "get_config":
-            return {"status": "ok", "config": self.config}
-
-        elif action == "save_config":
-            new_cfg = req.get("config")
-            if not isinstance(new_cfg, dict):
-                return {"status": "error", "error": "Invalid config data (must be a dictionary)"}
-
-            # Security: Whitelist allowed config fields and validate types
-            merged_config = dict(self.config)
-
-            # 1. Blocked Domains
-            if "blocked_domains" in new_cfg:
-                raw_domains = new_cfg["blocked_domains"]
-                if not isinstance(raw_domains, list):
-                    return {"status": "error", "error": "'blocked_domains' must be a list of domain strings"}
-                valid_domains = []
-                for d in raw_domains:
-                    if isinstance(d, str) and is_valid_domain(d.strip()):
-                        valid_domains.append(d.strip().lower())
-                merged_config["blocked_domains"] = sorted(list(set(valid_domains)))
-
-            # 2. Curfew
-            if "curfew" in new_cfg:
-                curfew_in = new_cfg["curfew"]
-                if not isinstance(curfew_in, dict):
-                    return {"status": "error", "error": "'curfew' must be an object"}
-                curfew_obj = dict(merged_config.get("curfew", {}))
-                if "enabled" in curfew_in:
-                    curfew_obj["enabled"] = bool(curfew_in["enabled"])
-                for t_key in ["start_time", "end_time"]:
-                    if t_key in curfew_in:
-                        val = str(curfew_in[t_key]).strip()
-                        parts = val.split(":")
-                        if len(parts) != 2 or not (parts[0].isdigit() and parts[1].isdigit() and 0 <= int(parts[0]) <= 23 and 0 <= int(parts[1]) <= 59):
-                            return {"status": "error", "error": f"Invalid time format for '{t_key}' (expected HH:MM)"}
-                        curfew_obj[t_key] = f"{int(parts[0]):02d}:{int(parts[1]):02d}"
-                merged_config["curfew"] = curfew_obj
-
-            # 3. Boot Cooldown
-            if "boot_cooldown" in new_cfg:
-                boot_in = new_cfg["boot_cooldown"]
-                if not isinstance(boot_in, dict):
-                    return {"status": "error", "error": "'boot_cooldown' must be an object"}
-                boot_obj = dict(merged_config.get("boot_cooldown", {}))
-                if "enabled" in boot_in:
-                    boot_obj["enabled"] = bool(boot_in["enabled"])
-                if "duration_minutes" in boot_in:
-                    try:
-                        dur = int(boot_in["duration_minutes"])
-                        if dur < 1 or dur > 1440:
-                            return {"status": "error", "error": "boot_cooldown duration must be between 1 and 1440 minutes"}
-                        boot_obj["duration_minutes"] = dur
-                    except (ValueError, TypeError):
-                        return {"status": "error", "error": "Invalid boot_cooldown duration_minutes"}
-                merged_config["boot_cooldown"] = boot_obj
-
-            # 4. Bypasses
-            if "bypasses" in new_cfg:
-                byp_in = new_cfg["bypasses"]
-                if not isinstance(byp_in, dict):
-                    return {"status": "error", "error": "'bypasses' must be an object"}
-                byp_obj = dict(merged_config.get("bypasses", {}))
-                if "enabled" in byp_in:
-                    byp_obj["enabled"] = bool(byp_in["enabled"])
-                if "allow_during_curfew" in byp_in:
-                    byp_obj["allow_during_curfew"] = bool(byp_in["allow_during_curfew"])
-                if "emergency_phrase" in byp_in:
-                    phrase = str(byp_in["emergency_phrase"]).strip()[:100]
-                    byp_obj["emergency_phrase"] = phrase or "necesito desbloqueo de emergencia"
-                merged_config["bypasses"] = byp_obj
-
-            # 5. IP Redirections (Optional overrides)
-            if "redirect_ipv4" in new_cfg and isinstance(new_cfg["redirect_ipv4"], str):
-                ip4 = new_cfg["redirect_ipv4"].strip()
-                if ip4 in ("0.0.0.0", "127.0.0.1"):
-                    merged_config["redirect_ipv4"] = ip4
-            if "redirect_ipv6" in new_cfg and isinstance(new_cfg["redirect_ipv6"], str):
-                ip6 = new_cfg["redirect_ipv6"].strip()
-                if ip6 in ("::1", "::"):
-                    merged_config["redirect_ipv6"] = ip6
-
-            if self._save_config(merged_config):
+            elif action == "bypass":
+                duration = int(req.get("duration_minutes", 15))
+                force = bool(req.get("force", False))
+                ok, msg = self.scheduler.request_bypass(duration, force=force)
+                self._save_state(self.scheduler.export_persistent_state())
                 self._apply_current_state(force=True)
-                return {"status": "ok", "message": "Configuración guardada y aplicada."}
-            else:
-                return {"status": "error", "error": "No se pudo guardar la configuración en disco."}
+                return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
 
-        else:
-            return {"status": "error", "error": f"Unknown action '{action}'"}
+            elif action == "emergency_bypass":
+                duration = int(req.get("duration_minutes", 15))
+                ok, msg = self.scheduler.request_bypass(duration, force=True)
+                self._save_state(self.scheduler.export_persistent_state())
+                self._apply_current_state(force=True)
+                return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
+
+            elif action == "cancel_bypass":
+                ok, msg = self.scheduler.cancel_bypass()
+                self._save_state(self.scheduler.export_persistent_state())
+                self._apply_current_state(force=True)
+                return {"status": "ok", "message": msg, "success": ok}
+
+            elif action == "lock":
+                duration = int(req.get("duration_minutes", 0))
+                ok, msg = self.scheduler.request_lock(duration)
+                self._save_state(self.scheduler.export_persistent_state())
+                self._apply_current_state(force=True)
+                return {"status": "ok", "message": msg, "success": ok}
+
+            elif action == "unlock":
+                ok, msg = self.scheduler.request_unlock()
+                self._save_state(self.scheduler.export_persistent_state())
+                self._apply_current_state(force=True)
+                return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
+
+            elif action == "selective_lock":
+                raw_domains = req.get("domains", [])
+                duration = int(req.get("duration_minutes", 15))
+                if not isinstance(raw_domains, list):
+                    return {"status": "error", "error": "'domains' must be a list of strings"}
+
+                valid_domains = [
+                    d.strip().lower() for d in raw_domains
+                    if isinstance(d, str) and is_valid_domain(d.strip())
+                ]
+                if not valid_domains:
+                    return {"status": "error", "error": "No valid domains provided"}
+
+                ok, msg = self.scheduler.request_selective_lock(valid_domains, duration)
+                self._save_state(self.scheduler.export_persistent_state())
+                self._apply_current_state(force=True)
+                return {"status": "ok" if ok else "denied", "message": msg, "success": ok}
+
+            elif action == "cancel_selective_lock":
+                ok, msg = self.scheduler.cancel_selective_lock()
+                self._save_state(self.scheduler.export_persistent_state())
+                self._apply_current_state(force=True)
+                return {"status": "ok", "message": msg, "success": ok}
+
+            elif action == "get_config":
+                return {"status": "ok", "config": self.config}
+
+            elif action == "save_config":
+                new_cfg = req.get("config")
+                if not isinstance(new_cfg, dict):
+                    return {"status": "error", "error": "Invalid config data (must be a dictionary)"}
+
+                # Security: Whitelist allowed config fields and validate types
+                merged_config = dict(self.config)
+
+                # 1. Blocked Domains
+                if "blocked_domains" in new_cfg:
+                    raw_domains = new_cfg["blocked_domains"]
+                    if not isinstance(raw_domains, list):
+                        return {"status": "error", "error": "'blocked_domains' must be a list of domain strings"}
+                    valid_domains = []
+                    for d in raw_domains:
+                        if isinstance(d, str) and is_valid_domain(d.strip()):
+                            valid_domains.append(d.strip().lower())
+                    merged_config["blocked_domains"] = sorted(list(set(valid_domains)))
+
+                # 2. Curfew
+                if "curfew" in new_cfg:
+                    curfew_in = new_cfg["curfew"]
+                    if not isinstance(curfew_in, dict):
+                        return {"status": "error", "error": "'curfew' must be an object"}
+                    curfew_obj = dict(merged_config.get("curfew", {}))
+                    if "enabled" in curfew_in:
+                        curfew_obj["enabled"] = bool(curfew_in["enabled"])
+                    for t_key in ["start_time", "end_time"]:
+                        if t_key in curfew_in:
+                            val = str(curfew_in[t_key]).strip()
+                            parts = val.split(":")
+                            if len(parts) != 2 or not (parts[0].isdigit() and parts[1].isdigit() and 0 <= int(parts[0]) <= 23 and 0 <= int(parts[1]) <= 59):
+                                return {"status": "error", "error": f"Invalid time format for '{t_key}' (expected HH:MM)"}
+                            curfew_obj[t_key] = f"{int(parts[0]):02d}:{int(parts[1]):02d}"
+                    merged_config["curfew"] = curfew_obj
+
+                # 3. Boot Cooldown
+                if "boot_cooldown" in new_cfg:
+                    boot_in = new_cfg["boot_cooldown"]
+                    if not isinstance(boot_in, dict):
+                        return {"status": "error", "error": "'boot_cooldown' must be an object"}
+                    boot_obj = dict(merged_config.get("boot_cooldown", {}))
+                    if "enabled" in boot_in:
+                        boot_obj["enabled"] = bool(boot_in["enabled"])
+                    if "duration_minutes" in boot_in:
+                        try:
+                            dur = int(boot_in["duration_minutes"])
+                            if dur < 1 or dur > 1440:
+                                return {"status": "error", "error": "boot_cooldown duration must be between 1 and 1440 minutes"}
+                            boot_obj["duration_minutes"] = dur
+                        except (ValueError, TypeError):
+                            return {"status": "error", "error": "Invalid boot_cooldown duration_minutes"}
+                    merged_config["boot_cooldown"] = boot_obj
+
+                # 4. Bypasses
+                if "bypasses" in new_cfg:
+                    byp_in = new_cfg["bypasses"]
+                    if not isinstance(byp_in, dict):
+                        return {"status": "error", "error": "'bypasses' must be an object"}
+                    byp_obj = dict(merged_config.get("bypasses", {}))
+                    if "enabled" in byp_in:
+                        byp_obj["enabled"] = bool(byp_in["enabled"])
+                    if "allow_during_curfew" in byp_in:
+                        byp_obj["allow_during_curfew"] = bool(byp_in["allow_during_curfew"])
+                    if "emergency_phrase" in byp_in:
+                        phrase = str(byp_in["emergency_phrase"]).strip()[:100]
+                        byp_obj["emergency_phrase"] = phrase or "necesito desbloqueo de emergencia"
+                    merged_config["bypasses"] = byp_obj
+
+                # 5. IP Redirections (Optional overrides)
+                if "redirect_ipv4" in new_cfg and isinstance(new_cfg["redirect_ipv4"], str):
+                    ip4 = new_cfg["redirect_ipv4"].strip()
+                    if ip4 in ("0.0.0.0", "127.0.0.1"):
+                        merged_config["redirect_ipv4"] = ip4
+                if "redirect_ipv6" in new_cfg and isinstance(new_cfg["redirect_ipv6"], str):
+                    ip6 = new_cfg["redirect_ipv6"].strip()
+                    if ip6 in ("::1", "::"):
+                        merged_config["redirect_ipv6"] = ip6
+
+                if self._save_config(merged_config):
+                    self._apply_current_state(force=True)
+                    return {"status": "ok", "message": "Configuración guardada y aplicada."}
+                else:
+                    return {"status": "error", "error": "No se pudo guardar la configuración en disco."}
+
+            else:
+                return {"status": "error", "error": f"Unknown action '{action}'"}
 
     def _client_handler_thread(self, conn: socket.socket):
-        """Handles a connected Unix socket client connection."""
+        """Handles a connected Unix socket client connection with newline-delimited buffering."""
         try:
-            conn.settimeout(5.0)
-            data = conn.recv(16384).decode("utf-8")
-            if data:
-                response = self.handle_client_request(data.strip())
+            conn.settimeout(3.0)
+            buffer = ""
+            while self.running:
+                chunk = conn.recv(8192).decode("utf-8")
+                if not chunk:
+                    break
+                buffer += chunk
+                if "\n" in buffer:
+                    break
+
+            if buffer:
+                response = self.handle_client_request(buffer.strip())
                 payload = json.dumps(response) + "\n"
                 conn.sendall(payload.encode("utf-8"))
+        except socket.timeout:
+            logger.debug("IPC client connection timed out.")
         except Exception as e:
             logger.debug(f"IPC client error: {e}")
         finally:
@@ -422,18 +456,19 @@ class FocusDaemon:
 
     def stop(self, clean_hosts: bool = True):
         """Cleans up sockets and restores hosts."""
-        self.running = False
-        try:
-            self._save_state(self.scheduler.export_persistent_state())
-        except Exception:
-            pass
-
-        if clean_hosts:
+        with self._lock:
+            self.running = False
             try:
-                self.hosts_mgr.remove_block()
-                logger.info("Removed Focus-Guard block from hosts on shutdown.")
-            except Exception as e:
-                logger.warning(f"Could not remove block on stop: {e}")
+                self._save_state(self.scheduler.export_persistent_state())
+            except Exception:
+                pass
+
+            if clean_hosts:
+                try:
+                    self.hosts_mgr.remove_block()
+                    logger.info("Removed Focus-Guard block from hosts on shutdown.")
+                except Exception as e:
+                    logger.warning(f"Could not remove block on stop: {e}")
 
         if self.server_socket:
             try:

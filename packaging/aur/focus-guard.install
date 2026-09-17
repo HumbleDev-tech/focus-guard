@@ -11,23 +11,23 @@ post_install() {
 }
 
 post_upgrade() {
-    echo ":: Restarting Focus-Guard system daemon..."
-    systemctl daemon-reload
-    if systemctl is-active --quiet focus-guard.service; then
-        systemctl restart focus-guard.service
-    fi
+    echo ":: Focus-Guard upgraded successfully."
+    echo ":: If focus-guard.service is running, restart it with:"
+    echo "     sudo systemctl try-restart focus-guard.service"
 }
 
 pre_remove() {
-    echo ":: Stopping Focus-Guard system daemon..."
-    if systemctl is-active --quiet focus-guard.service; then
-        systemctl stop focus-guard.service
+    if [ -d /run/systemd/system ] && systemctl is-active --quiet focus-guard.service 2>/dev/null; then
+        echo ":: Stopping Focus-Guard system daemon..."
+        systemctl stop focus-guard.service 2>/dev/null || true
     fi
-    systemctl disable focus-guard.service 2>/dev/null || true
+    if [ -d /run/systemd/system ]; then
+        systemctl disable focus-guard.service 2>/dev/null || true
+    fi
 
     # Clean up /etc/hosts entries if left behind
-    if [ -f /etc/hosts ] && grep -q "# FOCUS-GUARD-BEGIN" /etc/hosts; then
+    if [ -f /etc/hosts ] && grep -q "FOCUS-GUARD-BLOCK-START" /etc/hosts; then
         echo ":: Cleaning Focus-Guard markers from /etc/hosts..."
-        sed -i '/# FOCUS-GUARD-BEGIN/,/# FOCUS-GUARD-END/d' /etc/hosts
+        sed -i '/### FOCUS-GUARD-BLOCK-START/,/### FOCUS-GUARD-BLOCK-END/d' /etc/hosts
     fi
 }

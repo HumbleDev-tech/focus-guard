@@ -160,7 +160,15 @@ class HostsManager:
                 except Exception:
                     pass
 
-            # Fallback: In-place direct atomic write with fsync
+            # Fallback: In-place direct write with fsync and safety rollback
+            original_content = None
+            if os.path.exists(self.hosts_path):
+                try:
+                    with open(self.hosts_path, "r", encoding="utf-8") as f_orig:
+                        original_content = f_orig.read()
+                except Exception:
+                    pass
+
             try:
                 with open(self.hosts_path, "w", encoding="utf-8") as f:
                     f.write(new_content)
@@ -169,6 +177,14 @@ class HostsManager:
                 return True
             except Exception as direct_err:
                 logger.error(f"In-place write to {self.hosts_path} failed: {direct_err}")
+                if original_content is not None:
+                    try:
+                        with open(self.hosts_path, "w", encoding="utf-8") as f_rest:
+                            f_rest.write(original_content)
+                            f_rest.flush()
+                            os.fsync(f_rest.fileno())
+                    except Exception:
+                        pass
                 return False
         except Exception as e:
             if temp_name and os.path.exists(temp_name):
