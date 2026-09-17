@@ -22,7 +22,7 @@ from client.autostart import (
     set_autostart_enabled,
 )
 from client.utils import sanitize_domain, format_human_time
-from client.theme import get_theme_stylesheet
+from client.theme import get_theme_stylesheet, get_status_tokens, get_status_badge_style
 from client.icons import get_themed_icon
 from client.i18n import (
     t,
@@ -183,6 +183,7 @@ class SettingsDialog(QDialog):
             self.domains_tab.render_domains_list()
         if hasattr(self, "selective_tab"):
             self.selective_tab.render_selective_domains_list()
+        self.refresh_live_status()
         self.theme_changed.emit(mode)
 
     def _update_tab_icons(self):
@@ -707,13 +708,11 @@ class SettingsDialog(QDialog):
     # Live Status Refresh
     # -------------------------------------------------------------------------
     def refresh_live_status(self):
+        is_dark = self.is_dark_mode()
         res = self.ipc.get_status()
         if res.get("status") != "ok":
             self.status_badge.setText(t("app.status_offline"))
-            self.status_badge.setStyleSheet(
-                "background-color: rgba(110, 118, 129, 0.2); color: #8F98A0; font-weight: 700; "
-                "padding: 4px 10px; border-radius: 12px; border: 1px solid #30363D;"
-            )
+            self.status_badge.setStyleSheet(get_status_badge_style("OFFLINE", is_dark))
             icon_off = os.path.join(self.resource_dir, "icon-offline.svg")
             if os.path.exists(icon_off):
                 self.header_icon_lbl.setPixmap(QIcon(icon_off).pixmap(28, 28))
@@ -731,10 +730,7 @@ class SettingsDialog(QDialog):
         # 1. Header Badge: UNLOCKED
         if state == "UNLOCKED":
             self.status_badge.setText(t("dash.status_free"))
-            self.status_badge.setStyleSheet(
-                "background-color: rgba(46, 160, 67, 0.15); color: #3FB950; font-weight: 700; "
-                "padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(46, 160, 67, 0.3);"
-            )
+            self.status_badge.setStyleSheet(get_status_badge_style("UNLOCKED", is_dark))
             icon_idle = os.path.join(self.resource_dir, "icon-idle.svg")
             if os.path.exists(icon_idle):
                 self.header_icon_lbl.setPixmap(QIcon(icon_idle).pixmap(28, 28))
@@ -742,10 +738,7 @@ class SettingsDialog(QDialog):
         # 2. Header Badge: BYPASS
         elif state == "BYPASS":
             self.status_badge.setText(t("dash.status_pause"))
-            self.status_badge.setStyleSheet(
-                "background-color: rgba(210, 153, 34, 0.15); color: #E3B341; font-weight: 700; "
-                "padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(210, 153, 34, 0.3);"
-            )
+            self.status_badge.setStyleSheet(get_status_badge_style("BYPASS", is_dark))
             icon_byp = os.path.join(self.resource_dir, "icon-bypass.svg")
             if os.path.exists(icon_byp):
                 self.header_icon_lbl.setPixmap(QIcon(icon_byp).pixmap(28, 28))
@@ -754,37 +747,25 @@ class SettingsDialog(QDialog):
         elif is_blocking:
             if reason == "CURFEW":
                 self.status_badge.setText(t("dash.status_curfew"))
-                self.status_badge.setStyleSheet(
-                    "background-color: rgba(137, 87, 229, 0.15); color: #D2A8FF; font-weight: 700; "
-                    "padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(137, 87, 229, 0.3);"
-                )
+                self.status_badge.setStyleSheet(get_status_badge_style("CURFEW", is_dark))
                 icon_curf = os.path.join(self.resource_dir, "icon-curfew.svg")
                 if os.path.exists(icon_curf):
                     self.header_icon_lbl.setPixmap(QIcon(icon_curf).pixmap(28, 28))
             elif reason == "BOOT_COOLDOWN":
                 self.status_badge.setText(t("dash.status_boot"))
-                self.status_badge.setStyleSheet(
-                    "background-color: rgba(56, 139, 253, 0.15); color: #58A6FF; font-weight: 700; "
-                    "padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(56, 139, 253, 0.3);"
-                )
+                self.status_badge.setStyleSheet(get_status_badge_style("BOOT_COOLDOWN", is_dark))
                 icon_bt = os.path.join(self.resource_dir, "icon-boot.svg")
                 if os.path.exists(icon_bt):
                     self.header_icon_lbl.setPixmap(QIcon(icon_bt).pixmap(28, 28))
             elif reason == "MANUAL_LOCK":
                 self.status_badge.setText(t("dash.status_focus"))
-                self.status_badge.setStyleSheet(
-                    "background-color: rgba(56, 139, 253, 0.15); color: #58A6FF; font-weight: 700; "
-                    "padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(56, 139, 253, 0.3);"
-                )
+                self.status_badge.setStyleSheet(get_status_badge_style("MANUAL_LOCK", is_dark))
                 icon_act = os.path.join(self.resource_dir, "icon-active.svg")
                 if os.path.exists(icon_act):
                     self.header_icon_lbl.setPixmap(QIcon(icon_act).pixmap(28, 28))
             elif reason == "SELECTIVE_LOCK":
                 self.status_badge.setText(t("dash.status_selective"))
-                self.status_badge.setStyleSheet(
-                    "background-color: rgba(56, 139, 253, 0.15); color: #58A6FF; font-weight: 700; "
-                    "padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(56, 139, 253, 0.3);"
-                )
+                self.status_badge.setStyleSheet(get_status_badge_style("SELECTIVE_LOCK", is_dark))
                 icon_act = os.path.join(self.resource_dir, "icon-active.svg")
                 if os.path.exists(icon_act):
                     self.header_icon_lbl.setPixmap(QIcon(icon_act).pixmap(28, 28))

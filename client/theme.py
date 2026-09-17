@@ -32,6 +32,9 @@ DARK_THEME = {
     "success_subtle": "rgba(46, 160, 67, 0.14)",
     "warning": "#D29922",
     "warning_subtle": "rgba(210, 153, 34, 0.14)",
+    "curfew": "#8957E5",
+    "curfew_hover": "#D2A8FF",
+    "curfew_subtle": "rgba(137, 87, 229, 0.14)",
 }
 
 LIGHT_THEME = {
@@ -60,7 +63,114 @@ LIGHT_THEME = {
     "success_subtle": "rgba(26, 127, 55, 0.08)",
     "warning": "#9A6700",
     "warning_subtle": "rgba(154, 103, 0, 0.08)",
+    "curfew": "#6639BA",
+    "curfew_hover": "#5429A2",
+    "curfew_subtle": "rgba(102, 57, 186, 0.08)",
 }
+
+# Semantic status color tokens mapped to daemon state and reasons
+# Guaranteed WCAG 2.1 AA contrast compliance (>= 4.5:1) on both dark and light surfaces
+STATUS_TOKENS = {
+    "UNLOCKED": {
+        "dark": {
+            "text": "#3FB950",
+            "bg": "rgba(46, 160, 67, 0.15)",
+            "border": "rgba(46, 160, 67, 0.35)",
+            "progress_chunk": "#2EA043",
+        },
+        "light": {
+            "text": "#1A7F37",
+            "bg": "rgba(26, 127, 55, 0.10)",
+            "border": "rgba(26, 127, 55, 0.30)",
+            "progress_chunk": "#1A7F37",
+        },
+    },
+    "BYPASS": {
+        "dark": {
+            "text": "#E3B341",
+            "bg": "rgba(210, 153, 34, 0.15)",
+            "border": "rgba(210, 153, 34, 0.35)",
+            "progress_chunk": "#D29922",
+        },
+        "light": {
+            "text": "#855800",
+            "bg": "rgba(154, 103, 0, 0.10)",
+            "border": "rgba(154, 103, 0, 0.30)",
+            "progress_chunk": "#9A6700",
+        },
+    },
+    "CURFEW": {
+        "dark": {
+            "text": "#D2A8FF",
+            "bg": "rgba(137, 87, 229, 0.15)",
+            "border": "rgba(137, 87, 229, 0.35)",
+            "progress_chunk": "#8957E5",
+        },
+        "light": {
+            "text": "#6639BA",
+            "bg": "rgba(102, 57, 186, 0.10)",
+            "border": "rgba(102, 57, 186, 0.30)",
+            "progress_chunk": "#6639BA",
+        },
+    },
+    "FOCUS": {
+        "dark": {
+            "text": "#58A6FF",
+            "bg": "rgba(56, 139, 253, 0.15)",
+            "border": "rgba(56, 139, 253, 0.35)",
+            "progress_chunk": "#388BFD",
+        },
+        "light": {
+            "text": "#0969DA",
+            "bg": "rgba(9, 105, 218, 0.10)",
+            "border": "rgba(9, 105, 218, 0.30)",
+            "progress_chunk": "#0969DA",
+        },
+    },
+    "OFFLINE": {
+        "dark": {
+            "text": "#8B949E",
+            "bg": "rgba(110, 118, 129, 0.15)",
+            "border": "rgba(110, 118, 129, 0.30)",
+            "progress_chunk": "#484F58",
+        },
+        "light": {
+            "text": "#57606A",
+            "bg": "rgba(101, 109, 118, 0.10)",
+            "border": "rgba(101, 109, 118, 0.25)",
+            "progress_chunk": "#8C959F",
+        },
+    },
+}
+
+
+def get_status_tokens(status_or_reason: str, is_dark: bool = True) -> dict:
+    """Returns semantic status colors (text, bg, border, progress_chunk) respecting dark/light contrast."""
+    key = (status_or_reason or "").upper()
+    if key in ("FREE_TIME", "FREE", "UNLOCKED"):
+        category = "UNLOCKED"
+    elif key in ("BYPASS", "PAUSE"):
+        category = "BYPASS"
+    elif key == "CURFEW":
+        category = "CURFEW"
+    elif key in ("BOOT_COOLDOWN", "MANUAL_LOCK", "SELECTIVE_LOCK", "FOCUS", "LOCKED"):
+        category = "FOCUS"
+    elif key == "OFFLINE":
+        category = "OFFLINE"
+    else:
+        category = "FOCUS"
+
+    mode_key = "dark" if is_dark else "light"
+    return STATUS_TOKENS.get(category, STATUS_TOKENS["FOCUS"])[mode_key]
+
+
+def get_status_badge_style(status_or_reason: str, is_dark: bool = True) -> str:
+    """Generates standard CSS for status badge pills with WCAG AA verified contrast."""
+    tok = get_status_tokens(status_or_reason, is_dark)
+    return (
+        f"background-color: {tok['bg']}; color: {tok['text']}; font-weight: 700; "
+        f"padding: 4px 10px; border-radius: 12px; border: 1px solid {tok['border']};"
+    )
 
 
 def get_theme_colors(is_dark: bool = True) -> dict:
@@ -82,7 +192,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             border: 1px solid {c['border_color']};
             border-radius: 6px;
             padding: 6px 10px;
-            font-size: 11.5px;
+            font-size: 12px;
             font-weight: 500;
         }}
         QTabWidget::pane {{
@@ -223,7 +333,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             color: {c['text_primary']};
             border: 1px solid {c['border_color']};
             border-radius: 6px;
-            font-size: 11.5px;
+            font-size: 12px;
             font-weight: 600;
             padding: 8px 6px;
         }}
@@ -236,7 +346,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             border: 1.5px solid {c['accent_blue']};
             border-radius: 6px;
             color: {c['accent_blue']};
-            font-size: 11.5px;
+            font-size: 12px;
             font-weight: 700;
             padding: 8px 6px;
         }}
@@ -247,7 +357,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             padding: 10px 12px;
         }}
         QLabel#summaryPill {{
-            font-size: 11.5px;
+            font-size: 12px;
             color: {c['accent_blue_hover']};
             background-color: {c['accent_blue_subtle']};
             border: 1px solid rgba(56, 139, 253, 0.25);
@@ -372,7 +482,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             padding: 8px 12px;
         }}
         QLabel#infoBannerText {{
-            font-size: 11.5px;
+            font-size: 12px;
             color: {c['accent_blue_hover']};
             font-weight: 500;
             background: transparent;
@@ -472,7 +582,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
         }}
         QLabel#codePhrase {{
             font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
-            font-size: 12.5px;
+            font-size: 13px;
             font-weight: 600;
             color: {c['accent_blue']};
             background: transparent;

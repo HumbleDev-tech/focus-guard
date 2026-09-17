@@ -10,7 +10,10 @@ from PyQt6.QtWidgets import QApplication, QDialog, QPushButton, QTabWidget, QWid
 from PyQt6.QtGui import QIcon, QPixmap
 
 from client.icons import get_icon, get_pixmap, get_themed_icon, ICONS_DIR
-from client.theme import get_theme_colors, get_theme_stylesheet, apply_dialog_theme
+from client.theme import (
+    get_theme_colors, get_theme_stylesheet, apply_dialog_theme,
+    get_status_tokens, get_status_badge_style, STATUS_TOKENS
+)
 
 # Ensure Qt Application exists
 _app = QApplication.instance() or QApplication(sys.argv)
@@ -50,7 +53,7 @@ class TestIconsAndTheme(unittest.TestCase):
         dark_colors = get_theme_colors(is_dark=True)
         light_colors = get_theme_colors(is_dark=False)
 
-        for key in ["bg_window", "bg_card", "border_color", "accent_blue", "text_primary", "danger", "success"]:
+        for key in ["bg_window", "bg_card", "border_color", "accent_blue", "text_primary", "danger", "success", "curfew"]:
             self.assertIn(key, dark_colors)
             self.assertIn(key, light_colors)
 
@@ -116,6 +119,39 @@ class TestIconsAndTheme(unittest.TestCase):
         # Even though parent is QStackedWidget, window() resolves to dlg
         self.assertFalse(dom_tab.is_dark_mode())
         self.assertFalse(rules_tab.is_dark_mode())
+
+    def test_semantic_status_tokens(self):
+        # All key statuses should return complete token dictionaries
+        for status in ["UNLOCKED", "BYPASS", "CURFEW", "BOOT_COOLDOWN", "MANUAL_LOCK", "SELECTIVE_LOCK", "OFFLINE"]:
+            dark_tok = get_status_tokens(status, is_dark=True)
+            light_tok = get_status_tokens(status, is_dark=False)
+
+            for tok in [dark_tok, light_tok]:
+                self.assertIn("text", tok)
+                self.assertIn("bg", tok)
+                self.assertIn("border", tok)
+                self.assertIn("progress_chunk", tok)
+
+            # Contrast verification: Light mode text must differ from dark mode neon pastel
+            self.assertNotEqual(dark_tok["text"], light_tok["text"], f"Status {status} text color must adapt for light mode")
+
+        # Specific WCAG contrast checks
+        unlocked_light = get_status_tokens("UNLOCKED", is_dark=False)
+        self.assertEqual(unlocked_light["text"], "#1A7F37")
+
+        curfew_light = get_status_tokens("CURFEW", is_dark=False)
+        self.assertEqual(curfew_light["text"], "#6639BA")
+
+        bypass_light = get_status_tokens("BYPASS", is_dark=False)
+        self.assertEqual(bypass_light["text"], "#855800")
+
+    def test_status_badge_style_generation(self):
+        style_dark = get_status_badge_style("CURFEW", is_dark=True)
+        style_light = get_status_badge_style("CURFEW", is_dark=False)
+
+        self.assertIn("border-radius: 12px", style_dark)
+        self.assertIn("#D2A8FF", style_dark)
+        self.assertIn("#6639BA", style_light)
 
 
 if __name__ == "__main__":

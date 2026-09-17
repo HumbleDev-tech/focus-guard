@@ -11,6 +11,7 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QPalette
 from client.utils import format_human_time
 from client.icons import get_themed_icon
+from client.theme import get_status_tokens
 from client.i18n import t
 
 
@@ -50,6 +51,8 @@ class DashboardTab(QWidget):
         self.btn_primary_action.setIcon(get_themed_icon("lock", is_dark, role="white", size=16))
         self.btn_secondary_action.setIcon(get_themed_icon("coffee", is_dark, size=16))
         self.btn_stop_focus.setIcon(get_themed_icon("unlock", is_dark, role="white", size=16))
+        if self.last_status_args is not None:
+            self.update_status(*self.last_status_args)
 
     def _setup_ui(self):
         scroll = QScrollArea()
@@ -246,17 +249,19 @@ class DashboardTab(QWidget):
         """Updates all dashboard elements based on the daemon status."""
         self.last_status_args = (res, config_data, blocked_domains_count, curfew_emerg_enabled)
 
+        is_dark = self.is_dark_mode()
         if res.get("status") != "ok":
+            tok = get_status_tokens("OFFLINE", is_dark)
             self.dash_state_pill.setText(t("dash.pill_offline"))
             self.dash_state_pill.setStyleSheet(
-                "border: 1px solid #30363D; color: #8B949E; font-size: 10px; font-weight: 700; "
-                "padding: 3px 10px; border-radius: 12px; background-color: rgba(110, 118, 129, 0.12);"
+                f"border: 1px solid {tok['border']}; color: {tok['text']}; font-size: 10px; font-weight: 700; "
+                f"padding: 3px 10px; border-radius: 12px; background-color: {tok['bg']};"
             )
             self.dash_state_title.setText(t("dash.offline_title"))
             self.dash_countdown_lbl.setText(t("dash.offline_countdown"))
             self.dash_countdown_lbl.setStyleSheet(
-                "font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
-                "font-size: 20px; font-weight: 700; color: #8B949E;"
+                f"font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
+                f"font-size: 20px; font-weight: 700; color: {tok['text']}; letter-spacing: -0.5px;"
             )
             self.dash_desc_lbl.setText(t("dash.offline_desc"))
             self.dash_progress_bar.setValue(0)
@@ -300,20 +305,21 @@ class DashboardTab(QWidget):
 
         # 1. State: UNLOCKED / FREE TIME
         if state == "UNLOCKED":
+            tok = get_status_tokens("UNLOCKED", is_dark)
             self.dash_state_pill.setText(t("dash.pill_free"))
             self.dash_state_pill.setStyleSheet(
-                "border: 1px solid #2EA043; color: #3FB950; font-size: 10px; font-weight: 700; "
-                "padding: 3px 10px; border-radius: 12px; background-color: rgba(46, 160, 67, 0.12);"
+                f"border: 1px solid {tok['border']}; color: {tok['text']}; font-size: 10px; font-weight: 700; "
+                f"padding: 3px 10px; border-radius: 12px; background-color: {tok['bg']};"
             )
             self.dash_state_title.setText(t("dash.state_unlocked_title"))
             self.dash_countdown_lbl.setText(t("dash.state_unlocked_countdown"))
             self.dash_countdown_lbl.setStyleSheet(
-                "font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
-                "font-size: 20px; font-weight: 700; color: #3FB950;"
+                f"font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
+                f"font-size: 20px; font-weight: 700; color: {tok['text']}; letter-spacing: -0.5px;"
             )
             self.dash_desc_lbl.setText(t("dash.state_unlocked_desc"))
             self.dash_progress_bar.setValue(0)
-            self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #2EA043; }")
+            self.dash_progress_bar.setStyleSheet(f"QProgressBar::chunk {{ background-color: {tok['progress_chunk']}; }}")
             self.btn_stop_focus.setVisible(False)
 
             self.btn_primary_action.setText(t("dash.btn_lock_now"))
@@ -329,20 +335,21 @@ class DashboardTab(QWidget):
 
         # 2. State: BYPASS / BREAK
         elif state == "BYPASS":
+            tok = get_status_tokens("BYPASS", is_dark)
             self.dash_state_pill.setText(t("dash.pill_pause"))
             self.dash_state_pill.setStyleSheet(
-                "border: 1px solid #D29922; color: #E3B341; font-size: 10px; font-weight: 700; "
-                "padding: 3px 10px; border-radius: 12px; background-color: rgba(210, 153, 34, 0.12);"
+                f"border: 1px solid {tok['border']}; color: {tok['text']}; font-size: 10px; font-weight: 700; "
+                f"padding: 3px 10px; border-radius: 12px; background-color: {tok['bg']};"
             )
             self.dash_state_title.setText(t("dash.state_bypass_title"))
             self.dash_countdown_lbl.setText(f"{human_time}")
             self.dash_countdown_lbl.setStyleSheet(
-                "font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
-                "font-size: 22px; font-weight: 700; color: #E3B341;"
+                f"font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
+                f"font-size: 22px; font-weight: 700; color: {tok['text']}; letter-spacing: -0.5px;"
             )
             self.dash_desc_lbl.setText(t("dash.state_bypass_desc"))
             self.dash_progress_bar.setValue(max(5, min(100, int((rem / 900) * 100))))
-            self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #D29922; }")
+            self.dash_progress_bar.setStyleSheet(f"QProgressBar::chunk {{ background-color: {tok['progress_chunk']}; }}")
             self.btn_stop_focus.setVisible(False)
 
             self.btn_primary_action.setText(t("dash.btn_end_pause"))
@@ -358,20 +365,25 @@ class DashboardTab(QWidget):
 
         # 3. State: LOCKED / ACTIVE PROTECTION
         elif is_blocking:
+            tok = get_status_tokens(reason, is_dark)
+            pill_style = (
+                f"border: 1px solid {tok['border']}; color: {tok['text']}; font-size: 10px; font-weight: 700; "
+                f"padding: 3px 10px; border-radius: 12px; background-color: {tok['bg']};"
+            )
+            lbl_style = (
+                f"font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
+                f"font-size: 22px; font-weight: 700; color: {tok['text']}; letter-spacing: -0.5px;"
+            )
+            chunk_style = f"QProgressBar::chunk {{ background-color: {tok['progress_chunk']}; }}"
+
             if reason == "CURFEW":
                 self.dash_state_pill.setText(t("dash.pill_curfew"))
-                self.dash_state_pill.setStyleSheet(
-                    "border: 1px solid #8957E5; color: #D2A8FF; font-size: 10px; font-weight: 700; "
-                    "padding: 3px 10px; border-radius: 12px; background-color: rgba(137, 87, 229, 0.12);"
-                )
+                self.dash_state_pill.setStyleSheet(pill_style)
                 self.dash_state_title.setText(t("dash.state_curfew_title"))
                 self.dash_desc_lbl.setText(t("dash.state_curfew_desc", target=target))
-                self.dash_countdown_lbl.setStyleSheet(
-                    "font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
-                    "font-size: 22px; font-weight: 700; color: #D2A8FF;"
-                )
+                self.dash_countdown_lbl.setStyleSheet(lbl_style)
                 self.dash_progress_bar.setValue(100)
-                self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #8957E5; }")
+                self.dash_progress_bar.setStyleSheet(chunk_style)
                 self.btn_stop_focus.setVisible(False)
 
                 self.btn_primary_action.setText(t("dash.btn_night_lock"))
@@ -393,19 +405,13 @@ class DashboardTab(QWidget):
 
             elif reason == "BOOT_COOLDOWN":
                 self.dash_state_pill.setText(t("dash.pill_boot"))
-                self.dash_state_pill.setStyleSheet(
-                    "border: 1px solid #388BFD; color: #58A6FF; font-size: 10px; font-weight: 700; "
-                    "padding: 3px 10px; border-radius: 12px; background-color: rgba(56, 139, 253, 0.12);"
-                )
+                self.dash_state_pill.setStyleSheet(pill_style)
                 self.dash_state_title.setText(t("dash.state_boot_title"))
                 self.dash_desc_lbl.setText(t("dash.state_boot_desc", target=target))
-                self.dash_countdown_lbl.setStyleSheet(
-                    "font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
-                    "font-size: 22px; font-weight: 700; color: #58A6FF;"
-                )
+                self.dash_countdown_lbl.setStyleSheet(lbl_style)
                 total_boot = max(1, config_data.get("boot_cooldown", {}).get("duration_minutes", 30) * 60)
                 self.dash_progress_bar.setValue(max(5, min(100, int((rem / total_boot) * 100))))
-                self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #388BFD; }")
+                self.dash_progress_bar.setStyleSheet(chunk_style)
                 self.btn_stop_focus.setVisible(False)
 
                 self.btn_primary_action.setText(t("dash.btn_boot_active"))
@@ -427,18 +433,12 @@ class DashboardTab(QWidget):
 
             elif reason == "MANUAL_LOCK":
                 self.dash_state_pill.setText(t("dash.pill_focus"))
-                self.dash_state_pill.setStyleSheet(
-                    "border: 1px solid #388BFD; color: #58A6FF; font-size: 10px; font-weight: 700; "
-                    "padding: 3px 10px; border-radius: 12px; background-color: rgba(56, 139, 253, 0.12);"
-                )
+                self.dash_state_pill.setStyleSheet(pill_style)
                 self.dash_state_title.setText(t("dash.state_manual_title"))
                 self.dash_desc_lbl.setText(t("dash.state_manual_desc"))
-                self.dash_countdown_lbl.setStyleSheet(
-                    "font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
-                    "font-size: 22px; font-weight: 700; color: #58A6FF;"
-                )
+                self.dash_countdown_lbl.setStyleSheet(lbl_style)
                 self.dash_progress_bar.setValue(100)
-                self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #388BFD; }")
+                self.dash_progress_bar.setStyleSheet(chunk_style)
                 self.btn_stop_focus.setVisible(True)
                 self.btn_stop_focus.setText(t("dash.btn_stop_focus"))
                 self.btn_stop_focus.setToolTip(t("dash.btn_stop_focus"))
@@ -464,18 +464,12 @@ class DashboardTab(QWidget):
                 sel_count = len(res.get("selective_domains", []))
                 is_indef = res.get("is_indefinite", False)
                 self.dash_state_pill.setText(t("dash.pill_indefinite") if is_indef else t("dash.pill_timed"))
-                self.dash_state_pill.setStyleSheet(
-                    "border: 1px solid #388BFD; color: #58A6FF; font-size: 10px; font-weight: 700; "
-                    "padding: 3px 10px; border-radius: 12px; background-color: rgba(56, 139, 253, 0.12);"
-                )
+                self.dash_state_pill.setStyleSheet(pill_style)
                 self.dash_state_title.setText(t("dash.state_selective_title", count=sel_count))
                 self.dash_desc_lbl.setText(t("dash.state_selective_desc", count=sel_count))
-                self.dash_countdown_lbl.setStyleSheet(
-                    "font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
-                    "font-size: 22px; font-weight: 700; color: #58A6FF;"
-                )
+                self.dash_countdown_lbl.setStyleSheet(lbl_style)
                 self.dash_progress_bar.setValue(100)
-                self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #388BFD; }")
+                self.dash_progress_bar.setStyleSheet(chunk_style)
                 self.btn_stop_focus.setVisible(True)
                 self.btn_stop_focus.setText(t("dash.btn_end_selective"))
                 self.btn_stop_focus.setToolTip(t("dash.btn_end_selective"))

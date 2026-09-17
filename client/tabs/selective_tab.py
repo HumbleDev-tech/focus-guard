@@ -15,6 +15,7 @@ from PyQt6.QtGui import QPalette
 
 from client.utils import sanitize_domain
 from client.icons import get_themed_icon, get_pixmap
+from client.theme import get_status_tokens, get_theme_colors
 from client.i18n import t
 
 
@@ -62,6 +63,12 @@ class SelectiveTab(QWidget):
             self.sel_start_btn.setIcon(get_themed_icon("lock", is_dark, role="white", size=15))
         if hasattr(self, "sel_indefinite_btn"):
             self.sel_indefinite_btn.setIcon(get_themed_icon("lock", is_dark, role="secondary", size=15))
+        if hasattr(self, "act_pill"):
+            tok = get_status_tokens("FOCUS", is_dark)
+            self.act_pill.setStyleSheet(f"background-color: {tok['bg']}; color: {tok['text']}; font-weight: 700; font-size: 10px; padding: 3px 8px; border-radius: 12px; border: 1px solid {tok['border']};")
+        if hasattr(self, "sel_summary_title"):
+            c = get_theme_colors(is_dark)
+            self.sel_summary_title.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {c['accent_blue']};")
 
     def setup_ui(self):
         scroll = QScrollArea(self)
@@ -106,13 +113,14 @@ class SelectiveTab(QWidget):
         active_layout.setSpacing(10)
 
         act_top_row = QHBoxLayout()
+        tok_act = get_status_tokens("FOCUS", self.is_dark_mode())
         self.act_pill = QLabel(t("selective.hero_pill"))
-        self.act_pill.setStyleSheet("background-color: rgba(56, 139, 253, 0.15); color: #58A6FF; font-weight: 700; font-size: 10px; padding: 3px 8px; border-radius: 12px; border: 1px solid rgba(56, 139, 253, 0.3);")
+        self.act_pill.setStyleSheet(f"background-color: {tok_act['bg']}; color: {tok_act['text']}; font-weight: 700; font-size: 10px; padding: 3px 8px; border-radius: 12px; border: 1px solid {tok_act['border']};")
         act_top_row.addWidget(self.act_pill)
         act_top_row.addStretch()
 
         self.sel_active_countdown_lbl = QLabel(t("selective.hero_calculating"))
-        self.sel_active_countdown_lbl.setStyleSheet("font-family: ui-monospace, SFMono-Regular, monospace; font-size: 18px; font-weight: 700; color: #58A6FF;")
+        self.sel_active_countdown_lbl.setStyleSheet(f"font-family: ui-monospace, SFMono-Regular, monospace; font-size: 18px; font-weight: 700; color: {tok_act['text']};")
         act_top_row.addWidget(self.sel_active_countdown_lbl)
         active_layout.addLayout(act_top_row)
 
@@ -180,33 +188,30 @@ class SelectiveTab(QWidget):
         self.sel_add_feedback_lbl.setStyleSheet("font-size: 11px; font-weight: 600;")
         sites_layout.addWidget(self.sel_add_feedback_lbl)
 
-        # Search filter, bulk actions, and refresh button
+        # Search filter and bulk action chips (fluid, responsive layout)
         toolbar_row = QHBoxLayout()
         toolbar_row.setSpacing(6)
 
         self.sel_search_input = QLineEdit()
         self.sel_search_input.setPlaceholderText(t("selective.search_placeholder"))
-        self.sel_search_input.setFixedWidth(170)
+        self.sel_search_input.setMinimumWidth(90)
+        self.sel_search_input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.sel_search_input.textChanged.connect(lambda: self.render_selective_domains_list())
         toolbar_row.addWidget(self.sel_search_input)
 
         self.sel_all_btn = QPushButton(t("selective.btn_select_all"))
         self.sel_all_btn.setObjectName("presetChipSmall")
         self.sel_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.sel_all_btn.setToolTip(t("selective.btn_select_all"))
         self.sel_all_btn.clicked.connect(self.on_select_all_selective)
         toolbar_row.addWidget(self.sel_all_btn)
 
         self.sel_desel_btn = QPushButton(t("selective.btn_deselect_all"))
         self.sel_desel_btn.setObjectName("presetChipSmall")
         self.sel_desel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.sel_desel_btn.setToolTip(t("selective.btn_deselect_all"))
         self.sel_desel_btn.clicked.connect(self.on_deselect_all_selective)
         toolbar_row.addWidget(self.sel_desel_btn)
-
-        self.refresh_btn = QPushButton(t("selective.btn_refresh"))
-        self.refresh_btn.setObjectName("presetChipSmall")
-        self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.refresh_btn.clicked.connect(self.render_selective_domains_list)
-        toolbar_row.addWidget(self.refresh_btn)
 
         sites_layout.addLayout(toolbar_row)
 
@@ -214,7 +219,7 @@ class SelectiveTab(QWidget):
         self.sel_domains_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
         self.sel_domains_list.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         self.sel_domains_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.sel_domains_list.setMinimumHeight(300)
+        self.sel_domains_list.setMinimumHeight(180)
         self.sel_domains_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         sites_layout.addWidget(self.sel_domains_list, stretch=1)
 
@@ -316,8 +321,9 @@ class SelectiveTab(QWidget):
         sum_layout.setContentsMargins(10, 8, 10, 8)
         sum_layout.setSpacing(4)
 
+        c_sum = get_theme_colors(self.is_dark_mode())
         self.sel_summary_title = QLabel(t("selective.summary_title"))
-        self.sel_summary_title.setStyleSheet("font-size: 11px; font-weight: 700; color: #58A6FF;")
+        self.sel_summary_title.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {c_sum['accent_blue']};")
         sum_layout.addWidget(self.sel_summary_title)
 
         self.sel_summary_lbl = QLabel("")
@@ -466,9 +472,10 @@ class SelectiveTab(QWidget):
 
     def apply_domain_tile_style(self, frame: QFrame, is_checked: bool):
         is_dark = self.is_dark_mode()
+        c = get_theme_colors(is_dark)
         if is_checked:
-            bg = "rgba(56, 139, 253, 0.12)" if is_dark else "rgba(9, 105, 218, 0.10)"
-            border = "#388BFD" if is_dark else "#0969DA"
+            bg = c['accent_blue_subtle']
+            border = c['accent_blue']
             frame.setStyleSheet(f"""
                 QFrame {{
                     background-color: {bg};
@@ -478,9 +485,9 @@ class SelectiveTab(QWidget):
                 }}
             """)
         else:
-            bg = "#1C2128" if is_dark else "#FFFFFF"
-            border = "#30363D" if is_dark else "#D0D7DE"
-            hover_bg = "#21262D" if is_dark else "#F6F8FA"
+            bg = c['bg_card_inner']
+            border = c['border_color']
+            hover_bg = c['bg_card']
             frame.setStyleSheet(f"""
                 QFrame {{
                     background-color: {bg};
@@ -489,7 +496,7 @@ class SelectiveTab(QWidget):
                 }}
                 QFrame:hover {{
                     background-color: {hover_bg};
-                    border-color: #58A6FF;
+                    border-color: {c['accent_blue']};
                 }}
             """)
 
@@ -682,6 +689,7 @@ class SelectiveTab(QWidget):
             self.sel_step_plus.setEnabled(not session_running)
 
         if is_selective and domains_list:
+            is_dark = self.is_dark_mode()
             num_domains = len(domains_list)
             domains_preview = ", ".join(domains_list[:3])
             if num_domains > 3:
@@ -691,14 +699,15 @@ class SelectiveTab(QWidget):
             self.sel_active_domains_lbl.setText(t("selective.active_blocking_domains", count=num_domains, preview=domains_preview))
 
             if is_indefinite:
+                tok_indef = get_status_tokens("CURFEW", is_dark)
                 self.sel_status_badge.setText(t("selective.badge_indefinite"))
                 self.sel_status_badge.setStyleSheet(
-                    "font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
-                    "border: 1px solid #A371F7; color: #BC8CFF; background-color: rgba(163, 113, 247, 0.15);"
+                    f"font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
+                    f"border: 1px solid {tok_indef['border']}; color: {tok_indef['text']}; background-color: {tok_indef['bg']};"
                 )
                 self.sel_active_countdown_lbl.setText(t("selective.hero_no_limit"))
                 self.sel_active_countdown_lbl.setStyleSheet(
-                    "font-family: ui-monospace, SFMono-Regular, monospace; font-size: 16px; font-weight: 700; color: #BC8CFF;"
+                    f"font-family: ui-monospace, SFMono-Regular, monospace; font-size: 16px; font-weight: 700; color: {tok_indef['text']};"
                 )
                 self.sel_active_end_lbl.setText(t("selective.hero_indefinite_end"))
 
@@ -710,10 +719,11 @@ class SelectiveTab(QWidget):
                 self.sel_indefinite_btn.setObjectName("secondaryBtn")
                 self.sel_indefinite_btn.setStyleSheet("")
             else:
+                tok_focus = get_status_tokens("FOCUS", is_dark)
                 self.sel_status_badge.setText(t("selective.badge_in_progress"))
                 self.sel_status_badge.setStyleSheet(
-                    "font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
-                    "border: 1px solid #388BFD; color: #58A6FF; background-color: rgba(56, 139, 253, 0.15);"
+                    f"font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
+                    f"border: 1px solid {tok_focus['border']}; color: {tok_focus['text']}; background-color: {tok_focus['bg']};"
                 )
                 if human_time:
                     self.sel_active_countdown_lbl.setText(t("selective.hero_remaining", time=human_time.upper()))
@@ -722,7 +732,7 @@ class SelectiveTab(QWidget):
                     secs = remaining_sec % 60
                     self.sel_active_countdown_lbl.setText(t("selective.hero_remaining", time=f"{mins:02d}:{secs:02d}"))
                 self.sel_active_countdown_lbl.setStyleSheet(
-                    "font-family: ui-monospace, SFMono-Regular, monospace; font-size: 18px; font-weight: 700; color: #58A6FF;"
+                    f"font-family: ui-monospace, SFMono-Regular, monospace; font-size: 18px; font-weight: 700; color: {tok_focus['text']};"
                 )
                 self.sel_active_end_lbl.setText(t("selective.hero_ends_at", time=target_time) if target_time else "")
 
@@ -735,6 +745,8 @@ class SelectiveTab(QWidget):
                 self.sel_indefinite_btn.setStyleSheet("")
             self.update_selective_summary()
         elif has_pending_selective and domains_list:
+            is_dark = self.is_dark_mode()
+            tok_focus = get_status_tokens("FOCUS", is_dark)
             num_domains = len(domains_list)
             domains_preview = ", ".join(domains_list[:3])
             if num_domains > 3:
@@ -744,12 +756,12 @@ class SelectiveTab(QWidget):
             self.sel_active_domains_lbl.setText(t("selective.active_blocking_domains", count=num_domains, preview=domains_preview))
             self.sel_status_badge.setText(t("selective.badge_pending"))
             self.sel_status_badge.setStyleSheet(
-                "font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
-                "border: 1px solid #388BFD; color: #58A6FF; background-color: rgba(56, 139, 253, 0.15);"
+                f"font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
+                f"border: 1px solid {tok_focus['border']}; color: {tok_focus['text']}; background-color: {tok_focus['bg']};"
             )
             self.sel_active_countdown_lbl.setText(t("selective.hero_cooldown"))
             self.sel_active_countdown_lbl.setStyleSheet(
-                "font-family: ui-monospace, SFMono-Regular, monospace; font-size: 16px; font-weight: 700; color: #58A6FF;"
+                f"font-family: ui-monospace, SFMono-Regular, monospace; font-size: 16px; font-weight: 700; color: {tok_focus['text']};"
             )
             self.sel_active_end_lbl.setText(t("selective.hero_pending_end"))
 
@@ -762,10 +774,12 @@ class SelectiveTab(QWidget):
             self.sel_indefinite_btn.setStyleSheet("")
             self.update_selective_summary()
         else:
+            is_dark = self.is_dark_mode()
+            tok_idle = get_status_tokens("OFFLINE", is_dark)
             self.sel_status_badge.setText(t("selective.badge_idle"))
             self.sel_status_badge.setStyleSheet(
-                "font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
-                "border: 1px solid #30363D; color: #8B949E; background-color: rgba(110, 118, 129, 0.15);"
+                f"font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 12px; "
+                f"border: 1px solid {tok_idle['border']}; color: {tok_idle['text']}; background-color: {tok_idle['bg']};"
             )
             self.sel_active_card.setVisible(False)
             self.update_selective_summary()
@@ -793,8 +807,6 @@ class SelectiveTab(QWidget):
             self.sel_all_btn.setText(t("selective.btn_select_all"))
         if hasattr(self, "sel_desel_btn"):
             self.sel_desel_btn.setText(t("selective.btn_deselect_all"))
-        if hasattr(self, "refresh_btn"):
-            self.refresh_btn.setText(t("selective.btn_refresh"))
         if hasattr(self, "ctrl_title"):
             self.ctrl_title.setText(t("selective.step2_title"))
         if hasattr(self, "ctrl_desc"):

@@ -14,6 +14,7 @@ from PyQt6.QtCore import QRect, QSettings, Qt
 
 from client.settings_dialog import SettingsDialog
 from client.tabs.dashboard_tab import DashboardTab
+from client.tabs.selective_tab import SelectiveTab
 from client.ipc_client import FocusIPCClient
 
 _app = QApplication.instance() or QApplication(sys.argv)
@@ -134,6 +135,19 @@ class TestAdaptiveScaling(unittest.TestCase):
         scroll_areas = dash.findChildren(QScrollArea)
         self.assertGreaterEqual(len(scroll_areas), 1)
         self.assertTrue(scroll_areas[0].widgetResizable())
+
+    def test_selective_tab_toolbar_responsiveness(self):
+        """SelectiveTab toolbar must be fluid without fixed 170px width or redundant refresh button."""
+        sel = SelectiveTab()
+        # Search input must allow shrinking to <= 100px and expand to fill space
+        self.assertLessEqual(sel.sel_search_input.minimumWidth(), 100)
+        self.assertGreaterEqual(sel.sel_search_input.maximumWidth(), 500)
+
+        # Redundant refresh button must be removed to save horizontal space
+        self.assertFalse(hasattr(sel, "refresh_btn"))
+
+        # List widget minimum height must be <= 200 to allow compact display fit
+        self.assertLessEqual(sel.sel_domains_list.minimumHeight(), 200)
 
 
 if __name__ == "__main__":
