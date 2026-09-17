@@ -24,6 +24,7 @@ DARK_THEME = {
     "accent_blue": "#388BFD",
     "accent_blue_hover": "#58A6FF",
     "accent_blue_subtle": "rgba(56, 139, 253, 0.12)",
+    "accent_blue_border": "rgba(56, 139, 253, 0.25)",
     "tab_bg": "#0D1117",
     "danger": "#F85149",
     "danger_hover": "#FF6B65",
@@ -55,6 +56,7 @@ LIGHT_THEME = {
     "accent_blue": "#0969DA",
     "accent_blue_hover": "#0550AE",
     "accent_blue_subtle": "rgba(9, 105, 218, 0.08)",
+    "accent_blue_border": "rgba(9, 105, 218, 0.25)",
     "tab_bg": "#EAECEF",
     "danger": "#CF222E",
     "danger_hover": "#A40E26",
@@ -185,6 +187,32 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
         QDialog {{
             background-color: {c['bg_window']};
             color: {c['text_primary']};
+        }}
+        QLabel {{
+            color: {c['text_primary']};
+        }}
+        QLabel#windowTitle {{
+            font-size: 16px;
+            font-weight: 700;
+            color: {c['text_primary']};
+            background: transparent;
+            border: none;
+            padding: 0px;
+        }}
+        QLabel#dialogTitle {{
+            font-size: 18px;
+            font-weight: 800;
+            color: {c['text_primary']};
+            background: transparent;
+            border: none;
+            padding: 0px;
+        }}
+        QLabel#mutedLabel {{
+            font-size: 11px;
+            font-weight: 500;
+            color: {c['text_secondary']};
+            background: transparent;
+            border: none;
         }}
         QToolTip {{
             background-color: {c['bg_card']};
@@ -382,7 +410,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             font-size: 12px;
             color: {c['accent_blue_hover']};
             background-color: {c['accent_blue_subtle']};
-            border: 1px solid rgba(56, 139, 253, 0.25);
+            border: 1px solid {c['accent_blue_border']};
             border-radius: 6px;
             padding: 9px 14px;
             font-weight: 600;
@@ -432,6 +460,12 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             color: {c['text_primary']};
             font-size: 13px;
             font-weight: 600;
+            spacing: 10px;
+        }}
+        QCheckBox#boldCheck {{
+            color: {c['text_primary']};
+            font-size: 13px;
+            font-weight: 700;
             spacing: 10px;
         }}
         QCheckBox::indicator {{
@@ -499,7 +533,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
         }}
         QFrame#infoBanner {{
             background-color: {c['accent_blue_subtle']};
-            border: 1px solid rgba(56, 139, 253, 0.22);
+            border: 1px solid {c['accent_blue_border']};
             border-radius: 6px;
             padding: 8px 12px;
         }}

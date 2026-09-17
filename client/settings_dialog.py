@@ -22,8 +22,8 @@ from client.autostart import (
     set_autostart_enabled,
 )
 from client.utils import sanitize_domain, format_human_time
-from client.theme import get_theme_stylesheet, get_status_tokens, get_status_badge_style
-from client.icons import get_themed_icon, get_svg_pixmap
+from client.theme import get_theme_stylesheet, get_status_tokens, get_status_badge_style, get_theme_colors
+from client.icons import get_themed_icon, get_svg_pixmap, clear_icon_cache
 from client.i18n import (
     t,
     get_configured_language_setting,
@@ -184,6 +184,7 @@ class SettingsDialog(QDialog):
         if hasattr(self, "selective_tab"):
             self.selective_tab.render_selective_domains_list()
         self.refresh_live_status()
+        self.check_for_unsaved_changes()
         self.theme_changed.emit(mode)
 
     def _update_tab_icons(self):
@@ -268,6 +269,7 @@ class SettingsDialog(QDialog):
         self.refresh_live_status()
 
     def apply_theme_styles(self):
+        clear_icon_cache()
         is_dark = self.is_dark_mode()
         stylesheet = get_theme_stylesheet(is_dark, self.resource_dir)
         self.setStyleSheet(stylesheet)
@@ -300,7 +302,7 @@ class SettingsDialog(QDialog):
         title_box = QVBoxLayout()
         title_box.setSpacing(1)
         title_lbl = QLabel("Focus-Guard")
-        title_lbl.setStyleSheet("font-size: 16px; font-weight: 700;")
+        title_lbl.setObjectName("windowTitle")
         self.sub_lbl = QLabel(t("app.subtitle"))
         self.sub_lbl.setObjectName("cardDesc")
         title_box.addWidget(title_lbl)
@@ -537,26 +539,28 @@ class SettingsDialog(QDialog):
         updated_config["bypasses"] = rules_dict.get("bypasses", {})
 
         res = self.ipc.save_config(updated_config)
+        c = get_theme_colors(self.is_dark_mode())
         if res.get("status") == "ok":
             self.config_data = updated_config
             self.rules_tab.load_rules(self.config_data)
             self.config_saved.emit()
             self.check_for_unsaved_changes()
-            self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
+            self.save_feedback_lbl.setStyleSheet(f"font-size: 11px; color: {c['success']}; font-weight: 600;")
             self.save_feedback_lbl.setText(t("app.rules_saved_feedback"))
             QTimer.singleShot(3000, lambda: self.check_for_unsaved_changes())
         else:
-            self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
+            self.save_feedback_lbl.setStyleSheet(f"font-size: 11px; color: {c['danger']}; font-weight: 600;")
             self.save_feedback_lbl.setText(f"{t('tray.notify_error_title')}: {res.get('error') or t('app.sync_error')}")
 
     def on_discard_clicked(self):
         """Reverts modified fields in the rules tab to loaded config."""
         if not hasattr(self, "config_data") or not self.config_data:
             return
+        c = get_theme_colors(self.is_dark_mode())
         self.rules_tab.load_rules(self.config_data)
         self.check_for_unsaved_changes()
         self.save_feedback_lbl.setText(t("app.discard_feedback"))
-        self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
+        self.save_feedback_lbl.setStyleSheet(f"font-size: 11px; color: {c['text_secondary']}; font-weight: 500;")
         QTimer.singleShot(2500, lambda: self.check_for_unsaved_changes())
 
     def has_unsaved_changes(self) -> bool:
@@ -568,6 +572,7 @@ class SettingsDialog(QDialog):
     def check_for_unsaved_changes(self):
         """Updates save and discard buttons and feedback according to current unsaved state."""
         has_unsaved = self.has_unsaved_changes()
+        c = get_theme_colors(self.is_dark_mode())
 
         if has_unsaved:
             if hasattr(self, "discard_btn"):
@@ -576,7 +581,7 @@ class SettingsDialog(QDialog):
             self.save_btn.setText(t("app.btn_save"))
             self.save_btn.setStyleSheet("")
             self.save_feedback_lbl.setText(t("app.unsaved_feedback"))
-            self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #D29922; font-weight: 600;")
+            self.save_feedback_lbl.setStyleSheet(f"font-size: 11px; color: {c['warning']}; font-weight: 600;")
         else:
             if hasattr(self, "discard_btn"):
                 self.discard_btn.setVisible(False)
@@ -584,7 +589,7 @@ class SettingsDialog(QDialog):
             self.save_btn.setText(t("app.btn_saved"))
             self.save_btn.setStyleSheet("")
             self.save_feedback_lbl.setText(t("app.sync_feedback"))
-            self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
+            self.save_feedback_lbl.setStyleSheet(f"font-size: 11px; color: {c['text_secondary']}; font-weight: 500;")
 
     # -------------------------------------------------------------------------
     # Dialog Lifecycle & Unsaved Dialog Prompts

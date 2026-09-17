@@ -2,9 +2,14 @@
 Focus-Guard Command-Line Interface (CLI).
 Allows headless or terminal inspection and control of the Focus-Guard daemon.
 """
+import os
 import sys
 import argparse
 import json
+
+_this_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(_this_dir, "..")))
+
 from client.ipc_client import FocusIPCClient
 
 

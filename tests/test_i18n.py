@@ -3,8 +3,12 @@ Tests for client.i18n internationalization engine.
 Validates 100% key parity, locale resolution, and interpolation.
 """
 
+import os
 import sys
 import unittest
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from PyQt6.QtWidgets import QApplication
 
 from client.i18n import (

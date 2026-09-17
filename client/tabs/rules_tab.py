@@ -13,6 +13,7 @@ from PyQt6.QtGui import QPalette
 
 from client.autostart import is_autostart_enabled, set_autostart_enabled
 from client.icons import get_themed_icon, get_pixmap
+from client.theme import get_theme_colors
 from client.i18n import t
 
 
@@ -80,7 +81,7 @@ class RulesTab(QWidget):
         boot_layout.setSpacing(10)
 
         self.boot_enabled_cb = QCheckBox(t("rules.boot_title"))
-        self.boot_enabled_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
+        self.boot_enabled_cb.setObjectName("boldCheck")
         boot_layout.addWidget(self.boot_enabled_cb)
 
         self.boot_desc = QLabel(t("rules.boot_desc"))
@@ -145,7 +146,7 @@ class RulesTab(QWidget):
         curfew_layout.setSpacing(10)
 
         self.curfew_enabled_cb = QCheckBox(t("rules.curfew_title"))
-        self.curfew_enabled_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
+        self.curfew_enabled_cb.setObjectName("boldCheck")
         curfew_layout.addWidget(self.curfew_enabled_cb)
 
         self.curfew_desc = QLabel(t("rules.curfew_desc"))
@@ -221,7 +222,7 @@ class RulesTab(QWidget):
         sched_row = QHBoxLayout()
         sched_row.setSpacing(6)
         self.curfew_sched_lbl = QLabel(t("rules.curfew_presets_label"))
-        self.curfew_sched_lbl.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
+        self.curfew_sched_lbl.setObjectName("mutedLabel")
         sched_row.addWidget(self.curfew_sched_lbl)
 
         curfew_presets = [
@@ -270,7 +271,7 @@ class RulesTab(QWidget):
         bypass_layout.setSpacing(10)
 
         self.bypasses_enabled_cb = QCheckBox(t("rules.bypasses_title"))
-        self.bypasses_enabled_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
+        self.bypasses_enabled_cb.setObjectName("boldCheck")
         bypass_layout.addWidget(self.bypasses_enabled_cb)
 
         self.byp_desc = QLabel(t("rules.bypasses_desc"))
@@ -284,7 +285,6 @@ class RulesTab(QWidget):
         emerg_layout.setSpacing(8)
 
         self.curfew_emerg_cb = QCheckBox(t("rules.curfew_emergency_title"))
-        self.curfew_emerg_cb.setStyleSheet("font-size: 12px; font-weight: 600;")
         emerg_layout.addWidget(self.curfew_emerg_cb)
 
         phrase_row = QHBoxLayout()
@@ -317,7 +317,7 @@ class RulesTab(QWidget):
         sys_layout.setSpacing(6)
 
         self.autostart_cb = QCheckBox(t("rules.autostart_title"))
-        self.autostart_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
+        self.autostart_cb.setObjectName("boldCheck")
         self.autostart_cb.setChecked(is_autostart_enabled())
         self.autostart_cb.toggled.connect(self.on_autostart_toggled)
         sys_layout.addWidget(self.autostart_cb)

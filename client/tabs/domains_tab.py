@@ -15,6 +15,7 @@ from PyQt6.QtGui import QPalette
 from client.utils import sanitize_domain
 from client.dialogs import ConfirmDomainRemovalDialog
 from client.icons import get_themed_icon, get_pixmap
+from client.theme import get_theme_colors
 from client.i18n import t
 
 
@@ -53,6 +54,8 @@ class DomainsTab(QWidget):
             is_dark = self.is_dark_mode()
         if hasattr(self, "add_btn"):
             self.add_btn.setIcon(get_themed_icon("plus", is_dark, role="white", size=14))
+        if hasattr(self, "domains_list") and self.blocked_domains:
+            self.render_domains_list()
 
     def retranslate_ui(self):
         """Refreshes all texts when language changes dynamically."""
@@ -108,7 +111,7 @@ class DomainsTab(QWidget):
         count_row.addWidget(self.search_input)
 
         self.domain_auto_feedback_lbl = QLabel("")
-        self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
+        self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; font-weight: 600;")
         count_row.addWidget(self.domain_auto_feedback_lbl)
         layout.addLayout(count_row)
 
@@ -148,22 +151,24 @@ class DomainsTab(QWidget):
             self.domain_preview_lbl.setText("")
             return
 
+        is_dark = self.is_dark_mode()
+        c = get_theme_colors(is_dark)
         valid_tokens = [sanitize_domain(t_item) for t_item in tokens if sanitize_domain(t_item)]
         if len(valid_tokens) > 1:
-            self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #58A6FF; font-weight: 600;")
+            self.domain_preview_lbl.setStyleSheet(f"font-size: 11px; color: {c['accent_blue']}; font-weight: 600;")
             self.domain_preview_lbl.setText(t("domains.preview_batch", count=len(valid_tokens)))
             return
 
         clean = valid_tokens[0] if valid_tokens else sanitize_domain(tokens[0])
         if clean:
             if clean in self.blocked_domains:
-                self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #D29922; font-weight: 600;")
+                self.domain_preview_lbl.setStyleSheet(f"font-size: 11px; color: {c['warning']}; font-weight: 600;")
                 self.domain_preview_lbl.setText(t("domains.preview_already_exists", domain=clean))
             else:
-                self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #58A6FF; font-weight: 600;")
+                self.domain_preview_lbl.setStyleSheet(f"font-size: 11px; color: {c['accent_blue']}; font-weight: 600;")
                 self.domain_preview_lbl.setText(t("domains.preview_will_block", domain=clean))
         else:
-            self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
+            self.domain_preview_lbl.setStyleSheet(f"font-size: 11px; color: {c['danger']}; font-weight: 600;")
             self.domain_preview_lbl.setText(t("domains.preview_invalid"))
 
     def render_domains_list(self):
@@ -181,8 +186,12 @@ class DomainsTab(QWidget):
             self.search_input.setEnabled(total_cnt > 0)
             self.search_input.setPlaceholderText(t("domains.search_empty") if total_cnt == 0 else t("domains.search_placeholder"))
         is_dark = self.is_dark_mode()
+        c = get_theme_colors(is_dark)
         hover_bg = "#161B22" if is_dark else "#F6F8FA"
-        sep_color = "#21262D" if is_dark else "#E1E4E8"
+        sep_color = c["border_subtle"]
+        accent_blue = c["accent_blue"]
+        text_color = c["text_primary"]
+        muted_color = c["text_secondary"]
 
         if total_cnt == 0:
             item = QListWidgetItem()
@@ -193,12 +202,12 @@ class DomainsTab(QWidget):
             empty_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             title = QLabel(t("domains.empty_title"))
-            title.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {'#F0F6FC' if is_dark else '#1F2328'}; background: transparent; border: none;")
+            title.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {text_color}; background: transparent; border: none;")
             title.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_layout.addWidget(title)
 
             sub = QLabel(t("domains.empty_desc"))
-            sub.setStyleSheet("font-size: 11.5px; color: #8B949E; background: transparent; border: none;")
+            sub.setStyleSheet(f"font-size: 11.5px; color: {muted_color}; background: transparent; border: none;")
             sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_layout.addWidget(sub)
 
@@ -210,7 +219,7 @@ class DomainsTab(QWidget):
         if not filtered_domains and filter_text:
             item = QListWidgetItem()
             lbl = QLabel(t("domains.search_no_matches"))
-            lbl.setStyleSheet("font-size: 11.5px; color: #8B949E; padding: 20px; background: transparent;")
+            lbl.setStyleSheet(f"font-size: 11.5px; color: {muted_color}; padding: 20px; background: transparent;")
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             item.setSizeHint(QSize(0, 44))
             self.domains_list.addItem(item)
@@ -229,7 +238,7 @@ class DomainsTab(QWidget):
                 }}
                 QFrame:hover {{
                     background-color: {hover_bg};
-                    border-left: 3px solid #388BFD;
+                    border-left: 3px solid {accent_blue};
                 }}
             """)
 
@@ -238,12 +247,12 @@ class DomainsTab(QWidget):
             row_layout.setSpacing(10)
 
             icon_lbl = QLabel()
-            icon_lbl.setPixmap(get_pixmap("globe", color="#388BFD" if is_dark else "#0969DA", size=14))
+            icon_lbl.setPixmap(get_pixmap("globe", color=accent_blue, size=14))
             icon_lbl.setStyleSheet("border: none; background: transparent;")
             row_layout.addWidget(icon_lbl)
 
             name_lbl = QLabel(domain)
-            name_lbl.setStyleSheet(f"font-weight: 600; font-size: 13px; border: none; background: transparent; color: {'#F0F6FC' if is_dark else '#1F2328'};")
+            name_lbl.setStyleSheet(f"font-weight: 600; font-size: 13px; border: none; background: transparent; color: {text_color};")
             row_layout.addWidget(name_lbl)
 
             row_layout.addStretch()
@@ -254,9 +263,9 @@ class DomainsTab(QWidget):
                 font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
                 font-size: 10px;
                 font-weight: 600;
-                color: {'#8B949E' if is_dark else '#656D76'};
+                color: {muted_color};
                 background-color: {'rgba(110, 118, 129, 0.12)' if is_dark else 'rgba(175, 184, 193, 0.15)'};
-                border: 1px solid {'#30363D' if is_dark else '#D0D7DE'};
+                border: 1px solid {c['border_color']};
                 border-radius: 4px;
                 padding: 2px 8px;
             """)
@@ -288,15 +297,16 @@ class DomainsTab(QWidget):
             if dom and dom not in cleaned_list:
                 cleaned_list.append(dom)
 
+        c = get_theme_colors(self.is_dark_mode())
         if not cleaned_list:
-            self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
+            self.domain_auto_feedback_lbl.setStyleSheet(f"font-size: 11px; color: {c['danger']}; font-weight: 600;")
             self.domain_auto_feedback_lbl.setText(t("domains.feedback_invalid"))
             QTimer.singleShot(2500, lambda: self.domain_auto_feedback_lbl.setText(""))
             return
 
         new_domains = [d for d in cleaned_list if d not in self.blocked_domains]
         if not new_domains:
-            self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #D29922; font-weight: 600;")
+            self.domain_auto_feedback_lbl.setStyleSheet(f"font-size: 11px; color: {c['warning']}; font-weight: 600;")
             self.domain_auto_feedback_lbl.setText(t("domains.feedback_exists"))
             QTimer.singleShot(2500, lambda: self.domain_auto_feedback_lbl.setText(""))
             return
@@ -348,7 +358,8 @@ class DomainsTab(QWidget):
         self.domains_changed.emit(self.blocked_domains)
 
     def set_feedback_message(self, text: str, is_success: bool = True):
-        color = "#2EA043" if is_success else "#F85149"
+        c = get_theme_colors(self.is_dark_mode())
+        color = c["success"] if is_success else c["danger"]
         self.domain_auto_feedback_lbl.setStyleSheet(f"font-size: 11px; color: {color}; font-weight: 600;")
         self.domain_auto_feedback_lbl.setText(text)
         QTimer.singleShot(3000, lambda: self.domain_auto_feedback_lbl.setText(""))

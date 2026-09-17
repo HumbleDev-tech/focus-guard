@@ -339,6 +339,49 @@ class TestIconsAndTheme(unittest.TestCase):
         tray.refresh_status()
         self.assertEqual(tray.icon().cacheKey(), tray.icon_offline.cacheKey())
 
+    def test_light_mode_contrast_and_stylesheet_tokens(self):
+        """Validates WCAG AA contrast compliance and universal QLabel rules for Light Mode."""
+        res_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../resources"))
+        light_css = get_theme_stylesheet(is_dark=False, resource_dir=res_dir)
+        dark_css = get_theme_stylesheet(is_dark=True, resource_dir=res_dir)
+
+        # 1. Global QLabel selector exists to prevent dark system palette leakage
+        self.assertIn("QLabel {", light_css)
+        self.assertIn("color: #1F2328;", light_css)
+        self.assertIn("QLabel#windowTitle {", light_css)
+        self.assertIn("QLabel#dialogTitle {", light_css)
+        self.assertIn("QLabel#mutedLabel {", light_css)
+        self.assertIn("QCheckBox#boldCheck {", light_css)
+
+        # 2. DomainsTab live preview uses high-contrast light tokens
+        from client.tabs import DomainsTab
+        tab_domains = DomainsTab(lambda: {}, lambda: {})
+        tab_domains.is_dark_mode = lambda: False  # force light mode
+
+        tab_domains.domain_input.setText("testsite.com")
+        self.assertIn("#0969DA", tab_domains.domain_preview_lbl.styleSheet())  # accent_blue (5.8:1)
+        self.assertNotIn("#58A6FF", tab_domains.domain_preview_lbl.styleSheet())  # avoid low contrast dark blue
+
+        tab_domains.domain_input.setText("invalid domain!!")
+        self.assertIn("#CF222E", tab_domains.domain_preview_lbl.styleSheet())  # danger (5.5:1)
+        self.assertNotIn("#F85149", tab_domains.domain_preview_lbl.styleSheet())
+
+        # 3. SelectiveTab summary uses high-contrast light tokens
+        from client.tabs import SelectiveTab
+        tab_sel = SelectiveTab()
+        tab_sel.is_dark_mode = lambda: False  # force light mode
+        tab_sel.set_domains(["site1.com", "site2.com"])
+        tab_sel.selected_selective_domains = {"site1.com"}
+        tab_sel.update_selective_summary()
+
+        self.assertIn("#0969DA", tab_sel.sel_summary_title.styleSheet())
+        self.assertNotIn("#58A6FF", tab_sel.sel_summary_title.styleSheet())
+
+        tab_sel.selected_selective_domains.clear()
+        tab_sel.update_selective_summary()
+        self.assertIn("#656D76", tab_sel.sel_summary_title.styleSheet())
+        self.assertNotIn("#8B949E", tab_sel.sel_summary_title.styleSheet())
+
 
 if __name__ == "__main__":
     unittest.main()

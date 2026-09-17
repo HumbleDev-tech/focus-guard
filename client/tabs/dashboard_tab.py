@@ -82,12 +82,14 @@ class DashboardTab(QWidget):
         top_row.addWidget(self.dash_state_pill)
         hero_layout.addLayout(top_row)
 
+        is_dark = self.is_dark_mode()
+        tok_free = get_status_tokens("UNLOCKED", is_dark)
         self.dash_countdown_lbl = QLabel(t("dash.calculating"))
-        self.dash_countdown_lbl.setStyleSheet("""
+        self.dash_countdown_lbl.setStyleSheet(f"""
             font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", "Cascadia Code", "Fira Code", monospace;
             font-size: 22px;
             font-weight: 700;
-            color: #2EA043;
+            color: {tok_free['text']};
             letter-spacing: -0.5px;
         """)
         hero_layout.addWidget(self.dash_countdown_lbl)
@@ -222,7 +224,7 @@ class DashboardTab(QWidget):
 
         # Action feedback label
         self.dash_feedback_lbl = QLabel("")
-        self.dash_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
+        self.dash_feedback_lbl.setStyleSheet("font-size: 11px; font-weight: 600;")
         layout.addWidget(self.dash_feedback_lbl)
 
         layout.addStretch()
@@ -235,7 +237,9 @@ class DashboardTab(QWidget):
         self.update_icons()
 
     def show_feedback(self, message: str, timeout_ms: int = 3000):
-        """Displays temporary feedback text."""
+        """Displays temporary feedback text with theme-aware contrast."""
+        c = get_theme_colors(self.is_dark_mode())
+        self.dash_feedback_lbl.setStyleSheet(f"font-size: 11px; color: {c['success']}; font-weight: 600;")
         self.dash_feedback_lbl.setText(message)
         QTimer.singleShot(timeout_ms, lambda: self.dash_feedback_lbl.setText(""))
 

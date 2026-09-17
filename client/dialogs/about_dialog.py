@@ -45,7 +45,7 @@ class AboutDialog(QDialog):
         title_box = QVBoxLayout()
         title_box.setSpacing(2)
         app_name = QLabel(t("app.title"))
-        app_name.setStyleSheet("font-size: 18px; font-weight: 800;")
+        app_name.setObjectName("dialogTitle")
         app_ver = QLabel(t("dialog.about_version"))
         app_ver.setObjectName("cardDesc")
         title_box.addWidget(app_name)

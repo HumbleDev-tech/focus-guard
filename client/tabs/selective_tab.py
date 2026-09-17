@@ -70,6 +70,10 @@ class SelectiveTab(QWidget):
         if hasattr(self, "sel_summary_title"):
             c = get_theme_colors(is_dark)
             self.sel_summary_title.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {c['accent_blue']};")
+        if hasattr(self, "sel_domains_list") and self.blocked_domains:
+            self.render_selective_domains_list()
+        if hasattr(self, "sel_count_lbl"):
+            self.update_selective_summary()
 
     def setup_ui(self):
         scroll = QScrollArea(self)
@@ -379,7 +383,10 @@ class SelectiveTab(QWidget):
             self.sel_search_input.setPlaceholderText(t("selective.search_empty") if total_cnt == 0 else t("selective.search_placeholder"))
 
         is_dark = self.is_dark_mode()
-        text_color = "#F0F6FC" if is_dark else "#1F2328"
+        c = get_theme_colors(is_dark)
+        text_color = c["text_primary"]
+        muted_color = c["text_secondary"]
+        active_color = c["accent_blue"]
 
         if not self.blocked_domains:
             empty_item = QListWidgetItem()
@@ -395,7 +402,7 @@ class SelectiveTab(QWidget):
             empty_layout.addWidget(title)
 
             sub = QLabel(t("selective.empty_desc"))
-            sub.setStyleSheet("font-size: 11.5px; color: #8B949E; background: transparent; border: none;")
+            sub.setStyleSheet(f"font-size: 11.5px; color: {muted_color}; background: transparent; border: none;")
             sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_layout.addWidget(sub)
 
@@ -408,7 +415,7 @@ class SelectiveTab(QWidget):
         if not filtered and search_query:
             empty_item = QListWidgetItem()
             empty_lbl = QLabel(t("selective.search_no_matches"))
-            empty_lbl.setStyleSheet("font-size: 11.5px; color: #8B949E; padding: 16px; background: transparent;")
+            empty_lbl.setStyleSheet(f"font-size: 11.5px; color: {muted_color}; padding: 16px; background: transparent;")
             empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_item.setSizeHint(QSize(0, 42))
             self.sel_domains_list.addItem(empty_item)
@@ -427,7 +434,7 @@ class SelectiveTab(QWidget):
             row_layout.setSpacing(10)
 
             icon_lbl = QLabel()
-            icon_lbl.setPixmap(get_pixmap("globe", color="#388BFD" if is_dark else "#0969DA", size=14))
+            icon_lbl.setPixmap(get_pixmap("globe", color=active_color, size=14))
             icon_lbl.setStyleSheet("border: none; background: transparent;")
             row_layout.addWidget(icon_lbl)
 
@@ -440,9 +447,9 @@ class SelectiveTab(QWidget):
             is_active_lock = getattr(self, "session_running", False) and is_checked
             sub_lbl = QLabel(t("selective.tile_active_lock") if is_active_lock else t("selective.tile_individual_rule"))
             sub_lbl.setStyleSheet(
-                "font-size: 10px; color: #58A6FF; font-weight: 600; background: transparent; border: none;"
+                f"font-size: 10px; color: {active_color}; font-weight: 600; background: transparent; border: none;"
                 if is_active_lock
-                else "font-size: 10px; color: #8B949E; background: transparent; border: none;"
+                else f"font-size: 10px; color: {muted_color}; background: transparent; border: none;"
             )
             info_layout.addWidget(sub_lbl)
             row_layout.addLayout(info_layout)
@@ -545,8 +552,9 @@ class SelectiveTab(QWidget):
             if dom and dom not in cleaned_list:
                 cleaned_list.append(dom)
 
+        c = get_theme_colors(self.is_dark_mode())
         if not cleaned_list:
-            self.sel_add_feedback_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
+            self.sel_add_feedback_lbl.setStyleSheet(f"font-size: 11px; color: {c['danger']}; font-weight: 600;")
             self.sel_add_feedback_lbl.setText(t("selective.feedback_invalid_domain"))
             QTimer.singleShot(2500, lambda: self.sel_add_feedback_lbl.setText(""))
             return
@@ -559,7 +567,7 @@ class SelectiveTab(QWidget):
                 self.domain_added.emit(clean)
 
         self.render_selective_domains_list()
-        self.sel_add_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
+        self.sel_add_feedback_lbl.setStyleSheet(f"font-size: 11px; color: {c['success']}; font-weight: 600;")
         if len(cleaned_list) == 1:
             self.sel_add_feedback_lbl.setText(t("selective.feedback_domain_selected", domain=cleaned_list[0]))
         else:
@@ -573,15 +581,19 @@ class SelectiveTab(QWidget):
         count = len(self.selected_selective_domains)
         total = len(self.blocked_domains)
 
+        is_dark = self.is_dark_mode()
+        c = get_theme_colors(is_dark)
+        tok_focus = get_status_tokens("FOCUS", is_dark)
+
         if getattr(self, "session_running", False):
             self.sel_count_lbl.setText(t("selective.count_blocked_of", count=count, total=total))
             self.sel_count_lbl.setStyleSheet(
-                "font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 12px; "
-                "border: 1px solid #388BFD; color: #58A6FF; background-color: rgba(56, 139, 253, 0.12);"
+                f"font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 12px; "
+                f"border: 1px solid {tok_focus['border']}; color: {tok_focus['text']}; background-color: {tok_focus['bg']};"
             )
             plural = t("selective.plural_site") if count == 1 else t("selective.plural_sites")
             self.sel_summary_title.setText(t("selective.summary_title_active"))
-            self.sel_summary_title.setStyleSheet("font-size: 11px; font-weight: 700; color: #58A6FF;")
+            self.sel_summary_title.setStyleSheet(f"font-size: 11px; font-weight: 700; color: {c['accent_blue']};")
             self.sel_summary_lbl.setText(t("selective.summary_active_desc", count=count, plural=plural))
             self.sel_start_btn.setEnabled(False)
             self.sel_start_btn.setText(t("selective.btn_active_running"))
@@ -600,7 +612,7 @@ class SelectiveTab(QWidget):
 
         if count == 0:
             self.sel_summary_title.setText(t("selective.summary_title"))
-            self.sel_summary_title.setStyleSheet("font-size: 11px; font-weight: 700; color: #8B949E;")
+            self.sel_summary_title.setStyleSheet(f"font-size: 11px; font-weight: 700; color: {c['text_secondary']};")
             self.sel_summary_lbl.setText(t("selective.summary_none_desc"))
             self.sel_start_btn.setEnabled(False)
             self.sel_start_btn.setText(t("selective.btn_select_to_start"))
@@ -612,7 +624,7 @@ class SelectiveTab(QWidget):
         else:
             plural = t("selective.plural_site") if count == 1 else t("selective.plural_sites")
             self.sel_summary_title.setText(t("selective.summary_title"))
-            self.sel_summary_title.setStyleSheet("font-size: 11px; font-weight: 700; color: #58A6FF;")
+            self.sel_summary_title.setStyleSheet(f"font-size: 11px; font-weight: 700; color: {c['accent_blue']};")
             self.sel_summary_lbl.setText(t("selective.summary_configured_desc", count=count, plural=plural, dur=dur, target=target_str))
             self.sel_start_btn.setEnabled(True)
             self.sel_start_btn.setText(t("selective.btn_start_timed", minutes=dur))
@@ -646,7 +658,8 @@ class SelectiveTab(QWidget):
         self.start_lock_requested.emit(domains, 0)
 
     def set_feedback(self, text: str, is_success: bool = True):
-        color = "#2EA043" if is_success else "#F85149"
+        c = get_theme_colors(self.is_dark_mode())
+        color = c["success"] if is_success else c["danger"]
         self.sel_feedback_lbl.setStyleSheet(f"font-size: 11px; color: {color}; font-weight: 600;")
         self.sel_feedback_lbl.setText(text)
         QTimer.singleShot(3500, lambda: self.sel_feedback_lbl.setText(""))

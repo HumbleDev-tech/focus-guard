@@ -136,6 +136,25 @@ def _render_pixmap_cached(
     return pixmap
 
 
+def _detect_is_dark() -> bool:
+    """Safely detects if dark mode is active from settings or system palette."""
+    try:
+        from PyQt6.QtCore import QSettings
+        from PyQt6.QtGui import QPalette
+        settings = QSettings("FocusGuard", "FocusGuardTray")
+        mode = settings.value("theme_mode", "auto")
+        if mode == "dark":
+            return True
+        elif mode == "light":
+            return False
+        app = QGuiApplication.instance()
+        if app:
+            return app.palette().color(QPalette.ColorRole.Window).lightness() < 128
+    except Exception:
+        pass
+    return True
+
+
 def get_pixmap(
     name: str,
     color: Optional[str] = None,
@@ -154,7 +173,11 @@ def get_pixmap(
         else:
             dpr = 1.0
 
-    color_hex = color if color else "#F0F6FC"
+    if color:
+        color_hex = color
+    else:
+        is_dark = _detect_is_dark()
+        color_hex = "#F0F6FC" if is_dark else "#1F2328"
     return _render_pixmap_cached(name, color_hex, size, float(dpr))
 
 
@@ -170,7 +193,11 @@ def get_icon(
     and Disabled modes for crisp Wayland HiDPI / fractional scaling support.
     """
     icon = QIcon()
-    color_hex = color if color else "#F0F6FC"
+    if color:
+        color_hex = color
+    else:
+        is_dark = _detect_is_dark()
+        color_hex = "#F0F6FC" if is_dark else "#1F2328"
     act_color_hex = active_color if active_color else color_hex
 
     # 1x and 2x DPR pixmaps for Normal mode
@@ -213,23 +240,7 @@ def get_themed_icon(
     Roles: 'primary', 'secondary', 'muted', 'accent', 'accent_hover', 'danger', 'success', 'warning', 'white'.
     """
     if is_dark is None:
-        try:
-            from PyQt6.QtCore import QSettings
-            from PyQt6.QtGui import QPalette
-            settings = QSettings("FocusGuard", "FocusGuardTray")
-            mode = settings.value("theme_mode", "auto")
-            if mode == "dark":
-                is_dark = True
-            elif mode == "light":
-                is_dark = False
-            else:
-                app = QGuiApplication.instance()
-                if app:
-                    is_dark = app.palette().color(QPalette.ColorRole.Window).lightness() < 128
-                else:
-                    is_dark = True
-        except Exception:
-            is_dark = True
+        is_dark = _detect_is_dark()
 
     mode_key = "dark" if is_dark else "light"
     palette = ROLE_COLORS[mode_key]
