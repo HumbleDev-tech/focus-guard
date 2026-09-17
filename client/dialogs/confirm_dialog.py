@@ -96,8 +96,8 @@ class ConfirmDomainRemovalDialog(QDialog):
     def on_copy_phrase(self):
         QApplication.clipboard().setText(self.phrase)
         if hasattr(self, "copy_btn"):
-            self.copy_btn.setText("Copiado")
-            QTimer.singleShot(2000, lambda: self.copy_btn.setText("Copiar Frase"))
+            self.copy_btn.setText(t("dialog.confirm_removal_copied"))
+            QTimer.singleShot(2000, lambda: self.copy_btn.setText(t("dialog.confirm_removal_btn_copy")))
         if hasattr(self, "input_field") and self.input_field:
             self.input_field.setFocus()
 

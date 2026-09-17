@@ -221,10 +221,10 @@ class RulesTab(QWidget):
         sched_row.addWidget(self.curfew_sched_lbl)
 
         curfew_presets = [
-            ("23:00 a 07:00", (23, 0), (7, 0)),
-            ("23:30 a 07:30", (23, 30), (7, 30)),
-            ("00:00 a 08:00", (0, 0), (8, 0)),
-            ("01:00 a 07:00", (1, 0), (7, 0))
+            ("23:00 - 07:00", (23, 0), (7, 0)),
+            ("23:30 - 07:30", (23, 30), (7, 30)),
+            ("00:00 - 08:00", (0, 0), (8, 0)),
+            ("01:00 - 07:00", (1, 0), (7, 0))
         ]
         self.curfew_presets_btns = []
         for p_title, p_start, p_end in curfew_presets:

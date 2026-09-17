@@ -293,7 +293,17 @@ class DomainsTab(QWidget):
         # Check if active protection is running
         status_res = self.get_protection_status()
         is_blocking = status_res.get("is_blocking", False) if status_res.get("status") == "ok" else False
-        reason_msg = status_res.get("message", "Bloqueo activo")
+        reason_type = status_res.get("reason", "")
+        if reason_type == "CURFEW":
+            reason_msg = t("dash.status_curfew")
+        elif reason_type == "BOOT_COOLDOWN":
+            reason_msg = t("dash.status_boot")
+        elif reason_type == "MANUAL_LOCK":
+            reason_msg = t("dash.status_focus")
+        elif reason_type == "SELECTIVE_LOCK":
+            reason_msg = t("dash.status_selective")
+        else:
+            reason_msg = t("domains.active_block")
 
         if is_blocking:
             raw_cfg = self.get_config()
@@ -306,7 +316,7 @@ class DomainsTab(QWidget):
 
         self.blocked_domains.remove(domain)
         self.render_domains_list()
-        self.auto_save_requested.emit(self.blocked_domains, f"'{domain}' eliminado")
+        self.auto_save_requested.emit(self.blocked_domains, t("domains.feedback_removed", domain=domain))
         self.domains_changed.emit(self.blocked_domains)
 
     def set_feedback_message(self, text: str, is_success: bool = True):

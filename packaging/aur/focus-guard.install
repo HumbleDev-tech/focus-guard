@@ -4,6 +4,10 @@ post_install() {
     echo "     sudo systemctl enable --now focus-guard.service"
     echo ":: The desktop tray applet can be started from your application launcher or:"
     echo "     focus-guard-tray &"
+    echo ""
+    echo ":: [IMPORTANT] DNS-over-HTTPS (DoH) Note:"
+    echo ":: If using Firefox, Chrome, or Brave, ensure DNS-over-HTTPS is set to"
+    echo ":: 'Off' or 'System DNS' so kernel /etc/hosts blocks work reliably."
 }
 
 post_upgrade() {

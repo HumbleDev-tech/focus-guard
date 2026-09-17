@@ -425,7 +425,19 @@ class FocusTrayApplet(QSystemTrayIcon):
             self.detail_action.setText(time_str)
             self.detail_action.setVisible(True)
         elif message:
-            self.detail_action.setText(message)
+            # Map daemon message if reason is known to prevent raw Spanish leaking into English mode
+            if reason == "CURFEW":
+                self.detail_action.setText(t("dash.status_curfew"))
+            elif reason == "BOOT_COOLDOWN":
+                self.detail_action.setText(t("dash.status_boot"))
+            elif reason == "MANUAL_LOCK":
+                self.detail_action.setText(t("dash.status_focus"))
+            elif reason == "SELECTIVE_LOCK":
+                self.detail_action.setText(t("dash.status_selective"))
+            elif reason == "FREE_TIME":
+                self.detail_action.setText(t("dash.status_free"))
+            else:
+                self.detail_action.setText(message)
             self.detail_action.setVisible(True)
         else:
             self.detail_action.setVisible(False)

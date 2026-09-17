@@ -57,7 +57,10 @@ def set_autostart_enabled(enabled: bool) -> bool:
             content = (
                 "[Desktop Entry]\n"
                 "Name=Focus-Guard\n"
+                "GenericName=Focus & Productivity Manager\n"
+                "GenericName[es]=Gestor de Enfoque y Productividad\n"
                 "Comment=Anti-procrastination website blocker and focus regulator\n"
+                "Comment[es]=Regulador de hábitos digitales y bloqueo anti-procrastinación\n"
                 f"Exec={exec_cmd}\n"
                 f"Icon={icon_entry}\n"
                 "Terminal=false\n"

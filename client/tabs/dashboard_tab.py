@@ -183,7 +183,7 @@ class DashboardTab(QWidget):
         kpi_curf_layout.setSpacing(2)
         self.lbl_curf_title = QLabel(t("dash.kpi_curfew"))
         self.lbl_curf_title.setObjectName("kpiTitle")
-        self.kpi_curfew_val = QLabel("23:15 a 07:00")
+        self.kpi_curfew_val = QLabel(t("dash.kpi_curfew_val", start="23:15", end="07:00"))
         self.kpi_curfew_val.setObjectName("kpiValue")
         kpi_curf_layout.addWidget(self.lbl_curf_title)
         kpi_curf_layout.addWidget(self.kpi_curfew_val)
@@ -491,6 +491,8 @@ class DashboardTab(QWidget):
 
     def retranslate_ui(self):
         """Retranslates all static text in Dashboard tab."""
+        if hasattr(self, "dash_state_title") and not self.last_status_args:
+            self.dash_state_title.setText(t("dash.state_title"))
         if hasattr(self, "act_title"):
             self.act_title.setText(t("dash.sessions_title"))
         if hasattr(self, "btn_pomodoro_25"):

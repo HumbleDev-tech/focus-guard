@@ -14,7 +14,7 @@
 [![GUI: PyQt6 / Wayland](https://img.shields.io/badge/GUI-PyQt6%20%7C%20Wayland-success.svg)](https://www.riverbankcomputing.com/software/pyqt/)
 [![Privacy: 100% Offline](https://img.shields.io/badge/Privacy-100%25%20Offline%20%7C%20Zero%20Telemetry-brightgreen.svg)](PRIVACY.md)
 
-[English](#the-philosophy-friction-over-willpower) • [Español](#filosofía-fricción-sobre-fuerza-de-voluntad) • [Installation](#installation) • [AUR](#install-via-aur-arch-linux--cachyos) • [Architecture](#architecture) • [Privacy](PRIVACY.md)
+[English](README.md) • [Español](README.es.md) • [Installation](#installation) • [AUR](#install-via-aur-arch-linux--cachyos) • [Architecture](#architecture) • [Privacy](PRIVACY.md)
 
 </div>
 

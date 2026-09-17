@@ -34,6 +34,10 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "app.btn_discard": "Descartar",
         "app.btn_discard_tooltip": "Revertir y descartar las modificaciones no guardadas",
         "app.btn_save": "Guardar Reglas (Ctrl+S)",
+        "app.btn_saved": "Guardado",
+        "app.unsaved_feedback": "Cambios sin guardar",
+        "app.discard_feedback": "Cambios descartados",
+        "app.rules_saved_feedback": "Reglas guardadas y sincronizadas",
 
         # Tabs
         "tab.domains": "Sitios Bloqueados",
@@ -60,6 +64,7 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "domains.feedback_removed": "Dominio '{domain}' eliminado",
         "domains.feedback_invalid": "Dominio inválido",
         "domains.feedback_exists": "El dominio ya existe en la lista",
+        "domains.active_block": "Bloqueo activo",
         "domains.pill_routing": "127.0.0.1",
         "domains.pill_routing_tooltip": "Redirigido a localhost para bloqueo local",
 
@@ -125,6 +130,10 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "selective.feedback_select_at_least_one": "Selecciona al menos un sitio",
         "selective.active_blocking_domains": "Bloqueando {count} sitios: {preview}",
         "selective.plus_more": "(+{count} más)",
+        "selective.feedback_lock_started": "Bloqueo activado ({count} {plural})",
+        "selective.feedback_lock_error": "Error al activar el bloqueo",
+        "selective.feedback_lock_cancelled": "Bloqueo selectivo finalizado",
+        "selective.feedback_cancel_error": "Error al finalizar el bloqueo",
 
         # Rules Tab
         "rules.boot_title": "Foco al Iniciar el Equipo (Boot Focus)",
@@ -214,6 +223,16 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "dash.active": "Activo",
         "dash.disabled": "Desactivado",
         "dash.allowed": "Permitidos",
+        "dash.feedback_session_started": "Sesión de enfoque de {minutes} minutos iniciada.",
+        "dash.feedback_session_indef": "Modo Focus bloqueado indefinidamente.",
+        "dash.feedback_focus_active": "Modo Focus activado.",
+        "dash.feedback_break_ended": "Descanso finalizado. Modo Focus reactivado.",
+        "dash.feedback_sites_unlocked": "Sitios desbloqueados.",
+        "dash.feedback_emergency_granted": "Desbloqueo de emergencia concedido por 15 minutos.",
+        "dash.feedback_emergency_failed": "No se pudo activar el desbloqueo.",
+        "dash.feedback_break_started": "Descanso de {minutes} minutos activado.",
+        "dash.feedback_break_failed": "No se pudo activar el descanso.",
+        "dash.feedback_session_ended": "Sesión finalizada",
 
         # Tray Applet
         "tray.connecting": "Focus-Guard: Conectando con el servicio...",
@@ -351,6 +370,10 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "app.btn_discard": "Discard",
         "app.btn_discard_tooltip": "Revert and discard unsaved modifications",
         "app.btn_save": "Save Rules (Ctrl+S)",
+        "app.btn_saved": "Saved",
+        "app.unsaved_feedback": "Unsaved changes",
+        "app.discard_feedback": "Changes discarded",
+        "app.rules_saved_feedback": "Rules saved and synchronized",
 
         # Tabs
         "tab.domains": "Blocked Sites",
@@ -377,6 +400,7 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "domains.feedback_removed": "Domain '{domain}' removed",
         "domains.feedback_invalid": "Invalid domain",
         "domains.feedback_exists": "Domain already exists in list",
+        "domains.active_block": "Active block",
         "domains.pill_routing": "127.0.0.1",
         "domains.pill_routing_tooltip": "Redirected to localhost for local blocking",
 
@@ -442,6 +466,10 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "selective.feedback_select_at_least_one": "Select at least one site",
         "selective.active_blocking_domains": "Blocking {count} sites: {preview}",
         "selective.plus_more": "(+{count} more)",
+        "selective.feedback_lock_started": "Lock activated ({count} {plural})",
+        "selective.feedback_lock_error": "Error activating lock",
+        "selective.feedback_lock_cancelled": "Selective lock ended",
+        "selective.feedback_cancel_error": "Error ending lock",
 
         # Rules Tab
         "rules.boot_title": "Boot Focus Cooldown",
@@ -531,6 +559,16 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "dash.active": "Active",
         "dash.disabled": "Disabled",
         "dash.allowed": "Allowed",
+        "dash.feedback_session_started": "Focus session of {minutes} minutes started.",
+        "dash.feedback_session_indef": "Focus mode locked indefinitely.",
+        "dash.feedback_focus_active": "Focus mode activated.",
+        "dash.feedback_break_ended": "Break ended. Focus mode reactivated.",
+        "dash.feedback_sites_unlocked": "Sites unlocked.",
+        "dash.feedback_emergency_granted": "Emergency unlock granted for 15 minutes.",
+        "dash.feedback_emergency_failed": "Could not activate unlock.",
+        "dash.feedback_break_started": "Break of {minutes} minutes activated.",
+        "dash.feedback_break_failed": "Could not activate break.",
+        "dash.feedback_session_ended": "Session ended",
 
         # Tray Applet
         "tray.connecting": "Focus-Guard: Connecting to service...",

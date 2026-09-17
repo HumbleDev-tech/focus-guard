@@ -68,8 +68,8 @@ class AboutDialog(QDialog):
         boot = self.config.get("boot_cooldown", {})
         domains = self.config.get("blocked_domains", [])
 
-        curfew_txt = f"{curfew.get('start_time', '23:15')} a {curfew.get('end_time', '07:00')}" if curfew.get('enabled') else t("dash.disabled")
-        boot_txt = f"{boot.get('duration_minutes', 30)} min" if boot.get('enabled') else t("dash.disabled")
+        curfew_txt = t("dash.kpi_curfew_val", start=curfew.get('start_time', '23:15'), end=curfew.get('end_time', '07:00')) if curfew.get('enabled') else t("dash.disabled")
+        boot_txt = t("dash.kpi_boot_val", mins=boot.get('duration_minutes', 30)) if boot.get('enabled') else t("dash.disabled")
 
         def make_row(lbl_txt, val_txt):
             r = QHBoxLayout()

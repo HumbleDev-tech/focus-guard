@@ -3,6 +3,8 @@
 **Last Updated:** September 2026  
 **Focus-Guard** is designed from first principles around **Data Sovereignty, Zero Telemetry, and Complete Offline Operation**.
 
+[English](PRIVACY.md) • [Español](PRIVACY.es.md)
+
 ---
 
 ## 1. Zero Network Activity (100% Offline)

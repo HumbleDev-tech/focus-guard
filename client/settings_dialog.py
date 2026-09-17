@@ -422,7 +422,7 @@ class SettingsDialog(QDialog):
             self.config_saved.emit()
             self.domains_tab.set_feedback_message(feedback_msg, is_success=True)
         else:
-            self.domains_tab.set_feedback_message("Error al sincronizar con el demonio", is_success=False)
+            self.domains_tab.set_feedback_message(t("app.sync_error"), is_success=False)
         self.selective_tab.set_domains(self.blocked_domains)
 
     def on_selective_domain_added(self, domain: str):
@@ -436,29 +436,33 @@ class SettingsDialog(QDialog):
     def on_start_selective_lock(self, domains: List[str], duration_minutes: int):
         res = self.ipc.request_selective_lock(domains, duration_minutes)
         if res.get("status") == "ok":
-            self.selective_tab.set_feedback(f"Bloqueo activado ({len(domains)} sitios)", is_success=True)
+            plural = t("selective.plural_site") if len(domains) == 1 else t("selective.plural_sites")
+            self.selective_tab.set_feedback(t("selective.feedback_lock_started", count=len(domains), plural=plural), is_success=True)
             self.refresh_live_status()
             self.config_saved.emit()
         else:
-            err = res.get("message") or res.get("error") or "Error al activar el bloqueo"
-            self.selective_tab.set_feedback(f"Error: {err}", is_success=False)
+            err = res.get("message") or res.get("error") or t("selective.feedback_lock_error")
+            self.selective_tab.set_feedback(f"{t('tray.notify_error_title')}: {err}", is_success=False)
 
     def on_cancel_selective_lock(self):
         res = self.ipc.cancel_selective_lock()
         if res.get("status") == "ok":
-            self.selective_tab.set_feedback("Bloqueo selectivo finalizado", is_success=True)
+            self.selective_tab.set_feedback(t("selective.feedback_lock_cancelled"), is_success=True)
             self.refresh_live_status()
             self.config_saved.emit()
         else:
-            err = res.get("message") or res.get("error") or "Error al finalizar el bloqueo"
-            self.selective_tab.set_feedback(f"Error: {err}", is_success=False)
+            err = res.get("message") or res.get("error") or t("selective.feedback_cancel_error")
+            self.selective_tab.set_feedback(f"{t('tray.notify_error_title')}: {err}", is_success=False)
 
     # -------------------------------------------------------------------------
     # Dashboard Actions
     # -------------------------------------------------------------------------
     def start_focus_session(self, minutes: int):
         self.ipc.lock_now(duration_minutes=minutes)
-        self.dashboard_tab.show_feedback(f"Sesión de enfoque de {minutes} minutos iniciada.")
+        if minutes > 0:
+            self.dashboard_tab.show_feedback(t("dash.feedback_session_started", minutes=minutes))
+        else:
+            self.dashboard_tab.show_feedback(t("dash.feedback_session_indef"))
         self.refresh_live_status()
 
     def on_primary_action_clicked(self):
@@ -468,13 +472,13 @@ class SettingsDialog(QDialog):
 
         if state == "UNLOCKED":
             self.ipc.lock_now()
-            self.dashboard_tab.show_feedback("Modo Focus activado.")
+            self.dashboard_tab.show_feedback(t("dash.feedback_focus_active"))
         elif state == "BYPASS":
             self.ipc.cancel_bypass()
-            self.dashboard_tab.show_feedback("Descanso finalizado. Modo Focus reactivado.")
+            self.dashboard_tab.show_feedback(t("dash.feedback_break_ended"))
         elif reason == "MANUAL_LOCK":
             self.ipc.unlock_now()
-            self.dashboard_tab.show_feedback("Sitios desbloqueados.")
+            self.dashboard_tab.show_feedback(t("dash.feedback_sites_unlocked"))
 
         self.refresh_live_status()
 
@@ -489,15 +493,15 @@ class SettingsDialog(QDialog):
             if dialog.exec() == QDialog.DialogCode.Accepted and dialog.confirmed:
                 emerg_res = self.ipc.request_emergency_bypass(15)
                 if emerg_res.get("status") == "ok":
-                    self.dashboard_tab.show_feedback("Desbloqueo de emergencia concedido por 15 minutos.")
+                    self.dashboard_tab.show_feedback(t("dash.feedback_emergency_granted"))
                 else:
-                    self.dashboard_tab.show_feedback("No se pudo activar el desbloqueo.")
+                    self.dashboard_tab.show_feedback(t("dash.feedback_emergency_failed"))
         else:
             bypass_res = self.ipc.request_bypass(15)
             if bypass_res.get("status") == "ok":
-                self.dashboard_tab.show_feedback("Descanso de 15 minutos activado.")
+                self.dashboard_tab.show_feedback(t("dash.feedback_break_started", minutes=15))
             else:
-                self.dashboard_tab.show_feedback(bypass_res.get("message", "No se pudo activar."))
+                self.dashboard_tab.show_feedback(bypass_res.get("message") or t("dash.feedback_break_failed"))
 
         self.refresh_live_status()
 
@@ -508,7 +512,7 @@ class SettingsDialog(QDialog):
         else:
             res = self.ipc.unlock_now()
         if res.get("status") == "ok":
-            self.dashboard_tab.show_feedback("Sesión finalizada")
+            self.dashboard_tab.show_feedback(t("dash.feedback_session_ended"))
             self.refresh_live_status()
 
     # -------------------------------------------------------------------------
@@ -539,11 +543,11 @@ class SettingsDialog(QDialog):
             self.config_saved.emit()
             self.check_for_unsaved_changes()
             self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #2EA043; font-weight: 600;")
-            self.save_feedback_lbl.setText("Reglas guardadas y sincronizadas")
+            self.save_feedback_lbl.setText(t("app.rules_saved_feedback"))
             QTimer.singleShot(3000, lambda: self.check_for_unsaved_changes())
         else:
             self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
-            self.save_feedback_lbl.setText(f"Error: {res.get('error', 'No se pudo guardar')}")
+            self.save_feedback_lbl.setText(f"{t('tray.notify_error_title')}: {res.get('error') or t('app.sync_error')}")
 
     def on_discard_clicked(self):
         """Reverts modified fields in the rules tab to loaded config."""
@@ -551,7 +555,7 @@ class SettingsDialog(QDialog):
             return
         self.rules_tab.load_rules(self.config_data)
         self.check_for_unsaved_changes()
-        self.save_feedback_lbl.setText("Cambios descartados")
+        self.save_feedback_lbl.setText(t("app.discard_feedback"))
         self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
         QTimer.singleShot(2500, lambda: self.check_for_unsaved_changes())
 
@@ -569,17 +573,17 @@ class SettingsDialog(QDialog):
             if hasattr(self, "discard_btn"):
                 self.discard_btn.setVisible(True)
             self.save_btn.setEnabled(True)
-            self.save_btn.setText("Guardar Reglas (Ctrl+S)")
+            self.save_btn.setText(t("app.btn_save"))
             self.save_btn.setStyleSheet("")
-            self.save_feedback_lbl.setText("Cambios sin guardar")
+            self.save_feedback_lbl.setText(t("app.unsaved_feedback"))
             self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #D29922; font-weight: 600;")
         else:
             if hasattr(self, "discard_btn"):
                 self.discard_btn.setVisible(False)
             self.save_btn.setEnabled(False)
-            self.save_btn.setText("Guardado")
+            self.save_btn.setText(t("app.btn_saved"))
             self.save_btn.setStyleSheet("")
-            self.save_feedback_lbl.setText("Cambios sincronizados")
+            self.save_feedback_lbl.setText(t("app.sync_feedback"))
             self.save_feedback_lbl.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
 
     # -------------------------------------------------------------------------
@@ -643,7 +647,7 @@ class SettingsDialog(QDialog):
     def refresh_live_status(self):
         res = self.ipc.get_status()
         if res.get("status") != "ok":
-            self.status_badge.setText("FUERA DE LÍNEA")
+            self.status_badge.setText(t("app.status_offline"))
             self.status_badge.setStyleSheet(
                 "background-color: rgba(110, 118, 129, 0.2); color: #8F98A0; font-weight: 700; "
                 "padding: 4px 10px; border-radius: 12px; border: 1px solid #30363D;"
@@ -664,7 +668,7 @@ class SettingsDialog(QDialog):
 
         # 1. Header Badge: UNLOCKED
         if state == "UNLOCKED":
-            self.status_badge.setText("MODO LIBRE")
+            self.status_badge.setText(t("dash.status_free"))
             self.status_badge.setStyleSheet(
                 "background-color: rgba(46, 160, 67, 0.15); color: #3FB950; font-weight: 700; "
                 "padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(46, 160, 67, 0.3);"
@@ -675,7 +679,7 @@ class SettingsDialog(QDialog):
 
         # 2. Header Badge: BYPASS
         elif state == "BYPASS":
-            self.status_badge.setText("EN DESCANSO")
+            self.status_badge.setText(t("dash.status_pause"))
             self.status_badge.setStyleSheet(
                 "background-color: rgba(210, 153, 34, 0.15); color: #E3B341; font-weight: 700; "
                 "padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(210, 153, 34, 0.3);"
@@ -687,7 +691,7 @@ class SettingsDialog(QDialog):
         # 3. Header Badge: LOCKED
         elif is_blocking:
             if reason == "CURFEW":
-                self.status_badge.setText("TOQUE DE QUEDA")
+                self.status_badge.setText(t("dash.status_curfew"))
                 self.status_badge.setStyleSheet(
                     "background-color: rgba(137, 87, 229, 0.15); color: #D2A8FF; font-weight: 700; "
                     "padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(137, 87, 229, 0.3);"
@@ -696,7 +700,7 @@ class SettingsDialog(QDialog):
                 if os.path.exists(icon_curf):
                     self.header_icon_lbl.setPixmap(QIcon(icon_curf).pixmap(28, 28))
             elif reason == "BOOT_COOLDOWN":
-                self.status_badge.setText("FOCO DE INICIO")
+                self.status_badge.setText(t("dash.status_boot"))
                 self.status_badge.setStyleSheet(
                     "background-color: rgba(56, 139, 253, 0.15); color: #58A6FF; font-weight: 700; "
                     "padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(56, 139, 253, 0.3);"
@@ -705,7 +709,7 @@ class SettingsDialog(QDialog):
                 if os.path.exists(icon_bt):
                     self.header_icon_lbl.setPixmap(QIcon(icon_bt).pixmap(28, 28))
             elif reason == "MANUAL_LOCK":
-                self.status_badge.setText("ENFOQUE ACTIVO")
+                self.status_badge.setText(t("dash.status_focus"))
                 self.status_badge.setStyleSheet(
                     "background-color: rgba(56, 139, 253, 0.15); color: #58A6FF; font-weight: 700; "
                     "padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(56, 139, 253, 0.3);"
@@ -714,7 +718,7 @@ class SettingsDialog(QDialog):
                 if os.path.exists(icon_act):
                     self.header_icon_lbl.setPixmap(QIcon(icon_act).pixmap(28, 28))
             elif reason == "SELECTIVE_LOCK":
-                self.status_badge.setText("BLOQUEO SELECTIVO")
+                self.status_badge.setText(t("dash.status_selective"))
                 self.status_badge.setStyleSheet(
                     "background-color: rgba(56, 139, 253, 0.15); color: #58A6FF; font-weight: 700; "
                     "padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(56, 139, 253, 0.3);"
