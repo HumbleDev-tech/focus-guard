@@ -18,7 +18,11 @@ cp -rf "$SOURCE_DIR/client" /opt/focus-guard/
 cp -rf "$SOURCE_DIR/resources" /opt/focus-guard/
 cp -rf "$SOURCE_DIR/config" /opt/focus-guard/
 
-echo "2. Actualizando archivo de servicio systemd..."
+echo "2. Actualizando archivo de servicio systemd y enlaces ejecutables..."
+chmod +x /opt/focus-guard/daemon/focus_daemon.py /opt/focus-guard/client/main.py /opt/focus-guard/client/cli.py
+ln -sf /opt/focus-guard/daemon/focus_daemon.py /usr/bin/focus-guard-daemon
+ln -sf /opt/focus-guard/client/main.py /usr/bin/focus-guard-tray
+ln -sf /opt/focus-guard/client/cli.py /usr/bin/focus-guard-cli
 cp -f "$SOURCE_DIR/systemd/focus-guard.service" /etc/systemd/system/
 systemctl daemon-reload
 

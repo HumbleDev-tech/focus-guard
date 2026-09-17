@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Focus-Guard Command-Line Interface (CLI).
 Allows headless or terminal inspection and control of the Focus-Guard daemon.
