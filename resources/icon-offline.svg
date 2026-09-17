@@ -1,14 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
-    <linearGradient id="grayGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#4B5563" />
-      <stop offset="100%" stop-color="#374151" />
+    <linearGradient id="offlineGrayGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#64748B" />
+      <stop offset="100%" stop-color="#475569" />
     </linearGradient>
   </defs>
+  <!-- Outer contrast rim for pure white / light mode panels -->
   <path d="M32 4 L54 12 C54 36 32 58 32 58 C32 58 10 36 10 12 Z" 
-        fill="url(#grayGrad)" 
-        stroke="#9CA3AF" 
-        stroke-width="2" 
+        fill="none" 
+        stroke="rgba(0,0,0,0.25)" 
+        stroke-width="3.5" 
         stroke-linejoin="round"/>
+  <!-- Main Shield Body -->
+  <path d="M32 4 L54 12 C54 36 32 58 32 58 C32 58 10 36 10 12 Z" 
+        fill="url(#offlineGrayGrad)" 
+        stroke="#FFFFFF" 
+        stroke-width="1.8" 
+        stroke-linejoin="round"/>
+  <!-- Disconnected / Offline diagonal strike -->
   <line x1="22" y1="22" x2="42" y2="42" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
 </svg>

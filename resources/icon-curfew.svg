@@ -5,10 +5,17 @@
       <stop offset="100%" stop-color="#6D28D9" />
     </linearGradient>
   </defs>
+  <!-- Outer contrast rim for pure white / light mode panels -->
+  <path d="M32 4 L54 12 C54 36 32 58 32 58 C32 58 10 36 10 12 Z" 
+        fill="none" 
+        stroke="rgba(0,0,0,0.25)" 
+        stroke-width="3.5" 
+        stroke-linejoin="round"/>
+  <!-- Main Shield Body -->
   <path d="M32 4 L54 12 C54 36 32 58 32 58 C32 58 10 36 10 12 Z" 
         fill="url(#nightGrad)" 
         stroke="#FFFFFF" 
-        stroke-width="2" 
+        stroke-width="1.8" 
         stroke-linejoin="round"/>
   <!-- Crescent Moon -->
   <path d="M36 18 C28 20 23 27 25 35 C27 42 34 47 42 45 C35 49 25 45 22 37 C19 29 24 20 32 16 C33.5 15.5 35 15.3 36 18 Z" 

@@ -1,15 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
-    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="brandShieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#10B981" />
       <stop offset="100%" stop-color="#059669" />
     </linearGradient>
+    <filter id="subtleShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
   </defs>
-  <path d="M32 4 L54 12 C54 36 32 58 32 58 C32 58 10 36 10 12 Z" 
-        fill="url(#greenGrad)" 
-        stroke="#FFFFFF" 
-        stroke-width="2" 
-        stroke-linejoin="round"/>
+  <!-- Main Shield Body with Safe Zone Margins and Elevation Shadow -->
+  <g filter="url(#subtleShadow)">
+    <path d="M32 5 L53 13 C53 35.5 32 57 32 57 C32 57 11 35.5 11 13 Z" 
+          fill="url(#brandShieldGrad)" 
+          stroke="#FFFFFF" 
+          stroke-width="1.8" 
+          stroke-linejoin="round"/>
+  </g>
+  <!-- Padlock Motif -->
   <rect x="24" y="27" width="16" height="13" rx="2.5" fill="#FFFFFF"/>
   <path d="M27 27 V21 C27 18.238 29.238 16 32 16 C34.762 16 37 18.238 37 21 V27" 
         fill="none" 

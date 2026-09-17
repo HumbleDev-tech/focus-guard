@@ -9,7 +9,7 @@ import unittest
 from PyQt6.QtWidgets import QApplication, QDialog, QPushButton, QTabWidget, QWidget
 from PyQt6.QtGui import QIcon, QPixmap
 
-from client.icons import get_icon, get_pixmap, get_themed_icon, ICONS_DIR
+from client.icons import get_icon, get_pixmap, get_themed_icon, get_svg_pixmap, ICONS_DIR
 from client.theme import (
     get_theme_colors, get_theme_stylesheet, apply_dialog_theme,
     get_status_tokens, get_status_badge_style, STATUS_TOKENS
@@ -266,6 +266,78 @@ class TestIconsAndTheme(unittest.TestCase):
                 self.assertEqual(pill.objectName(), "presetChipSmallSelected")
             else:
                 self.assertEqual(pill.objectName(), "presetChipSmall")
+
+    def test_all_status_shield_svgs(self):
+        res_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../resources"))
+        required_shields = [
+            "icon-active.svg", "icon-selective.svg", "icon-curfew.svg",
+            "icon-boot.svg", "icon-bypass.svg", "icon-idle.svg",
+            "icon-offline.svg", "focus-guard.svg"
+        ]
+        for s_name in required_shields:
+            path = os.path.join(res_dir, s_name)
+            self.assertTrue(os.path.isfile(path), f"Shield SVG missing: {s_name}")
+            pm = get_svg_pixmap(path, size=28, dpr=1.0)
+            self.assertFalse(pm.isNull(), f"Shield {s_name} failed to render")
+            self.assertEqual(pm.width(), 28)
+
+    def test_tray_status_icon_mapping(self):
+        from unittest.mock import MagicMock
+        from client.tray import FocusTrayApplet
+        from client.ipc_client import FocusIPCClient
+        mock_ipc = MagicMock(spec=FocusIPCClient)
+        res_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../resources"))
+
+        tray = FocusTrayApplet(mock_ipc, res_dir)
+
+        # 1. UNLOCKED -> icon_idle
+        mock_ipc.get_status.return_value = {"status": "ok", "state": "UNLOCKED", "reason": "FREE_TIME"}
+        tray.refresh_status()
+        self.assertEqual(tray.icon().cacheKey(), tray.icon_idle.cacheKey())
+
+        # 2. SELECTIVE_LOCK -> icon_selective
+        mock_ipc.get_status.return_value = {
+            "status": "ok", "state": "LOCKED", "reason": "SELECTIVE_LOCK",
+            "is_blocking": True, "selective_domains": ["reddit.com"]
+        }
+        tray.refresh_status()
+        self.assertEqual(tray.icon().cacheKey(), tray.icon_selective.cacheKey())
+
+        # 3. MANUAL_LOCK -> icon_active
+        mock_ipc.get_status.return_value = {
+            "status": "ok", "state": "LOCKED", "reason": "MANUAL_LOCK",
+            "is_blocking": True
+        }
+        tray.refresh_status()
+        self.assertEqual(tray.icon().cacheKey(), tray.icon_active.cacheKey())
+
+        # 4. CURFEW -> icon_curfew
+        mock_ipc.get_status.return_value = {
+            "status": "ok", "state": "LOCKED", "reason": "CURFEW",
+            "is_blocking": True
+        }
+        tray.refresh_status()
+        self.assertEqual(tray.icon().cacheKey(), tray.icon_curfew.cacheKey())
+
+        # 5. BOOT_COOLDOWN -> icon_boot
+        mock_ipc.get_status.return_value = {
+            "status": "ok", "state": "LOCKED", "reason": "BOOT_COOLDOWN",
+            "is_blocking": True
+        }
+        tray.refresh_status()
+        self.assertEqual(tray.icon().cacheKey(), tray.icon_boot.cacheKey())
+
+        # 6. BYPASS -> icon_bypass
+        mock_ipc.get_status.return_value = {
+            "status": "ok", "state": "BYPASS", "reason": "USER_BYPASS"
+        }
+        tray.refresh_status()
+        self.assertEqual(tray.icon().cacheKey(), tray.icon_bypass.cacheKey())
+
+        # 7. OFFLINE -> icon_offline
+        mock_ipc.get_status.return_value = {"status": "error"}
+        tray.refresh_status()
+        self.assertEqual(tray.icon().cacheKey(), tray.icon_offline.cacheKey())
 
 
 if __name__ == "__main__":

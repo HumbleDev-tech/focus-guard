@@ -766,9 +766,13 @@ class SettingsDialog(QDialog):
             elif reason == "SELECTIVE_LOCK":
                 self.status_badge.setText(t("dash.status_selective"))
                 self.status_badge.setStyleSheet(get_status_badge_style("SELECTIVE_LOCK", is_dark))
-                icon_act = os.path.join(self.resource_dir, "icon-active.svg")
-                if os.path.exists(icon_act):
-                    self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_act, 28))
+                icon_sel = os.path.join(self.resource_dir, "icon-selective.svg")
+                if os.path.exists(icon_sel):
+                    self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_sel, 28))
+                else:
+                    icon_act = os.path.join(self.resource_dir, "icon-active.svg")
+                    if os.path.exists(icon_act):
+                        self.header_icon_lbl.setPixmap(get_svg_pixmap(icon_act, 28))
 
         # Dashboard Tab Status Update
         rules = self.rules_tab.get_rules_dict()

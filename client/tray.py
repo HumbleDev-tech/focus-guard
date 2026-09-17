@@ -30,11 +30,12 @@ class FocusTrayApplet(QSystemTrayIcon):
         self.settings_dialog: Optional[SettingsDialog] = None
 
         # Load state-specific icons
-        self.icon_active = QIcon(os.path.join(resource_dir, "icon-active.svg"))     # Green (Protected / Manual Focus)
+        self.icon_active = QIcon(os.path.join(resource_dir, "icon-active.svg"))     # Blue Focus Shield (Manual Focus / Pomodoro)
+        self.icon_selective = QIcon(os.path.join(resource_dir, "icon-selective.svg")) # Indigo Sliders Shield (Selective Lock)
         self.icon_curfew = QIcon(os.path.join(resource_dir, "icon-curfew.svg"))     # Purple Night Shield (Toque de Queda)
         self.icon_boot = QIcon(os.path.join(resource_dir, "icon-boot.svg"))         # Cyan Lightning Shield (Boot Focus)
         self.icon_bypass = QIcon(os.path.join(resource_dir, "icon-bypass.svg"))     # Amber Pause Shield (Descanso)
-        self.icon_idle = QIcon(os.path.join(resource_dir, "icon-idle.svg"))         # Red Unlocked Shield (Libre / Off)
+        self.icon_idle = QIcon(os.path.join(resource_dir, "icon-idle.svg"))         # Green Open Shield (Modo Libre)
         self.icon_offline = QIcon(os.path.join(resource_dir, "icon-offline.svg"))   # Gray Shield (Offline)
 
         self.setIcon(self.icon_offline)
@@ -345,7 +346,7 @@ class FocusTrayApplet(QSystemTrayIcon):
                 self.setIcon(self.icon_boot)
                 tooltip_txt = t("tray.tooltip_boot", time=target_time, remaining=time_str or active_txt, count=domains_num)
             elif reason == "SELECTIVE_LOCK":
-                self.setIcon(self.icon_active)
+                self.setIcon(self.icon_selective)
                 tooltip_txt = t("tray.tooltip_selective", count=len(selective_domains), time=target_time, remaining=time_str or active_txt)
             else:
                 self.setIcon(self.icon_active)
