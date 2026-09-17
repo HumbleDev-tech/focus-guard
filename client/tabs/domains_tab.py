@@ -32,8 +32,25 @@ class DomainsTab(QWidget):
         self.setup_ui()
 
     def is_dark_mode(self) -> bool:
+        win = self.window()
+        if win and hasattr(win, "is_dark_mode"):
+            return win.is_dark_mode()
+        if self.parent() and hasattr(self.parent(), "is_dark_mode"):
+            return self.parent().is_dark_mode()
+        from PyQt6.QtCore import QSettings
+        mode = QSettings("FocusGuard", "FocusGuardTray").value("theme_mode", "auto")
+        if mode == "dark":
+            return True
+        elif mode == "light":
+            return False
         bg = self.palette().color(QPalette.ColorRole.Window)
         return bg.lightness() < 128
+
+    def update_icons(self, is_dark: bool | None = None):
+        if is_dark is None:
+            is_dark = self.is_dark_mode()
+        if hasattr(self, "add_btn"):
+            self.add_btn.setIcon(get_themed_icon("plus", is_dark, role="white", size=14))
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
@@ -50,12 +67,12 @@ class DomainsTab(QWidget):
         self.domain_input.textChanged.connect(self.on_domain_input_changed)
         top_row.addWidget(self.domain_input)
 
-        add_btn = QPushButton("Añadir")
-        add_btn.setObjectName("primaryBtn")
-        add_btn.setIcon(get_themed_icon("plus", self.is_dark_mode(), role="white", size=14))
-        add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        add_btn.clicked.connect(self.on_add_domain_clicked)
-        top_row.addWidget(add_btn)
+        self.add_btn = QPushButton("Añadir")
+        self.add_btn.setObjectName("primaryBtn")
+        self.add_btn.setIcon(get_themed_icon("plus", self.is_dark_mode(), role="white", size=14))
+        self.add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.add_btn.clicked.connect(self.on_add_domain_clicked)
+        top_row.addWidget(self.add_btn)
         layout.addLayout(top_row)
 
         # Live preview chip
@@ -224,7 +241,7 @@ class DomainsTab(QWidget):
 
             # Elegant minimalist remove button with trash-2 icon
             del_btn = QPushButton()
-            del_btn.setIcon(get_themed_icon("trash-2", is_dark, role="secondary", size=14))
+            del_btn.setIcon(get_themed_icon("trash-2", is_dark, role="secondary", active_role="white", size=14))
             del_btn.setToolTip(f"Eliminar {domain}")
             del_btn.setObjectName("removeBtn")
             del_btn.setCursor(Qt.CursorShape.PointingHandCursor)

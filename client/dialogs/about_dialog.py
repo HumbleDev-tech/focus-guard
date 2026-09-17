@@ -13,6 +13,7 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt
 
 from client.theme import apply_dialog_theme
+from client.icons import get_themed_icon
 
 
 class AboutDialog(QDialog):
@@ -94,6 +95,7 @@ class AboutDialog(QDialog):
         btn_row.addStretch()
         ok_btn = QPushButton("Entendido")
         ok_btn.setObjectName("primaryBtn")
+        ok_btn.setIcon(get_themed_icon("check", role="white", size=14))
         ok_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         ok_btn.clicked.connect(self.accept)
         btn_row.addWidget(ok_btn)

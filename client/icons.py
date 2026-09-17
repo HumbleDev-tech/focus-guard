@@ -4,12 +4,13 @@ Lightweight, zero-dependency Lucide SVG vector icon loader with dynamic tinting,
 HiDPI / Wayland awareness, and LRU memory caching.
 """
 
+import sys
 import os
 import functools
 from typing import Optional
 
 from PyQt6.QtCore import Qt, QByteArray
-from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QGuiApplication
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QGuiApplication
 from PyQt6.QtSvg import QSvgRenderer
 
 
@@ -46,6 +47,8 @@ def _find_icons_dir() -> str:
     candidates = [
         os.path.abspath(os.path.join(this_dir, "../resources/icons")),
         os.path.abspath(os.path.join(this_dir, "resources/icons")),
+        os.path.join(sys.prefix, "share/focus-guard/resources/icons"),
+        os.path.join(sys.prefix, "resources/icons"),
         "/usr/share/focus-guard/resources/icons",
         "/usr/local/share/focus-guard/resources/icons",
         "/opt/focus-guard/resources/icons",
@@ -66,6 +69,15 @@ def get_icon_path(name: str) -> Optional[str]:
     target = os.path.join(ICONS_DIR, f"{clean_name}.svg")
     if os.path.isfile(target):
         return target
+    # Dynamic fallback check in case directory environment changed
+    this_dir = os.path.dirname(os.path.realpath(__file__))
+    for d in [
+        os.path.abspath(os.path.join(this_dir, "../resources/icons")),
+        os.path.abspath(os.path.join(this_dir, "resources/icons")),
+    ]:
+        fallback = os.path.join(d, f"{clean_name}.svg")
+        if os.path.isfile(fallback):
+            return fallback
     return None
 
 
@@ -98,6 +110,9 @@ def _render_pixmap_cached(
     dpr: float = 1.0
 ) -> QPixmap:
     """Renders a tinted SVG to a crisp QPixmap, scaling for devicePixelRatio."""
+    if QGuiApplication.instance() is None:
+        return QPixmap()
+
     raw_svg = _read_svg_template(name)
     if not raw_svg:
         return QPixmap()
@@ -144,20 +159,35 @@ def get_pixmap(
 
 
 @functools.lru_cache(maxsize=128)
-def get_icon(name: str, color: Optional[str] = None, size: int = 16) -> QIcon:
+def get_icon(
+    name: str,
+    color: Optional[str] = None,
+    active_color: Optional[str] = None,
+    size: int = 16
+) -> QIcon:
     """
-    Builds a QIcon containing both 1x and 2x pixel ratio pixmaps for crisp
-    Wayland and fractional scaling support, plus a disabled state pixmap.
+    Builds a QIcon containing 1x and 2x pixel ratio pixmaps for Normal, Active/Selected
+    and Disabled modes for crisp Wayland HiDPI / fractional scaling support.
     """
     icon = QIcon()
     color_hex = color if color else "#F0F6FC"
+    act_color_hex = active_color if active_color else color_hex
 
-    # 1x and 2x DPR pixmaps for active / normal states
+    # 1x and 2x DPR pixmaps for Normal mode
     pm1 = _render_pixmap_cached(name, color_hex, size, 1.0)
     pm2 = _render_pixmap_cached(name, color_hex, size, 2.0)
     if not pm1.isNull():
         icon.addPixmap(pm1, QIcon.Mode.Normal, QIcon.State.Off)
         icon.addPixmap(pm2, QIcon.Mode.Normal, QIcon.State.Off)
+
+    # 1x and 2x DPR pixmaps for Active & Selected modes (hover / pressed / active)
+    act1 = _render_pixmap_cached(name, act_color_hex, size, 1.0)
+    act2 = _render_pixmap_cached(name, act_color_hex, size, 2.0)
+    if not act1.isNull():
+        icon.addPixmap(act1, QIcon.Mode.Active, QIcon.State.Off)
+        icon.addPixmap(act2, QIcon.Mode.Active, QIcon.State.Off)
+        icon.addPixmap(act1, QIcon.Mode.Selected, QIcon.State.Off)
+        icon.addPixmap(act2, QIcon.Mode.Selected, QIcon.State.Off)
 
     # Disabled state pixmap (soft muted tone)
     muted_color = "#484F58" if color_hex != "#FFFFFF" else "#656D76"
@@ -172,15 +202,45 @@ def get_icon(name: str, color: Optional[str] = None, size: int = 16) -> QIcon:
 
 def get_themed_icon(
     name: str,
-    is_dark: bool = True,
+    is_dark: Optional[bool] = None,
     role: str = "primary",
+    active_role: Optional[str] = None,
     size: int = 16
 ) -> QIcon:
     """
     Convenience helper to retrieve an icon tinted according to theme and role.
+    If is_dark is None, automatically detects active theme from QSettings or system palette.
     Roles: 'primary', 'secondary', 'muted', 'accent', 'accent_hover', 'danger', 'success', 'warning', 'white'.
     """
+    if is_dark is None:
+        try:
+            from PyQt6.QtCore import QSettings
+            from PyQt6.QtGui import QPalette
+            settings = QSettings("FocusGuard", "FocusGuardTray")
+            mode = settings.value("theme_mode", "auto")
+            if mode == "dark":
+                is_dark = True
+            elif mode == "light":
+                is_dark = False
+            else:
+                app = QGuiApplication.instance()
+                if app:
+                    is_dark = app.palette().color(QPalette.ColorRole.Window).lightness() < 128
+                else:
+                    is_dark = True
+        except Exception:
+            is_dark = True
+
     mode_key = "dark" if is_dark else "light"
     palette = ROLE_COLORS[mode_key]
     color_hex = palette.get(role, palette["primary"])
-    return get_icon(name, color=color_hex, size=size)
+    act_color_hex = palette.get(active_role, color_hex) if active_role else None
+    return get_icon(name, color=color_hex, active_color=act_color_hex, size=size)
+
+
+def clear_icon_cache() -> None:
+    """Clears all in-memory LRU caches for templates, pixmaps, and icons."""
+    _read_svg_template.cache_clear()
+    _render_pixmap_cached.cache_clear()
+    get_icon.cache_clear()
+

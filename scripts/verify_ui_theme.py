@@ -3,7 +3,13 @@ Quick UI & Icon visual test script.
 Loads all Lucide icons and shows them with Theme System 2.0.
 """
 
+import os
 import sys
+
+# Ensure repository root is in sys.path when executed directly
+_this_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(_this_dir, "..")))
+
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QGridLayout, QScrollArea, QFrame
@@ -12,6 +18,7 @@ from PyQt6.QtCore import Qt
 
 from client.icons import get_themed_icon, get_pixmap
 from client.theme import get_theme_stylesheet
+
 
 
 def run_preview():

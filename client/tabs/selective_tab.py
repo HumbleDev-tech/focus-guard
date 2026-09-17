@@ -34,8 +34,17 @@ class SelectiveTab(QWidget):
         self.setup_ui()
 
     def is_dark_mode(self) -> bool:
+        win = self.window()
+        if win and hasattr(win, "is_dark_mode"):
+            return win.is_dark_mode()
         if self.parent() and hasattr(self.parent(), "is_dark_mode"):
             return self.parent().is_dark_mode()
+        from PyQt6.QtCore import QSettings
+        mode = QSettings("FocusGuard", "FocusGuardTray").value("theme_mode", "auto")
+        if mode == "dark":
+            return True
+        elif mode == "light":
+            return False
         bg = self.palette().color(QPalette.ColorRole.Window)
         return bg.lightness() < 128
 
@@ -45,9 +54,9 @@ class SelectiveTab(QWidget):
         if hasattr(self, "sel_add_btn"):
             self.sel_add_btn.setIcon(get_themed_icon("plus", is_dark, role="white", size=14))
         if hasattr(self, "sel_step_minus"):
-            self.sel_step_minus.setIcon(get_themed_icon("minus", is_dark, size=13))
+            self.sel_step_minus.setIcon(get_themed_icon("minus", is_dark, size=13, active_role="white"))
         if hasattr(self, "sel_step_plus"):
-            self.sel_step_plus.setIcon(get_themed_icon("plus", is_dark, size=13))
+            self.sel_step_plus.setIcon(get_themed_icon("plus", is_dark, size=13, active_role="white"))
         if hasattr(self, "sel_start_btn"):
             self.sel_start_btn.setIcon(get_themed_icon("lock", is_dark, role="white", size=15))
         if hasattr(self, "sel_indefinite_btn"):

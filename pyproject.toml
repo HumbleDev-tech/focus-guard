@@ -29,7 +29,7 @@ focus-guard-tray = "client.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["daemon*", "client*", "config*"]
+include = ["daemon*", "client*", "config*", "resources*"]
 
 [tool.setuptools.package-data]
 "*" = ["resources/*.svg", "resources/icons/*.svg", "config/*.json"]

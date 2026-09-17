@@ -1,0 +1,4 @@
+recursive-include resources *.svg
+recursive-include config *.json
+include LICENSE
+include README.md

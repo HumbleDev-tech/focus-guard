@@ -26,8 +26,17 @@ class DashboardTab(QWidget):
         self._setup_ui()
 
     def is_dark_mode(self) -> bool:
+        win = self.window()
+        if win and hasattr(win, "is_dark_mode"):
+            return win.is_dark_mode()
         if self.parent() and hasattr(self.parent(), "is_dark_mode"):
             return self.parent().is_dark_mode()
+        from PyQt6.QtCore import QSettings
+        mode = QSettings("FocusGuard", "FocusGuardTray").value("theme_mode", "auto")
+        if mode == "dark":
+            return True
+        elif mode == "light":
+            return False
         bg = self.palette().color(QPalette.ColorRole.Window)
         return bg.lightness() < 128
 

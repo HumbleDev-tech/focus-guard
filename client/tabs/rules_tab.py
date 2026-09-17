@@ -12,7 +12,7 @@ from PyQt6.QtCore import Qt, QTime, QTimer, pyqtSignal
 from PyQt6.QtGui import QPalette
 
 from client.autostart import is_autostart_enabled, set_autostart_enabled
-from client.icons import get_themed_icon
+from client.icons import get_themed_icon, get_pixmap
 
 
 class RulesTab(QWidget):
@@ -26,8 +26,17 @@ class RulesTab(QWidget):
         self.setup_ui()
 
     def is_dark_mode(self) -> bool:
+        win = self.window()
+        if win and hasattr(win, "is_dark_mode"):
+            return win.is_dark_mode()
         if self.parent() and hasattr(self.parent(), "is_dark_mode"):
             return self.parent().is_dark_mode()
+        from PyQt6.QtCore import QSettings
+        mode = QSettings("FocusGuard", "FocusGuardTray").value("theme_mode", "auto")
+        if mode == "dark":
+            return True
+        elif mode == "light":
+            return False
         bg = self.palette().color(QPalette.ColorRole.Window)
         return bg.lightness() < 128
 
@@ -35,17 +44,19 @@ class RulesTab(QWidget):
         if is_dark is None:
             is_dark = self.is_dark_mode()
         if hasattr(self, "boot_step_minus"):
-            self.boot_step_minus.setIcon(get_themed_icon("minus", is_dark, size=13))
+            self.boot_step_minus.setIcon(get_themed_icon("minus", is_dark, size=13, active_role="white"))
         if hasattr(self, "boot_step_plus"):
-            self.boot_step_plus.setIcon(get_themed_icon("plus", is_dark, size=13))
+            self.boot_step_plus.setIcon(get_themed_icon("plus", is_dark, size=13, active_role="white"))
         if hasattr(self, "curfew_start_minus"):
-            self.curfew_start_minus.setIcon(get_themed_icon("minus", is_dark, size=13))
+            self.curfew_start_minus.setIcon(get_themed_icon("minus", is_dark, size=13, active_role="white"))
         if hasattr(self, "curfew_start_plus"):
-            self.curfew_start_plus.setIcon(get_themed_icon("plus", is_dark, size=13))
+            self.curfew_start_plus.setIcon(get_themed_icon("plus", is_dark, size=13, active_role="white"))
         if hasattr(self, "curfew_end_minus"):
-            self.curfew_end_minus.setIcon(get_themed_icon("minus", is_dark, size=13))
+            self.curfew_end_minus.setIcon(get_themed_icon("minus", is_dark, size=13, active_role="white"))
         if hasattr(self, "curfew_end_plus"):
-            self.curfew_end_plus.setIcon(get_themed_icon("plus", is_dark, size=13))
+            self.curfew_end_plus.setIcon(get_themed_icon("plus", is_dark, size=13, active_role="white"))
+        if hasattr(self, "curfew_info_icon"):
+            self.curfew_info_icon.setPixmap(get_pixmap("info", color="#388BFD" if is_dark else "#0969DA", size=15))
 
     def setup_ui(self):
         scroll = QScrollArea(self)
@@ -230,6 +241,11 @@ class RulesTab(QWidget):
         self.curfew_notice_banner.setObjectName("infoBanner")
         notice_layout = QHBoxLayout(self.curfew_notice_banner)
         notice_layout.setContentsMargins(10, 8, 10, 8)
+        notice_layout.setSpacing(8)
+
+        self.curfew_info_icon = QLabel()
+        self.curfew_info_icon.setStyleSheet("background: transparent; border: none;")
+        notice_layout.addWidget(self.curfew_info_icon)
 
         self.curfew_notice = QLabel("Aviso: Recibirás una notificación en tu escritorio 10 minutos antes del Toque de Queda para cerrar tus pestañas con calma.")
         self.curfew_notice.setObjectName("infoBannerText")

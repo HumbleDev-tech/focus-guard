@@ -535,10 +535,13 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
     """
 
 
-def apply_dialog_theme(dialog, is_dark=None, resource_dir: str = "") -> None:
-    """Applies unified theme stylesheet to any modal QDialog."""
+def apply_dialog_theme(dialog, is_dark=None, resource_dir: str = "") -> bool:
+    """Applies unified theme stylesheet to any modal QDialog and returns resolved is_dark."""
     if is_dark is None:
-        if hasattr(dialog, "parent") and dialog.parent() and hasattr(dialog.parent(), "is_dark_mode"):
+        win = dialog.window() if hasattr(dialog, "window") else None
+        if win and hasattr(win, "is_dark_mode"):
+            is_dark = win.is_dark_mode()
+        elif hasattr(dialog, "parent") and dialog.parent() and hasattr(dialog.parent(), "is_dark_mode"):
             is_dark = dialog.parent().is_dark_mode()
         else:
             try:
@@ -575,3 +578,5 @@ def apply_dialog_theme(dialog, is_dark=None, resource_dir: str = "") -> None:
         if not resource_dir:
             resource_dir = candidates[0]
     dialog.setStyleSheet(get_theme_stylesheet(is_dark, resource_dir))
+    return is_dark
+

@@ -69,8 +69,53 @@ class TestIconsAndTheme(unittest.TestCase):
 
     def test_apply_dialog_theme(self):
         dlg = QDialog()
-        apply_dialog_theme(dlg, is_dark=True)
+        result = apply_dialog_theme(dlg, is_dark=True)
+        self.assertTrue(result)
         self.assertTrue(len(dlg.styleSheet()) > 0)
+
+    def test_clear_icon_cache(self):
+        from client.icons import clear_icon_cache
+        icon = get_icon("shield", size=16)
+        self.assertFalse(icon.isNull())
+        clear_icon_cache()
+        # Ensure it works after clearing cache
+        icon2 = get_icon("shield", size=16)
+        self.assertFalse(icon2.isNull())
+
+    def test_themed_icon_auto_detect(self):
+        # When is_dark is omitted, should resolve automatically without error
+        icon_auto = get_themed_icon("check", role="white")
+        self.assertFalse(icon_auto.isNull())
+
+    def test_icon_active_hover_mode(self):
+        # Verify that get_icon attaches pixmaps for Active & Selected modes
+        icon = get_icon("minus", color="#8B949E", active_color="#FFFFFF", size=14)
+        self.assertFalse(icon.isNull())
+        act_pm = icon.pixmap(14, 14, QIcon.Mode.Active, QIcon.State.Off)
+        self.assertFalse(act_pm.isNull())
+
+    def test_tab_is_dark_mode_inside_qtabwidget(self):
+        from client.tabs import DomainsTab, RulesTab, SelectiveTab, DashboardTab
+        from client.settings_dialog import SettingsDialog
+        from client.ipc_client import FocusIPCClient
+
+        class DummyIPC:
+            def get_status(self): return {"status": "ok", "state": "FREE_TIME"}
+            def get_config(self): return {"status": "ok", "config": {}}
+
+        dlg = QDialog()
+        dlg.is_dark_mode = lambda: False
+        tabs = QTabWidget(dlg)
+
+        dom_tab = DomainsTab(DummyIPC().get_status, DummyIPC().get_config, parent=dlg)
+        tabs.addTab(dom_tab, "Domains")
+
+        rules_tab = RulesTab(parent=dlg)
+        tabs.addTab(rules_tab, "Rules")
+
+        # Even though parent is QStackedWidget, window() resolves to dlg
+        self.assertFalse(dom_tab.is_dark_mode())
+        self.assertFalse(rules_tab.is_dark_mode())
 
 
 if __name__ == "__main__":

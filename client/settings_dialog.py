@@ -75,6 +75,7 @@ class SettingsDialog(QDialog):
     """Main Settings and Control Dashboard Dialog for Focus-Guard."""
 
     config_saved = pyqtSignal()
+    theme_changed = pyqtSignal(str)
 
     def __init__(self, ipc_client: FocusIPCClient, resource_dir: str, parent=None):
         super().__init__(parent)
@@ -176,6 +177,7 @@ class SettingsDialog(QDialog):
             self.domains_tab.render_domains_list()
         if hasattr(self, "selective_tab"):
             self.selective_tab.render_selective_domains_list()
+        self.theme_changed.emit(mode)
 
     def _update_tab_icons(self):
         is_dark = self.is_dark_mode()
@@ -210,6 +212,8 @@ class SettingsDialog(QDialog):
             self.discard_btn.setIcon(get_themed_icon("undo", is_dark, role="secondary", size=14))
         if hasattr(self, "save_btn"):
             self.save_btn.setIcon(get_themed_icon("check", is_dark, role="white", size=14))
+        if hasattr(self, "domains_tab") and hasattr(self.domains_tab, "update_icons"):
+            self.domains_tab.update_icons(is_dark)
         if hasattr(self, "dashboard_tab") and hasattr(self.dashboard_tab, "update_icons"):
             self.dashboard_tab.update_icons(is_dark)
         if hasattr(self, "rules_tab") and hasattr(self.rules_tab, "update_icons"):
@@ -520,8 +524,30 @@ class SettingsDialog(QDialog):
                 event.accept()
             else:
                 event.ignore()
+                return
         else:
             event.accept()
+
+        if event.isAccepted():
+            if hasattr(self, "poll_timer") and self.poll_timer.isActive():
+                self.poll_timer.stop()
+            app_inst = QApplication.instance()
+            if app_inst and hasattr(self, "tooltip_filter"):
+                try:
+                    app_inst.removeEventFilter(self.tooltip_filter)
+                except Exception:
+                    pass
+
+    def showEvent(self, event):
+        """Ensures polling and event filter are active when window is displayed."""
+        super().showEvent(event)
+        if hasattr(self, "poll_timer") and not self.poll_timer.isActive():
+            self.poll_timer.start(1500)
+            self.refresh_live_status()
+        app_inst = QApplication.instance()
+        if app_inst and hasattr(self, "tooltip_filter"):
+            app_inst.removeEventFilter(self.tooltip_filter)
+            app_inst.installEventFilter(self.tooltip_filter)
 
     def reject(self):
         """Intercepts Escape key to prompt user about unsaved changes."""
