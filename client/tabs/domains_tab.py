@@ -144,17 +144,17 @@ class DomainsTab(QWidget):
             return
 
         tokens = [t_item for t_item in re.split(r"[,;\s]+", raw) if t_item]
-        if len(tokens) > 1:
-            valid_tokens = [sanitize_domain(t_item) for t_item in tokens if sanitize_domain(t_item)]
-            if valid_tokens:
-                self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #58A6FF; font-weight: 600;")
-                self.domain_preview_lbl.setText(t("domains.preview_batch", count=len(valid_tokens)))
-            else:
-                self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
-                self.domain_preview_lbl.setText(t("domains.preview_invalid"))
+        if not tokens:
+            self.domain_preview_lbl.setText("")
             return
 
-        clean = sanitize_domain(raw)
+        valid_tokens = [sanitize_domain(t_item) for t_item in tokens if sanitize_domain(t_item)]
+        if len(valid_tokens) > 1:
+            self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #58A6FF; font-weight: 600;")
+            self.domain_preview_lbl.setText(t("domains.preview_batch", count=len(valid_tokens)))
+            return
+
+        clean = valid_tokens[0] if valid_tokens else sanitize_domain(tokens[0])
         if clean:
             if clean in self.blocked_domains:
                 self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #D29922; font-weight: 600;")

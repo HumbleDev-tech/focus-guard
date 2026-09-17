@@ -232,7 +232,7 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
         QLineEdit:focus {{
             border: 1.5px solid {c['accent_blue']};
         }}
-        QLineEdit[error="true"] {{
+        QLineEdit[error="true"], QLineEdit[error="true"]:focus {{
             border: 1.5px solid {c['danger']};
         }}
         QTimeEdit, QSpinBox {{
@@ -331,6 +331,11 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             color: {c['accent_blue']};
             background-color: {c['bg_card_inner']};
         }}
+        QPushButton#presetChipSmall:disabled {{
+            background-color: {c['bg_window']};
+            color: {c['text_disabled']};
+            border: 1px solid {c['border_subtle']};
+        }}
         QPushButton#presetChipSmallSelected {{
             background-color: {c['accent_blue_subtle']};
             border: 1.5px solid {c['accent_blue']};
@@ -339,6 +344,11 @@ def get_theme_stylesheet(is_dark: bool, resource_dir: str) -> str:
             padding: 3px 10px;
             font-size: 11px;
             font-weight: 700;
+        }}
+        QPushButton#presetChipSmallSelected:disabled {{
+            background-color: {c['bg_window']};
+            border: 1px solid {c['border_subtle']};
+            color: {c['text_disabled']};
         }}
         QPushButton#presetCardBtn {{
             background-color: {c['bg_card_inner']};

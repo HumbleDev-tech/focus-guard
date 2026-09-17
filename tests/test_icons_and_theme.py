@@ -218,6 +218,10 @@ class TestIconsAndTheme(unittest.TestCase):
         tab.domain_input.setText("site1.com, site2.com")
         self.assertIn("2", tab.domain_preview_lbl.text())
 
+        # Trailing comma/space should still preview valid single domain
+        tab.domain_input.setText("single.com, ")
+        self.assertIn("single.com", tab.domain_preview_lbl.text())
+
     def test_selective_tab_batch_add(self):
         from client.tabs import SelectiveTab
         tab = SelectiveTab()
