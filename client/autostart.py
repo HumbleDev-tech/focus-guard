@@ -5,9 +5,32 @@ Manages XDG compliant autostart desktop entries for desktop environments (KDE Pl
 
 import os
 
+import shutil
+
 USER_AUTOSTART_PATH = os.path.expanduser("~/.config/autostart/focus-guard.desktop")
 SYSTEM_AUTOSTART_PATH = "/etc/xdg/autostart/focus-guard.desktop"
 AUTOSTART_PATH = USER_AUTOSTART_PATH  # Backward compatibility
+
+
+def _resolve_exec_command() -> str:
+    """Finds the best command to launch the tray applet."""
+    if shutil.which("focus-guard-tray"):
+        return "focus-guard-tray"
+    opt_main = "/opt/focus-guard/client/main.py"
+    if os.path.exists(opt_main):
+        return f"python3 {opt_main}"
+    curr_main = os.path.abspath(os.path.join(os.path.dirname(__file__), "main.py"))
+    return f"python3 {curr_main}"
+
+
+def _resolve_icon_entry() -> str:
+    """Finds the best icon reference for the desktop file."""
+    if os.path.exists("/usr/share/icons/hicolor/scalable/apps/focus-guard.svg"):
+        return "focus-guard"
+    opt_icon = "/opt/focus-guard/resources/icon-active.svg"
+    if os.path.exists(opt_icon):
+        return opt_icon
+    return "focus-guard"
 
 
 def is_autostart_enabled() -> bool:
@@ -29,12 +52,14 @@ def set_autostart_enabled(enabled: bool) -> bool:
     try:
         os.makedirs(os.path.dirname(USER_AUTOSTART_PATH), exist_ok=True)
         if enabled:
+            exec_cmd = _resolve_exec_command()
+            icon_entry = _resolve_icon_entry()
             content = (
                 "[Desktop Entry]\n"
                 "Name=Focus-Guard\n"
                 "Comment=Anti-procrastination website blocker and focus regulator\n"
-                "Exec=python3 /opt/focus-guard/client/main.py\n"
-                "Icon=/opt/focus-guard/resources/icon-active.svg\n"
+                f"Exec={exec_cmd}\n"
+                f"Icon={icon_entry}\n"
                 "Terminal=false\n"
                 "Type=Application\n"
                 "Categories=Utility;System;\n"

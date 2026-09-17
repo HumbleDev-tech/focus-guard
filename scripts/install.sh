@@ -17,7 +17,18 @@ cp -r "$SOURCE_DIR/client" /opt/focus-guard/
 cp -r "$SOURCE_DIR/resources" /opt/focus-guard/
 cp -r "$SOURCE_DIR/config" /opt/focus-guard/
 
-echo "2. Setting up configuration in /etc/focus-guard..."
+echo "2. Setting up executable binaries in /usr/bin..."
+chmod +x /opt/focus-guard/daemon/focus_daemon.py /opt/focus-guard/client/main.py
+ln -sf /opt/focus-guard/daemon/focus_daemon.py /usr/bin/focus-guard-daemon
+ln -sf /opt/focus-guard/client/main.py /usr/bin/focus-guard-tray
+
+echo "3. Installing icons and desktop files..."
+mkdir -p /usr/share/icons/hicolor/scalable/apps
+cp "$SOURCE_DIR/resources/icon-active.svg" /usr/share/icons/hicolor/scalable/apps/focus-guard.svg 2>/dev/null || true
+mkdir -p /usr/share/applications
+cp "$SOURCE_DIR/resources/focus-guard.desktop" /usr/share/applications/focus-guard.desktop
+
+echo "4. Setting up configuration in /etc/focus-guard..."
 mkdir -p /etc/focus-guard
 if [ ! -f /etc/focus-guard/config.json ]; then
   cp "$SOURCE_DIR/config/default_config.json" /etc/focus-guard/config.json
@@ -26,28 +37,13 @@ else
   echo "   Preserving existing /etc/focus-guard/config.json"
 fi
 
-echo "3. Installing systemd service..."
+echo "5. Installing systemd service..."
 cp "$SOURCE_DIR/systemd/focus-guard.service" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable focus-guard.service
 systemctl restart focus-guard.service
 
-
-echo "4. Creating desktop entry for user autostart / launcher..."
-mkdir -p /usr/share/applications
-cat << 'DESKTOP_EOF' > /usr/share/applications/focus-guard.desktop
-[Desktop Entry]
-Name=Focus-Guard
-Comment=Anti-procrastination website blocker and focus manager
-Exec=python3 /opt/focus-guard/client/main.py
-Icon=/opt/focus-guard/resources/icon-active.svg
-Terminal=false
-Type=Application
-Categories=Utility;System;
-StartupNotify=false
-DESKTOP_EOF
-
-echo "5. Creating autostart entry for KDE Plasma / Wayland..."
+echo "6. Creating autostart entry for KDE Plasma / Wayland..."
 mkdir -p /etc/xdg/autostart
 cp /usr/share/applications/focus-guard.desktop /etc/xdg/autostart/
 

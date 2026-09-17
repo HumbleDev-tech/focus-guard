@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Focus-Guard GUI Entry Point (PyQt6 / KDE Plasma 6 Wayland).
 Includes Single Instance enforcement via QLocalServer and graceful shutdown.
@@ -10,8 +11,9 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QIcon
 from PyQt6.QtNetwork import QLocalSocket, QLocalServer
 
-# Ensure parent directory is in sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# Ensure parent directory is in sys.path even when invoked via symlink (/usr/bin/focus-guard-tray)
+_this_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(_this_dir, "..")))
 
 from client.ipc_client import FocusIPCClient
 from client.tray import FocusTrayApplet
@@ -33,9 +35,10 @@ def get_instance_key(dev_mode: bool = False) -> str:
 def resolve_resource_dir() -> str:
     """Finds the directory containing SVG icons."""
     candidates = [
-        os.path.abspath(os.path.join(os.path.dirname(__file__), "../resources")),
+        os.path.abspath(os.path.join(_this_dir, "../resources")),
         "/usr/share/focus-guard/resources",
         "/usr/local/share/focus-guard/resources",
+        "/opt/focus-guard/resources",
         os.path.expanduser("~/.local/share/focus-guard/resources")
     ]
     for c in candidates:

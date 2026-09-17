@@ -6,8 +6,7 @@ Wants=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/focus-guard
-ExecStart=/usr/bin/python3 /opt/focus-guard/daemon/focus_daemon.py --config /etc/focus-guard/config.json
+ExecStart=/usr/bin/focus-guard-daemon --config /etc/focus-guard/config.json
 Restart=always
 RestartSec=3
 KillSignal=SIGTERM

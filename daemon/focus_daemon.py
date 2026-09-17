@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Focus-Guard Daemon: System service managing Unix socket IPC and /etc/hosts blocking.
 """
@@ -12,8 +13,9 @@ import argparse
 import threading
 from typing import Dict, Any, Optional
 
-# Add parent directory to path so relative imports work when executed directly
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# Add parent directory to path so relative imports work even when executed via symlinks
+_this_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(_this_dir, "..")))
 
 from daemon.hosts_manager import HostsManager, is_valid_domain
 from daemon.scheduler import StateScheduler
@@ -27,7 +29,7 @@ logger = logging.getLogger("focus-guard.daemon")
 
 DEFAULT_CONFIG_LOCATIONS = [
     "/etc/focus-guard/config.json",
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "../config/default_config.json"))
+    os.path.abspath(os.path.join(_this_dir, "../config/default_config.json"))
 ]
 
 
@@ -463,7 +465,7 @@ def main():
         if not config_file:
             config_file = "/tmp/focus_guard_dev_config.json"
             if not os.path.exists(config_file):
-                default_cfg = os.path.abspath(os.path.join(os.path.dirname(__file__), "../config/default_config.json"))
+                default_cfg = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "../config/default_config.json"))
                 if os.path.exists(default_cfg):
                     import shutil
                     shutil.copyfile(default_cfg, config_file)

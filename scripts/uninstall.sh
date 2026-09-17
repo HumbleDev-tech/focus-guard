@@ -34,7 +34,9 @@ fi
 
 echo "3. Removing application files..."
 rm -rf /opt/focus-guard
+rm -f /usr/bin/focus-guard-daemon /usr/bin/focus-guard-tray
 rm -f /usr/share/applications/focus-guard.desktop
+rm -f /usr/share/icons/hicolor/scalable/apps/focus-guard.svg
 rm -f /etc/xdg/autostart/focus-guard.desktop
 rm -f /run/focus-guard.sock
 rm -f /etc/focus-guard/state.json

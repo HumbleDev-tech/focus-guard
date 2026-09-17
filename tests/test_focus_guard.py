@@ -156,18 +156,27 @@ class TestScheduler(unittest.TestCase):
         self.assertFalse(warn2)
 
     def test_emergency_bypass_during_curfew(self):
-        now = datetime.now()
-        in_curfew, _, _ = self.scheduler.is_in_curfew(now)
-        if in_curfew:
-            ok, msg = self.scheduler.request_bypass(15, force=False)
-            self.assertFalse(ok)
+        night_time = datetime(2026, 8, 19, 23, 30, 0)
+        # 1. Denied when emergency bypass during curfew is disabled in config
+        ok, msg = self.scheduler.request_bypass(15, force=True, now=night_time)
+        self.assertFalse(ok)
 
-            ok_emerg, msg_emerg = self.scheduler.request_bypass(15, force=True)
-            self.assertTrue(ok_emerg)
-            eval_state = self.scheduler.evaluate_state()
-            self.assertEqual(eval_state["state"], "BYPASS")
-            self.assertEqual(eval_state["reason"], "EMERGENCY_BYPASS")
-            self.assertFalse(eval_state["is_blocking"])
+        # 2. When emergency bypass during curfew is enabled
+        cfg_curfew = dict(self.config)
+        cfg_curfew["bypasses"] = {"enabled": True, "allow_during_curfew": True}
+        sched = StateScheduler(cfg_curfew, dev_mode=True)
+
+        # Normal bypass without force must be denied during curfew
+        ok_standard, _ = sched.request_bypass(15, force=False, now=night_time)
+        self.assertFalse(ok_standard)
+
+        # Forced bypass must be granted
+        ok_emerg, _ = sched.request_bypass(15, force=True, now=night_time)
+        self.assertTrue(ok_emerg)
+        eval_state = sched.evaluate_state(now=night_time + timedelta(minutes=1))
+        self.assertEqual(eval_state["state"], "BYPASS")
+        self.assertEqual(eval_state["reason"], "EMERGENCY_BYPASS")
+        self.assertFalse(eval_state["is_blocking"])
 
     def test_bypass_outside_curfew(self):
         cfg_no_curfew = dict(self.config)

@@ -396,7 +396,7 @@ class StateScheduler:
             "curfew_warning_seconds": warn_secs
         }
 
-    def request_selective_lock(self, domains: List[str], duration_minutes: int) -> Tuple[bool, str]:
+    def request_selective_lock(self, domains: List[str], duration_minutes: int, now: Optional[datetime] = None) -> Tuple[bool, str]:
         """Locks a specific subset of domains for a set duration, or indefinitely if duration_minutes is 0."""
         if not domains:
             return False, "Debes seleccionar al menos un dominio."
@@ -404,7 +404,7 @@ class StateScheduler:
         if duration_minutes < 0 or duration_minutes > 1440:
             return False, "La duración debe ser entre 0 (indefinido) y 1440 minutos."
 
-        now = datetime.now()
+        now = now or datetime.now()
         in_curfew, _, _ = self.is_in_curfew(now)
         if in_curfew:
             return False, "El Toque de Queda nocturno ya bloquea todos los sitios."
@@ -443,13 +443,13 @@ class StateScheduler:
             return True, f"Bloqueo selectivo de {count} sitios cancelado."
         return True, "No hay bloqueo selectivo activo."
 
-    def request_bypass(self, duration_minutes: int, force: bool = False) -> Tuple[bool, str]:
+    def request_bypass(self, duration_minutes: int, force: bool = False, now: Optional[datetime] = None) -> Tuple[bool, str]:
         """Requests a temporary bypass while preserving underlying focus sessions."""
         bypasses_cfg = self.config.get("bypasses", {})
         if not bypasses_cfg.get("enabled", True) and not force:
             return False, "La opción de descansos temporales está desactivada en los ajustes."
 
-        now = datetime.now()
+        now = now or datetime.now()
         in_curfew, _, _ = self.is_in_curfew(now)
 
         if in_curfew:
@@ -495,8 +495,9 @@ class StateScheduler:
             return True, "Descanso cancelado. Modo Focus reactivado."
         return True, "No hay descanso activo."
 
-    def request_lock(self, duration_minutes: int = 0) -> Tuple[bool, str]:
+    def request_lock(self, duration_minutes: int = 0, now: Optional[datetime] = None) -> Tuple[bool, str]:
         """Forces a manual lock or timed Pomodoro session immediately."""
+        now = now or datetime.now()
         self.bypass_end_time = None
         self.emergency_bypass_active = False
         # Only clear timed selective lock; preserve indefinite selective lock configuration
@@ -508,7 +509,7 @@ class StateScheduler:
         self.paused_manual_remaining_seconds = None
         self.paused_manual_is_indefinite = False
         if duration_minutes > 0:
-            self.manual_lock_end_time = datetime.now() + timedelta(minutes=duration_minutes)
+            self.manual_lock_end_time = now + timedelta(minutes=duration_minutes)
             msg = f"Sesión de enfoque iniciada por {duration_minutes} minutos."
         else:
             self.manual_lock_end_time = None
@@ -516,9 +517,9 @@ class StateScheduler:
         logger.info(msg)
         return True, msg
 
-    def request_unlock(self) -> Tuple[bool, str]:
+    def request_unlock(self, now: Optional[datetime] = None) -> Tuple[bool, str]:
         """Unlocks manual mode if not restricted by curfew or boot cooldown."""
-        now = datetime.now()
+        now = now or datetime.now()
         in_curfew, _, _ = self.is_in_curfew(now)
         if in_curfew:
             return False, "No se puede desbloquear durante el Toque de Queda nocturno."

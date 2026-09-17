@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Focus-Guard
+GenericName=Website Blocker & Focus Manager
+Comment=Anti-procrastination website blocker and focus regulator for Linux
+Exec=focus-guard-tray
+Icon=focus-guard
+Terminal=false
+Type=Application
+Categories=Utility;System;Settings;
+StartupNotify=false
+Keywords=focus;blocker;productivity;hosts;curfew;pomodoro;

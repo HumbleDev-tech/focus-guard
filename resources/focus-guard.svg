@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+  </defs>
+  <path d="M32 4 L54 12 C54 36 32 58 32 58 C32 58 10 36 10 12 Z" 
+        fill="url(#greenGrad)" 
+        stroke="#FFFFFF" 
+        stroke-width="2" 
+        stroke-linejoin="round"/>
+  <rect x="24" y="27" width="16" height="13" rx="2.5" fill="#FFFFFF"/>
+  <path d="M27 27 V21 C27 18.238 29.238 16 32 16 C34.762 16 37 18.238 37 21 V27" 
+        fill="none" 
+        stroke="#FFFFFF" 
+        stroke-width="3" 
+        stroke-linecap="round"/>
+</svg>
