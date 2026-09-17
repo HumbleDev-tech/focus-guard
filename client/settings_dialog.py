@@ -24,6 +24,12 @@ from client.autostart import (
 from client.utils import sanitize_domain, format_human_time
 from client.theme import get_theme_stylesheet
 from client.icons import get_themed_icon
+from client.i18n import (
+    t,
+    get_configured_language_setting,
+    set_configured_language_setting,
+    resolve_active_language
+)
 from client.dialogs import (
     EmergencyPromptDialog,
     ConfirmDomainRemovalDialog,
@@ -76,6 +82,7 @@ class SettingsDialog(QDialog):
 
     config_saved = pyqtSignal()
     theme_changed = pyqtSignal(str)
+    language_changed = pyqtSignal(str)
 
     def __init__(self, ipc_client: FocusIPCClient, resource_dir: str, parent=None):
         super().__init__(parent)
@@ -84,7 +91,7 @@ class SettingsDialog(QDialog):
         self.config_data: Dict[str, Any] = {}
         self.blocked_domains: List[str] = []
 
-        self.setWindowTitle("Panel de Control — Focus-Guard")
+        self.setWindowTitle(t("app.window_title"))
         self.setMinimumSize(720, 640)
         self.resize(760, 680)
 
@@ -115,10 +122,10 @@ class SettingsDialog(QDialog):
         self.rules_tab = RulesTab(parent=self)
         self.dashboard_tab = DashboardTab(parent=self)
 
-        self.tabs.addTab(self.domains_tab, get_themed_icon("shield", self.is_dark_mode(), size=16), "Sitios Bloqueados")
-        self.tabs.addTab(self.selective_tab, get_themed_icon("sliders", self.is_dark_mode(), size=16), "Bloqueo Selectivo")
-        self.tabs.addTab(self.rules_tab, get_themed_icon("clock", self.is_dark_mode(), size=16), "Horarios y Reglas")
-        self.tabs.addTab(self.dashboard_tab, get_themed_icon("activity", self.is_dark_mode(), size=16), "Estado y Control")
+        self.tabs.addTab(self.domains_tab, get_themed_icon("shield", self.is_dark_mode(), size=16), t("tab.domains"))
+        self.tabs.addTab(self.selective_tab, get_themed_icon("sliders", self.is_dark_mode(), size=16), t("tab.selective"))
+        self.tabs.addTab(self.rules_tab, get_themed_icon("clock", self.is_dark_mode(), size=16), t("tab.rules"))
+        self.tabs.addTab(self.dashboard_tab, get_themed_icon("activity", self.is_dark_mode(), size=16), t("tab.dashboard"))
 
         self.tabs.currentChanged.connect(self.on_tab_changed)
         self.main_layout.addWidget(self.tabs)
@@ -194,13 +201,71 @@ class SettingsDialog(QDialog):
         cur_mode = self.theme_combo.currentData() if self.theme_combo.count() > 0 else self.get_theme_mode()
         self.theme_combo.blockSignals(True)
         self.theme_combo.clear()
-        self.theme_combo.addItem(get_themed_icon("monitor", is_dark, size=14), "Sistema", "auto")
-        self.theme_combo.addItem(get_themed_icon("moon", is_dark, size=14), "Oscuro", "dark")
-        self.theme_combo.addItem(get_themed_icon("sun", is_dark, size=14), "Claro", "light")
+        self.theme_combo.addItem(get_themed_icon("monitor", is_dark, size=14), t("app.theme_auto"), "auto")
+        self.theme_combo.addItem(get_themed_icon("moon", is_dark, size=14), t("app.theme_dark"), "dark")
+        self.theme_combo.addItem(get_themed_icon("sun", is_dark, size=14), t("app.theme_light"), "light")
         cur_idx = self.theme_combo.findData(cur_mode)
         if cur_idx >= 0:
             self.theme_combo.setCurrentIndex(cur_idx)
         self.theme_combo.blockSignals(False)
+
+    def _update_lang_combo(self):
+        if not hasattr(self, "lang_combo"):
+            return
+        is_dark = self.is_dark_mode()
+        cur_lang = self.lang_combo.currentData() if self.lang_combo.count() > 0 else get_configured_language_setting()
+        self.lang_combo.blockSignals(True)
+        self.lang_combo.clear()
+        self.lang_combo.addItem(get_themed_icon("globe", is_dark, size=14), t("app.lang_auto"), "auto")
+        self.lang_combo.addItem(get_themed_icon("globe", is_dark, size=14), t("app.lang_es"), "es")
+        self.lang_combo.addItem(get_themed_icon("globe", is_dark, size=14), t("app.lang_en"), "en")
+        cur_idx = self.lang_combo.findData(cur_lang)
+        if cur_idx >= 0:
+            self.lang_combo.setCurrentIndex(cur_idx)
+        self.lang_combo.blockSignals(False)
+
+    def on_language_changed(self, index: int):
+        lang_code = self.lang_combo.currentData()
+        set_configured_language_setting(lang_code)
+        self.retranslate_ui()
+        self.language_changed.emit(lang_code)
+
+    def retranslate_ui(self):
+        """Refreshes all texts, tab titles, buttons, and child tabs dynamically."""
+        self.setWindowTitle(t("app.window_title"))
+        if hasattr(self, "sub_lbl"):
+            self.sub_lbl.setText(t("app.subtitle"))
+        if hasattr(self, "theme_combo"):
+            self.theme_combo.setToolTip(t("app.theme_tooltip"))
+            self._update_theme_combo()
+        if hasattr(self, "lang_combo"):
+            self.lang_combo.setToolTip(t("app.lang_tooltip"))
+            self._update_lang_combo()
+        if hasattr(self, "tabs") and self.tabs.count() >= 4:
+            self.tabs.setTabText(0, t("tab.domains"))
+            self.tabs.setTabText(1, t("tab.selective"))
+            self.tabs.setTabText(2, t("tab.rules"))
+            self.tabs.setTabText(3, t("tab.dashboard"))
+        if hasattr(self, "close_btn"):
+            self.close_btn.setText(t("app.btn_close"))
+        if hasattr(self, "discard_btn"):
+            self.discard_btn.setText(t("app.btn_discard"))
+            self.discard_btn.setToolTip(t("app.btn_discard_tooltip"))
+        if hasattr(self, "save_btn"):
+            self.save_btn.setText(t("app.btn_save"))
+        if hasattr(self, "save_feedback_lbl"):
+            self.save_feedback_lbl.setText(t("app.sync_feedback"))
+
+        if hasattr(self, "domains_tab") and hasattr(self.domains_tab, "retranslate_ui"):
+            self.domains_tab.retranslate_ui()
+        if hasattr(self, "selective_tab") and hasattr(self.selective_tab, "retranslate_ui"):
+            self.selective_tab.retranslate_ui()
+        if hasattr(self, "rules_tab") and hasattr(self.rules_tab, "retranslate_ui"):
+            self.rules_tab.retranslate_ui()
+        if hasattr(self, "dashboard_tab") and hasattr(self.dashboard_tab, "retranslate_ui"):
+            self.dashboard_tab.retranslate_ui()
+
+        self.refresh_live_status()
 
     def apply_theme_styles(self):
         is_dark = self.is_dark_mode()
@@ -208,6 +273,7 @@ class SettingsDialog(QDialog):
         self.setStyleSheet(stylesheet)
         self._update_tab_icons()
         self._update_theme_combo()
+        self._update_lang_combo()
         if hasattr(self, "discard_btn"):
             self.discard_btn.setIcon(get_themed_icon("undo", is_dark, role="secondary", size=14))
         if hasattr(self, "save_btn"):
@@ -235,22 +301,29 @@ class SettingsDialog(QDialog):
         title_box.setSpacing(1)
         title_lbl = QLabel("Focus-Guard")
         title_lbl.setStyleSheet("font-size: 16px; font-weight: 700;")
-        sub_lbl = QLabel("Panel de Control y Reglas")
-        sub_lbl.setObjectName("cardDesc")
+        self.sub_lbl = QLabel(t("app.subtitle"))
+        self.sub_lbl.setObjectName("cardDesc")
         title_box.addWidget(title_lbl)
-        title_box.addWidget(sub_lbl)
+        title_box.addWidget(self.sub_lbl)
         header.addLayout(title_box)
 
         header.addStretch()
 
+        # Language selector with vector globe icon
+        self.lang_combo = QComboBox()
+        self.lang_combo.setToolTip(t("app.lang_tooltip"))
+        self._update_lang_combo()
+        self.lang_combo.currentIndexChanged.connect(self.on_language_changed)
+        header.addWidget(self.lang_combo)
+
         # Theme mode selector (Auto / Dark / Light) with vector icons
         self.theme_combo = QComboBox()
-        self.theme_combo.setToolTip("Tema visual de la interfaz")
+        self.theme_combo.setToolTip(t("app.theme_tooltip"))
         self._update_theme_combo()
         self.theme_combo.currentIndexChanged.connect(self.on_theme_changed)
         header.addWidget(self.theme_combo)
 
-        self.status_badge = QLabel("VERIFICANDO")
+        self.status_badge = QLabel(t("app.status_checking"))
         self.status_badge.setObjectName("statusBadge")
         header.addWidget(self.status_badge)
 
@@ -260,26 +333,26 @@ class SettingsDialog(QDialog):
         bottom = QHBoxLayout()
         bottom.setSpacing(10)
 
-        self.save_feedback_lbl = QLabel("Cambios sincronizados con el demonio")
+        self.save_feedback_lbl = QLabel(t("app.sync_feedback"))
         self.save_feedback_lbl.setObjectName("cardDesc")
         bottom.addWidget(self.save_feedback_lbl)
 
         bottom.addStretch()
 
-        close_btn = QPushButton("Cerrar (Esc)")
-        close_btn.setObjectName("secondaryBtn")
-        close_btn.clicked.connect(self.close)
-        bottom.addWidget(close_btn)
+        self.close_btn = QPushButton(t("app.btn_close"))
+        self.close_btn.setObjectName("secondaryBtn")
+        self.close_btn.clicked.connect(self.close)
+        bottom.addWidget(self.close_btn)
 
-        self.discard_btn = QPushButton("Descartar")
+        self.discard_btn = QPushButton(t("app.btn_discard"))
         self.discard_btn.setObjectName("secondaryBtn")
         self.discard_btn.setIcon(get_themed_icon("undo", self.is_dark_mode(), role="secondary", size=14))
-        self.discard_btn.setToolTip("Revertir y descartar las modificaciones no guardadas")
+        self.discard_btn.setToolTip(t("app.btn_discard_tooltip"))
         self.discard_btn.clicked.connect(self.on_discard_clicked)
         self.discard_btn.setVisible(False)
         bottom.addWidget(self.discard_btn)
 
-        self.save_btn = QPushButton("Guardar Reglas (Ctrl+S)")
+        self.save_btn = QPushButton(t("app.btn_save"))
         self.save_btn.setObjectName("primaryBtn")
         self.save_btn.setIcon(get_themed_icon("check", self.is_dark_mode(), role="white", size=14))
         self.save_btn.clicked.connect(self.on_save_clicked)

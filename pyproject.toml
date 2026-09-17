@@ -26,6 +26,7 @@ dependencies = [
 [project.scripts]
 focus-guard-daemon = "daemon.focus_daemon:main"
 focus-guard-tray = "client.main:main"
+focus-guard-cli = "client.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

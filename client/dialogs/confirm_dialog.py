@@ -11,6 +11,7 @@ from PyQt6.QtCore import Qt, QTimer
 
 from client.theme import apply_dialog_theme
 from client.icons import get_themed_icon
+from client.i18n import t
 
 
 class ConfirmDomainRemovalDialog(QDialog):
@@ -21,7 +22,7 @@ class ConfirmDomainRemovalDialog(QDialog):
         self.phrase = phrase.strip()
         self.confirmed = False
 
-        self.setWindowTitle("Protección contra Impulsos")
+        self.setWindowTitle(t("dialog.confirm_removal_title"))
         self.setMinimumWidth(440)
         apply_dialog_theme(self)
 
@@ -29,20 +30,17 @@ class ConfirmDomainRemovalDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
-        title = QLabel("Protección de Enfoque Activa")
+        title = QLabel(t("dialog.confirm_removal_header"))
         title.setObjectName("sectionHeader")
         layout.addWidget(title)
 
-        desc = QLabel(
-            f"El escudo de protección está activo actualmente (<b>{reason_str}</b>). "
-            f"Eliminar <b>{self.domain}</b> ahora desbloqueará el sitio de forma inmediata."
-        )
+        desc = QLabel(t("dialog.confirm_removal_desc", reason=reason_str, domain=self.domain))
         desc.setObjectName("cardDesc")
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
         if self.phrase:
-            instruction = QLabel("Para confirmar que no es un impulso y eliminar el sitio, escribe la frase de seguridad:")
+            instruction = QLabel(t("dialog.confirm_removal_instruction"))
             instruction.setObjectName("fieldLabel")
             instruction.setWordWrap(True)
             layout.addWidget(instruction)
@@ -60,18 +58,18 @@ class ConfirmDomainRemovalDialog(QDialog):
 
             phrase_box_layout.addStretch()
 
-            self.copy_btn = QPushButton("Copiar Frase")
+            self.copy_btn = QPushButton(t("dialog.confirm_removal_btn_copy"))
             self.copy_btn.setObjectName("secondaryBtn")
             self.copy_btn.setIcon(get_themed_icon("copy", role="secondary", size=14))
             self.copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            self.copy_btn.setToolTip("Copiar frase al portapapeles")
+            self.copy_btn.setToolTip(t("dialog.confirm_removal_btn_copy"))
             self.copy_btn.clicked.connect(self.on_copy_phrase)
             phrase_box_layout.addWidget(self.copy_btn)
 
             layout.addWidget(phrase_container)
 
             self.input_field = QLineEdit()
-            self.input_field.setPlaceholderText("Escribe o pega la frase exactamente aquí...")
+            self.input_field.setPlaceholderText(t("dialog.confirm_removal_input_placeholder"))
             self.input_field.returnPressed.connect(self.on_confirm)
             layout.addWidget(self.input_field)
         else:
@@ -80,13 +78,13 @@ class ConfirmDomainRemovalDialog(QDialog):
         btn_row = QHBoxLayout()
         btn_row.addStretch()
 
-        cancel_btn = QPushButton("Cancelar")
+        cancel_btn = QPushButton(t("dialog.confirm_removal_btn_cancel"))
         cancel_btn.setObjectName("secondaryBtn")
         cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         cancel_btn.clicked.connect(self.reject)
         btn_row.addWidget(cancel_btn)
 
-        del_btn = QPushButton(f"Eliminar {self.domain}")
+        del_btn = QPushButton(t("dialog.confirm_removal_btn_delete", domain=self.domain))
         del_btn.setObjectName("dangerBtn")
         del_btn.setIcon(get_themed_icon("trash-2", role="white", size=14))
         del_btn.setCursor(Qt.CursorShape.PointingHandCursor)

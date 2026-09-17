@@ -1,7 +1,9 @@
 [Desktop Entry]
 Name=Focus-Guard
 GenericName=Website Blocker & Focus Manager
+GenericName[es]=Bloqueador de Sitios y Gestor de Enfoque
 Comment=Anti-procrastination website blocker and focus regulator for Linux
+Comment[es]=Regulador de dopamina y bloqueador de sitios distractores a nivel de sistema
 Exec=focus-guard-tray
 Icon=focus-guard
 Terminal=false
@@ -9,3 +11,4 @@ Type=Application
 Categories=Utility;System;Settings;
 StartupNotify=false
 Keywords=focus;blocker;productivity;hosts;curfew;pomodoro;
+Keywords[es]=enfoque;bloqueador;productividad;hosts;toque de queda;pomodoro;

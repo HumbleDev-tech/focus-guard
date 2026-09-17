@@ -13,6 +13,7 @@ from PyQt6.QtGui import QPalette
 
 from client.autostart import is_autostart_enabled, set_autostart_enabled
 from client.icons import get_themed_icon, get_pixmap
+from client.i18n import t
 
 
 class RulesTab(QWidget):
@@ -78,26 +79,26 @@ class RulesTab(QWidget):
         boot_layout.setContentsMargins(16, 14, 16, 14)
         boot_layout.setSpacing(10)
 
-        self.boot_enabled_cb = QCheckBox("Foco al Iniciar el Equipo (Boot Focus)")
+        self.boot_enabled_cb = QCheckBox(t("rules.boot_title"))
         self.boot_enabled_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
         boot_layout.addWidget(self.boot_enabled_cb)
 
-        boot_desc = QLabel("Aplica un bloqueo temporal en los sitios distractores durante los primeros minutos tras encender el PC para iniciar tu jornada con concentración.")
-        boot_desc.setObjectName("cardDesc")
-        boot_desc.setWordWrap(True)
-        boot_layout.addWidget(boot_desc)
+        self.boot_desc = QLabel(t("rules.boot_desc"))
+        self.boot_desc.setObjectName("cardDesc")
+        self.boot_desc.setWordWrap(True)
+        boot_layout.addWidget(self.boot_desc)
 
         dur_row = QHBoxLayout()
         dur_row.setContentsMargins(0, 4, 0, 0)
         dur_row.setSpacing(6)
 
-        self.boot_dur_label = QLabel("Duración inicial:")
+        self.boot_dur_label = QLabel(t("rules.boot_duration_label"))
         self.boot_dur_label.setObjectName("fieldLabel")
         dur_row.addWidget(self.boot_dur_label)
 
         self.boot_step_minus = QPushButton()
         self.boot_step_minus.setObjectName("stepBtn")
-        self.boot_step_minus.setToolTip("Disminuir 5 minutos")
+        self.boot_step_minus.setToolTip(t("rules.step_boot_minus_tooltip"))
         self.boot_step_minus.setCursor(Qt.CursorShape.PointingHandCursor)
         self.boot_step_minus.clicked.connect(lambda: self.step_boot_duration(-5))
         dur_row.addWidget(self.boot_step_minus)
@@ -105,14 +106,14 @@ class RulesTab(QWidget):
         self.boot_duration_spin = QSpinBox()
         self.boot_duration_spin.setRange(5, 180)
         self.boot_duration_spin.setSingleStep(5)
-        self.boot_duration_spin.setSuffix(" min")
+        self.boot_duration_spin.setSuffix(t("rules.boot_spin_suffix"))
         self.boot_duration_spin.setFixedWidth(80)
         self.boot_duration_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
         dur_row.addWidget(self.boot_duration_spin)
 
         self.boot_step_plus = QPushButton()
         self.boot_step_plus.setObjectName("stepBtn")
-        self.boot_step_plus.setToolTip("Aumentar 5 minutos")
+        self.boot_step_plus.setToolTip(t("rules.step_boot_plus_tooltip"))
         self.boot_step_plus.setCursor(Qt.CursorShape.PointingHandCursor)
         self.boot_step_plus.clicked.connect(lambda: self.step_boot_duration(5))
         dur_row.addWidget(self.boot_step_plus)
@@ -139,26 +140,26 @@ class RulesTab(QWidget):
         curfew_layout.setContentsMargins(16, 14, 16, 14)
         curfew_layout.setSpacing(10)
 
-        self.curfew_enabled_cb = QCheckBox("Toque de Queda Nocturno (Night Curfew)")
+        self.curfew_enabled_cb = QCheckBox(t("rules.curfew_title"))
         self.curfew_enabled_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
         curfew_layout.addWidget(self.curfew_enabled_cb)
 
-        curfew_desc = QLabel("Bloquea automáticamente los sitios distractores durante la noche para proteger las horas de descanso y sueño.")
-        curfew_desc.setObjectName("cardDesc")
-        curfew_desc.setWordWrap(True)
-        curfew_layout.addWidget(curfew_desc)
+        self.curfew_desc = QLabel(t("rules.curfew_desc"))
+        self.curfew_desc.setObjectName("cardDesc")
+        self.curfew_desc.setWordWrap(True)
+        curfew_layout.addWidget(self.curfew_desc)
 
         time_row = QHBoxLayout()
         time_row.setContentsMargins(0, 4, 0, 0)
         time_row.setSpacing(6)
 
-        self.curfew_start_lbl = QLabel("Bloquear desde:")
+        self.curfew_start_lbl = QLabel(t("rules.curfew_start_label"))
         self.curfew_start_lbl.setObjectName("fieldLabel")
         time_row.addWidget(self.curfew_start_lbl)
 
         self.curfew_start_minus = QPushButton()
         self.curfew_start_minus.setObjectName("stepBtn")
-        self.curfew_start_minus.setToolTip("Restar 15 minutos")
+        self.curfew_start_minus.setToolTip(t("rules.step_curfew_minus_tooltip"))
         self.curfew_start_minus.setCursor(Qt.CursorShape.PointingHandCursor)
         self.curfew_start_minus.clicked.connect(lambda: self.step_curfew_start(-15))
         time_row.addWidget(self.curfew_start_minus)
@@ -172,20 +173,20 @@ class RulesTab(QWidget):
 
         self.curfew_start_plus = QPushButton()
         self.curfew_start_plus.setObjectName("stepBtn")
-        self.curfew_start_plus.setToolTip("Sumar 15 minutos")
+        self.curfew_start_plus.setToolTip(t("rules.step_curfew_plus_tooltip"))
         self.curfew_start_plus.setCursor(Qt.CursorShape.PointingHandCursor)
         self.curfew_start_plus.clicked.connect(lambda: self.step_curfew_start(15))
         time_row.addWidget(self.curfew_start_plus)
 
         time_row.addSpacing(14)
 
-        self.curfew_end_lbl = QLabel("Hasta las:")
+        self.curfew_end_lbl = QLabel(t("rules.curfew_end_label"))
         self.curfew_end_lbl.setObjectName("fieldLabel")
         time_row.addWidget(self.curfew_end_lbl)
 
         self.curfew_end_minus = QPushButton()
         self.curfew_end_minus.setObjectName("stepBtn")
-        self.curfew_end_minus.setToolTip("Restar 15 minutos")
+        self.curfew_end_minus.setToolTip(t("rules.step_curfew_minus_tooltip"))
         self.curfew_end_minus.setCursor(Qt.CursorShape.PointingHandCursor)
         self.curfew_end_minus.clicked.connect(lambda: self.step_curfew_end(-15))
         time_row.addWidget(self.curfew_end_minus)
@@ -199,7 +200,7 @@ class RulesTab(QWidget):
 
         self.curfew_end_plus = QPushButton()
         self.curfew_end_plus.setObjectName("stepBtn")
-        self.curfew_end_plus.setToolTip("Sumar 15 minutos")
+        self.curfew_end_plus.setToolTip(t("rules.step_curfew_plus_tooltip"))
         self.curfew_end_plus.setCursor(Qt.CursorShape.PointingHandCursor)
         self.curfew_end_plus.clicked.connect(lambda: self.step_curfew_end(15))
         time_row.addWidget(self.curfew_end_plus)
@@ -215,7 +216,7 @@ class RulesTab(QWidget):
         # Quick schedule preset pills
         sched_row = QHBoxLayout()
         sched_row.setSpacing(6)
-        self.curfew_sched_lbl = QLabel("Horarios habituales:")
+        self.curfew_sched_lbl = QLabel(t("rules.curfew_presets_label"))
         self.curfew_sched_lbl.setStyleSheet("font-size: 11px; color: #8B949E; font-weight: 500;")
         sched_row.addWidget(self.curfew_sched_lbl)
 
@@ -247,7 +248,7 @@ class RulesTab(QWidget):
         self.curfew_info_icon.setStyleSheet("background: transparent; border: none;")
         notice_layout.addWidget(self.curfew_info_icon)
 
-        self.curfew_notice = QLabel("Aviso: Recibirás una notificación en tu escritorio 10 minutos antes del Toque de Queda para cerrar tus pestañas con calma.")
+        self.curfew_notice = QLabel(t("rules.curfew_notice"))
         self.curfew_notice.setObjectName("infoBannerText")
         self.curfew_notice.setWordWrap(True)
         notice_layout.addWidget(self.curfew_notice)
@@ -262,39 +263,39 @@ class RulesTab(QWidget):
         bypass_layout.setContentsMargins(16, 14, 16, 14)
         bypass_layout.setSpacing(10)
 
-        self.bypasses_enabled_cb = QCheckBox("Permitir pausas temporales (Descansos de 15, 30 o 45 min)")
+        self.bypasses_enabled_cb = QCheckBox(t("rules.bypasses_title"))
         self.bypasses_enabled_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
         bypass_layout.addWidget(self.bypasses_enabled_cb)
 
-        byp_desc = QLabel("Permite solicitar pausas de navegación desde el icono de la bandeja durante tus sesiones de trabajo.")
-        byp_desc.setObjectName("cardDesc")
-        byp_desc.setWordWrap(True)
-        bypass_layout.addWidget(byp_desc)
+        self.byp_desc = QLabel(t("rules.bypasses_desc"))
+        self.byp_desc.setObjectName("cardDesc")
+        self.byp_desc.setWordWrap(True)
+        bypass_layout.addWidget(self.byp_desc)
 
         emerg_container = QWidget()
         emerg_layout = QVBoxLayout(emerg_container)
         emerg_layout.setContentsMargins(20, 0, 0, 0)
         emerg_layout.setSpacing(8)
 
-        self.curfew_emerg_cb = QCheckBox("Permitir desbloqueo de emergencia durante el Toque de Queda")
+        self.curfew_emerg_cb = QCheckBox(t("rules.curfew_emergency_title"))
         self.curfew_emerg_cb.setStyleSheet("font-size: 12px; font-weight: 600;")
         emerg_layout.addWidget(self.curfew_emerg_cb)
 
         phrase_row = QHBoxLayout()
         phrase_row.setSpacing(8)
 
-        self.emergency_phrase_lbl = QLabel("Frase de confirmación:")
+        self.emergency_phrase_lbl = QLabel(t("rules.phrase_label"))
         self.emergency_phrase_lbl.setObjectName("fieldLabel")
         phrase_row.addWidget(self.emergency_phrase_lbl)
 
         self.emergency_phrase_input = QLineEdit()
-        self.emergency_phrase_input.setPlaceholderText("ej: necesito desbloqueo de emergencia")
+        self.emergency_phrase_input.setPlaceholderText(t("rules.phrase_placeholder"))
         phrase_row.addWidget(self.emergency_phrase_input)
 
-        self.copy_phrase_btn = QPushButton("Copiar Frase")
+        self.copy_phrase_btn = QPushButton(t("rules.btn_copy_phrase"))
         self.copy_phrase_btn.setObjectName("secondaryBtn")
         self.copy_phrase_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.copy_phrase_btn.setToolTip("Copiar frase al portapapeles")
+        self.copy_phrase_btn.setToolTip(t("rules.copy_phrase_tooltip"))
         self.copy_phrase_btn.clicked.connect(self.on_copy_phrase_clicked)
         phrase_row.addWidget(self.copy_phrase_btn)
 
@@ -309,16 +310,16 @@ class RulesTab(QWidget):
         sys_layout.setContentsMargins(16, 14, 16, 14)
         sys_layout.setSpacing(6)
 
-        self.autostart_cb = QCheckBox("Iniciar icono en la bandeja del sistema con el escritorio (KDE Plasma)")
+        self.autostart_cb = QCheckBox(t("rules.autostart_title"))
         self.autostart_cb.setStyleSheet("font-weight: 700; font-size: 13px;")
         self.autostart_cb.setChecked(is_autostart_enabled())
         self.autostart_cb.toggled.connect(self.on_autostart_toggled)
         sys_layout.addWidget(self.autostart_cb)
 
-        sys_desc = QLabel("Inicia el icono en la bandeja del sistema al entrar a tu sesión de escritorio para consultar el estado y pedir descansos.")
-        sys_desc.setObjectName("cardDesc")
-        sys_desc.setWordWrap(True)
-        sys_layout.addWidget(sys_desc)
+        self.sys_desc = QLabel(t("rules.autostart_desc"))
+        self.sys_desc.setObjectName("cardDesc")
+        self.sys_desc.setWordWrap(True)
+        sys_layout.addWidget(self.sys_desc)
 
         layout.addWidget(sys_card)
 
@@ -481,13 +482,13 @@ class RulesTab(QWidget):
 
         hours = total_mins // 60
         mins = total_mins % 60
-        dur_txt = f"{hours}h {mins}m" if mins > 0 else f"{hours}h"
+        dur_txt = t("rules.duration_hours_mins", hours=hours, mins=mins) if mins > 0 else t("rules.duration_hours", hours=hours)
 
         s_str = s_time.toString("HH:mm")
         e_str = e_time.toString("HH:mm")
 
         self.curfew_summary_lbl.setText(
-            f"El toque de queda bloqueará distracciones todos los días de <b>{s_str} a {e_str}</b> ({dur_txt} de descanso protegido)."
+            t("rules.curfew_summary", start=s_str, end=e_str, duration=dur_txt)
         )
 
     def on_autostart_toggled(self, checked: bool):
@@ -497,5 +498,60 @@ class RulesTab(QWidget):
         phrase = self.emergency_phrase_input.text().strip()
         if phrase:
             QApplication.clipboard().setText(phrase)
-            self.copy_phrase_btn.setText("Copiado")
-            QTimer.singleShot(2000, lambda: self.copy_phrase_btn.setText("Copiar Frase"))
+            self.copy_phrase_btn.setText(t("rules.btn_copied"))
+            QTimer.singleShot(2000, lambda: self.copy_phrase_btn.setText(t("rules.btn_copy_phrase")))
+
+    def retranslate_ui(self):
+        """Retranslates all text elements on the Rules tab dynamically."""
+        if hasattr(self, "boot_enabled_cb"):
+            self.boot_enabled_cb.setText(t("rules.boot_title"))
+        if hasattr(self, "boot_desc"):
+            self.boot_desc.setText(t("rules.boot_desc"))
+        if hasattr(self, "boot_dur_label"):
+            self.boot_dur_label.setText(t("rules.boot_duration_label"))
+        if hasattr(self, "boot_step_minus"):
+            self.boot_step_minus.setToolTip(t("rules.step_boot_minus_tooltip"))
+        if hasattr(self, "boot_duration_spin"):
+            self.boot_duration_spin.setSuffix(t("rules.boot_spin_suffix"))
+        if hasattr(self, "boot_step_plus"):
+            self.boot_step_plus.setToolTip(t("rules.step_boot_plus_tooltip"))
+        if hasattr(self, "curfew_enabled_cb"):
+            self.curfew_enabled_cb.setText(t("rules.curfew_title"))
+        if hasattr(self, "curfew_desc"):
+            self.curfew_desc.setText(t("rules.curfew_desc"))
+        if hasattr(self, "curfew_start_lbl"):
+            self.curfew_start_lbl.setText(t("rules.curfew_start_label"))
+        if hasattr(self, "curfew_start_minus"):
+            self.curfew_start_minus.setToolTip(t("rules.step_curfew_minus_tooltip"))
+        if hasattr(self, "curfew_start_plus"):
+            self.curfew_start_plus.setToolTip(t("rules.step_curfew_plus_tooltip"))
+        if hasattr(self, "curfew_end_lbl"):
+            self.curfew_end_lbl.setText(t("rules.curfew_end_label"))
+        if hasattr(self, "curfew_end_minus"):
+            self.curfew_end_minus.setToolTip(t("rules.step_curfew_minus_tooltip"))
+        if hasattr(self, "curfew_end_plus"):
+            self.curfew_end_plus.setToolTip(t("rules.step_curfew_plus_tooltip"))
+        if hasattr(self, "curfew_sched_lbl"):
+            self.curfew_sched_lbl.setText(t("rules.curfew_presets_label"))
+        if hasattr(self, "curfew_notice"):
+            self.curfew_notice.setText(t("rules.curfew_notice"))
+        if hasattr(self, "bypasses_enabled_cb"):
+            self.bypasses_enabled_cb.setText(t("rules.bypasses_title"))
+        if hasattr(self, "byp_desc"):
+            self.byp_desc.setText(t("rules.bypasses_desc"))
+        if hasattr(self, "curfew_emerg_cb"):
+            self.curfew_emerg_cb.setText(t("rules.curfew_emergency_title"))
+        if hasattr(self, "emergency_phrase_lbl"):
+            self.emergency_phrase_lbl.setText(t("rules.phrase_label"))
+        if hasattr(self, "emergency_phrase_input"):
+            self.emergency_phrase_input.setPlaceholderText(t("rules.phrase_placeholder"))
+        if hasattr(self, "copy_phrase_btn"):
+            self.copy_phrase_btn.setText(t("rules.btn_copy_phrase"))
+            self.copy_phrase_btn.setToolTip(t("rules.copy_phrase_tooltip"))
+        if hasattr(self, "autostart_cb"):
+            self.autostart_cb.setText(t("rules.autostart_title"))
+        if hasattr(self, "sys_desc"):
+            self.sys_desc.setText(t("rules.autostart_desc"))
+
+        self.update_curfew_summary()
+

@@ -14,6 +14,7 @@ from PyQt6.QtGui import QPalette
 from client.utils import sanitize_domain
 from client.dialogs import ConfirmDomainRemovalDialog
 from client.icons import get_themed_icon, get_pixmap
+from client.i18n import t
 
 
 class DomainsTab(QWidget):
@@ -52,6 +53,16 @@ class DomainsTab(QWidget):
         if hasattr(self, "add_btn"):
             self.add_btn.setIcon(get_themed_icon("plus", is_dark, role="white", size=14))
 
+    def retranslate_ui(self):
+        """Refreshes all texts when language changes dynamically."""
+        if hasattr(self, "domain_input"):
+            self.domain_input.setPlaceholderText(t("domains.input_placeholder"))
+        if hasattr(self, "add_btn"):
+            self.add_btn.setText(t("domains.btn_add"))
+        if hasattr(self, "search_input"):
+            self.search_input.setPlaceholderText(t("domains.search_placeholder"))
+        self.render_domains_list()
+
     def setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
@@ -62,12 +73,12 @@ class DomainsTab(QWidget):
         top_row.setSpacing(8)
 
         self.domain_input = QLineEdit()
-        self.domain_input.setPlaceholderText("Ingresa un dominio a bloquear (ej: twitter.com o enlace)...")
+        self.domain_input.setPlaceholderText(t("domains.input_placeholder"))
         self.domain_input.returnPressed.connect(self.on_add_domain_clicked)
         self.domain_input.textChanged.connect(self.on_domain_input_changed)
         top_row.addWidget(self.domain_input)
 
-        self.add_btn = QPushButton("Añadir")
+        self.add_btn = QPushButton(t("domains.btn_add"))
         self.add_btn.setObjectName("primaryBtn")
         self.add_btn.setIcon(get_themed_icon("plus", self.is_dark_mode(), role="white", size=14))
         self.add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -83,14 +94,14 @@ class DomainsTab(QWidget):
         # 2. Header with counter, search filter and inline auto-save feedback
         count_row = QHBoxLayout()
         count_row.setSpacing(10)
-        self.domains_count_lbl = QLabel("Sitios Bloqueados")
+        self.domains_count_lbl = QLabel(t("domains.header_title"))
         self.domains_count_lbl.setObjectName("fieldLabel")
         count_row.addWidget(self.domains_count_lbl)
 
         count_row.addStretch()
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Filtrar sitios...")
+        self.search_input.setPlaceholderText(t("domains.search_placeholder"))
         self.search_input.setFixedWidth(170)
         self.search_input.textChanged.connect(lambda: self.render_domains_list())
         count_row.addWidget(self.search_input)
@@ -134,13 +145,13 @@ class DomainsTab(QWidget):
         if clean:
             if clean in self.blocked_domains:
                 self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #D29922; font-weight: 600;")
-                self.domain_preview_lbl.setText(f"Dominio ya presente en la lista: {clean}")
+                self.domain_preview_lbl.setText(t("domains.preview_already_exists", domain=clean))
             else:
                 self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #58A6FF; font-weight: 600;")
-                self.domain_preview_lbl.setText(f"Se bloqueará: {clean}")
+                self.domain_preview_lbl.setText(t("domains.preview_will_block", domain=clean))
         else:
             self.domain_preview_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
-            self.domain_preview_lbl.setText("Formato de dominio no reconocido (ej: twitter.com)")
+            self.domain_preview_lbl.setText(t("domains.preview_invalid"))
 
     def render_domains_list(self):
         self.domains_list.clear()
@@ -149,13 +160,13 @@ class DomainsTab(QWidget):
         filtered_domains = [d for d in self.blocked_domains if (not filter_text or filter_text in d.lower())]
 
         if filter_text:
-            self.domains_count_lbl.setText(f"Sitios ({len(filtered_domains)} de {total_cnt})")
+            self.domains_count_lbl.setText(t("domains.header_filtered", filtered=len(filtered_domains), total=total_cnt))
         else:
-            self.domains_count_lbl.setText(f"Sitios Bloqueados ({total_cnt})")
+            self.domains_count_lbl.setText(t("domains.header_count", count=total_cnt))
 
         if hasattr(self, "search_input"):
             self.search_input.setEnabled(total_cnt > 0)
-            self.search_input.setPlaceholderText("Sin sitios" if total_cnt == 0 else "Filtrar sitios...")
+            self.search_input.setPlaceholderText(t("domains.search_empty") if total_cnt == 0 else t("domains.search_placeholder"))
         is_dark = self.is_dark_mode()
         hover_bg = "#161B22" if is_dark else "#F6F8FA"
         sep_color = "#21262D" if is_dark else "#E1E4E8"
@@ -168,12 +179,12 @@ class DomainsTab(QWidget):
             empty_layout.setSpacing(6)
             empty_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            title = QLabel("Sin sitios en la lista")
+            title = QLabel(t("domains.empty_title"))
             title.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {'#F0F6FC' if is_dark else '#1F2328'}; background: transparent; border: none;")
             title.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_layout.addWidget(title)
 
-            sub = QLabel("Ingresa dominios arriba (ej: youtube.com) para activar la protección.")
+            sub = QLabel(t("domains.empty_desc"))
             sub.setStyleSheet("font-size: 11.5px; color: #8B949E; background: transparent; border: none;")
             sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_layout.addWidget(sub)
@@ -185,7 +196,7 @@ class DomainsTab(QWidget):
 
         if not filtered_domains and filter_text:
             item = QListWidgetItem()
-            lbl = QLabel("Sin coincidencias para la búsqueda")
+            lbl = QLabel(t("domains.search_no_matches"))
             lbl.setStyleSheet("font-size: 11.5px; color: #8B949E; padding: 20px; background: transparent;")
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             item.setSizeHint(QSize(0, 44))
@@ -225,7 +236,7 @@ class DomainsTab(QWidget):
             row_layout.addStretch()
 
             # Subtle routing pill to bridge the horizontal gap
-            status_pill = QLabel("127.0.0.1")
+            status_pill = QLabel(t("domains.pill_routing"))
             status_pill.setStyleSheet(f"""
                 font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
                 font-size: 10px;
@@ -236,13 +247,13 @@ class DomainsTab(QWidget):
                 border-radius: 4px;
                 padding: 2px 8px;
             """)
-            status_pill.setToolTip("Redirigido a localhost para bloqueo local")
+            status_pill.setToolTip(t("domains.pill_routing_tooltip"))
             row_layout.addWidget(status_pill)
 
             # Elegant minimalist remove button with trash-2 icon
             del_btn = QPushButton()
             del_btn.setIcon(get_themed_icon("trash-2", is_dark, role="secondary", active_role="white", size=14))
-            del_btn.setToolTip(f"Eliminar {domain}")
+            del_btn.setToolTip(t("domains.btn_remove_tooltip", domain=domain))
             del_btn.setObjectName("removeBtn")
             del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             del_btn.clicked.connect(lambda _, d=domain: self.on_remove_domain(d))
@@ -257,13 +268,13 @@ class DomainsTab(QWidget):
         domain = sanitize_domain(raw)
         if not domain:
             self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #F85149; font-weight: 600;")
-            self.domain_auto_feedback_lbl.setText("Dominio inválido")
+            self.domain_auto_feedback_lbl.setText(t("domains.feedback_invalid"))
             QTimer.singleShot(2500, lambda: self.domain_auto_feedback_lbl.setText(""))
             return
 
         if domain in self.blocked_domains:
             self.domain_auto_feedback_lbl.setStyleSheet("font-size: 11px; color: #D29922; font-weight: 600;")
-            self.domain_auto_feedback_lbl.setText("Ya está en la lista")
+            self.domain_auto_feedback_lbl.setText(t("domains.feedback_exists"))
             QTimer.singleShot(2500, lambda: self.domain_auto_feedback_lbl.setText(""))
             return
 
@@ -272,7 +283,7 @@ class DomainsTab(QWidget):
         self.render_domains_list()
 
         # Emit auto save request
-        self.auto_save_requested.emit(self.blocked_domains, f"'{domain}' añadido y guardado")
+        self.auto_save_requested.emit(self.blocked_domains, t("domains.feedback_added", domain=domain))
         self.domains_changed.emit(self.blocked_domains)
 
     def on_remove_domain(self, domain: str):

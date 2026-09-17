@@ -1,0 +1,57 @@
+# Maintainer: Focus-Guard Contributors <dev@focus-guard.local>
+pkgname=focus-guard
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Anti-procrastination and dopamine regulator at the system level (KDE Plasma 6 / Wayland)"
+arch=('any')
+url="https://github.com/HumbleDev-tech/focus-guard"
+license=('MIT')
+depends=(
+    'python'
+    'python-pyqt6'
+    'systemd'
+)
+makedepends=(
+    'python-build'
+    'python-installer'
+    'python-wheel'
+    'python-setuptools'
+)
+optdepends=(
+    'socat: For debugging or sending raw commands via UNIX socket'
+)
+backup=('etc/focus-guard/config.json')
+install='focus-guard.install'
+source=("$pkgname-$pkgver.tar.gz::https://github.com/HumbleDev-tech/focus-guard/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cd "$srcdir/$pkgname-$pkgver" 2>/dev/null || cd "$srcdir"
+    python -m build --wheel --no-isolation
+}
+
+package() {
+    cd "$srcdir/$pkgname-$pkgver" 2>/dev/null || cd "$srcdir"
+
+    # Install Python package via wheel
+    python -m installer --destdir="$pkgdir" dist/*.whl
+
+    # Install Systemd service (Standard Arch Linux packaging path)
+    install -Dm644 systemd/focus-guard.service \
+        "$pkgdir/usr/lib/systemd/system/focus-guard.service"
+
+    # Install default configuration
+    install -Dm644 config/config.default.json \
+        "$pkgdir/etc/focus-guard/config.json"
+
+    # Install desktop launcher entry
+    install -Dm644 resources/focus-guard.desktop \
+        "$pkgdir/usr/share/applications/focus-guard.desktop"
+
+    # Install scalable desktop vector icon
+    install -Dm644 resources/icon-active.svg \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/focus-guard.svg"
+
+    # Install license
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

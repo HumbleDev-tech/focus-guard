@@ -10,6 +10,7 @@ from PyQt6.QtCore import Qt
 
 from client.theme import apply_dialog_theme
 from client.icons import get_themed_icon
+from client.i18n import t
 
 
 class UnsavedChangesDialog(QDialog):
@@ -17,7 +18,7 @@ class UnsavedChangesDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.action = "cancel"  # 'save', 'discard', 'cancel'
-        self.setWindowTitle("Cambios sin guardar")
+        self.setWindowTitle(t("dialog.unsaved_title"))
         self.setFixedWidth(420)
         apply_dialog_theme(self)
 
@@ -25,11 +26,11 @@ class UnsavedChangesDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
-        title = QLabel("¿Guardar cambios antes de salir?")
+        title = QLabel(t("dialog.unsaved_header"))
         title.setObjectName("sectionHeader")
         layout.addWidget(title)
 
-        desc = QLabel("Has modificado horarios o reglas del sistema. Si sales sin guardar, los cambios se descartarán.")
+        desc = QLabel(t("dialog.unsaved_desc"))
         desc.setObjectName("cardDesc")
         desc.setWordWrap(True)
         layout.addWidget(desc)
@@ -37,7 +38,7 @@ class UnsavedChangesDialog(QDialog):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
 
-        cancel_btn = QPushButton("Cancelar")
+        cancel_btn = QPushButton(t("dialog.unsaved_btn_cancel"))
         cancel_btn.setObjectName("secondaryBtn")
         cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         cancel_btn.clicked.connect(self.on_cancel)
@@ -45,14 +46,14 @@ class UnsavedChangesDialog(QDialog):
 
         btn_row.addStretch()
 
-        discard_btn = QPushButton("Descartar")
+        discard_btn = QPushButton(t("dialog.unsaved_btn_discard"))
         discard_btn.setObjectName("dangerBtn")
         discard_btn.setIcon(get_themed_icon("trash-2", role="white", size=14))
         discard_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         discard_btn.clicked.connect(self.on_discard)
         btn_row.addWidget(discard_btn)
 
-        save_btn = QPushButton("Guardar y Salir")
+        save_btn = QPushButton(t("dialog.unsaved_btn_save"))
         save_btn.setObjectName("primaryBtn")
         save_btn.setIcon(get_themed_icon("check", role="white", size=14))
         save_btn.setCursor(Qt.CursorShape.PointingHandCursor)

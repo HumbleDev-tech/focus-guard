@@ -11,6 +11,7 @@ from PyQt6.QtCore import Qt, QTimer
 
 from client.theme import apply_dialog_theme
 from client.icons import get_themed_icon
+from client.i18n import t
 
 
 class EmergencyPromptDialog(QDialog):
@@ -20,7 +21,7 @@ class EmergencyPromptDialog(QDialog):
         self.phrase = phrase.strip()
         self.confirmed = False
 
-        self.setWindowTitle("Desbloqueo de Emergencia")
+        self.setWindowTitle(t("dialog.emergency_title"))
         self.setMinimumWidth(440)
         apply_dialog_theme(self)
 
@@ -28,11 +29,11 @@ class EmergencyPromptDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
-        title = QLabel("Toque de Queda Nocturno Activo")
+        title = QLabel(t("dialog.emergency_header"))
         title.setObjectName("sectionHeader")
         layout.addWidget(title)
 
-        desc = QLabel("Para confirmar una excepción de trabajo real, escribe la frase de confirmación:")
+        desc = QLabel(t("dialog.emergency_desc"))
         desc.setObjectName("cardDesc")
         desc.setWordWrap(True)
         layout.addWidget(desc)
@@ -50,31 +51,31 @@ class EmergencyPromptDialog(QDialog):
 
         phrase_box_layout.addStretch()
 
-        self.copy_btn = QPushButton("Copiar Frase")
+        self.copy_btn = QPushButton(t("dialog.confirm_removal_btn_copy"))
         self.copy_btn.setObjectName("secondaryBtn")
         self.copy_btn.setIcon(get_themed_icon("copy", role="secondary", size=14))
         self.copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.copy_btn.setToolTip("Copiar frase al portapapeles")
+        self.copy_btn.setToolTip(t("dialog.confirm_removal_btn_copy"))
         self.copy_btn.clicked.connect(self.on_copy_phrase)
         phrase_box_layout.addWidget(self.copy_btn)
 
         layout.addWidget(phrase_container)
 
         self.input_field = QLineEdit()
-        self.input_field.setPlaceholderText("Escribe o pega la frase exactamente aquí...")
+        self.input_field.setPlaceholderText(t("dialog.emergency_input_placeholder"))
         self.input_field.returnPressed.connect(self.on_confirm)
         layout.addWidget(self.input_field)
 
         btn_row = QHBoxLayout()
         btn_row.addStretch()
 
-        cancel_btn = QPushButton("Cancelar")
+        cancel_btn = QPushButton(t("dialog.confirm_removal_btn_cancel"))
         cancel_btn.setObjectName("secondaryBtn")
         cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         cancel_btn.clicked.connect(self.reject)
         btn_row.addWidget(cancel_btn)
 
-        confirm_btn = QPushButton("Confirmar Desbloqueo (15 min)")
+        confirm_btn = QPushButton(t("dialog.emergency_btn_confirm"))
         confirm_btn.setObjectName("primaryBtn")
         confirm_btn.setIcon(get_themed_icon("unlock", role="white", size=15))
         confirm_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -86,8 +87,8 @@ class EmergencyPromptDialog(QDialog):
     def on_copy_phrase(self):
         QApplication.clipboard().setText(self.phrase)
         if hasattr(self, "copy_btn"):
-            self.copy_btn.setText("Copiado")
-            QTimer.singleShot(2000, lambda: self.copy_btn.setText("Copiar Frase"))
+            self.copy_btn.setText(t("dialog.confirm_removal_copied"))
+            QTimer.singleShot(2000, lambda: self.copy_btn.setText(t("dialog.confirm_removal_btn_copy")))
         if hasattr(self, "input_field") and self.input_field:
             self.input_field.setFocus()
 

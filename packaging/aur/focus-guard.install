@@ -1,0 +1,29 @@
+post_install() {
+    echo ":: Focus-Guard installed successfully."
+    echo ":: Enable and start the system daemon with:"
+    echo "     sudo systemctl enable --now focus-guard.service"
+    echo ":: The desktop tray applet can be started from your application launcher or:"
+    echo "     focus-guard-tray &"
+}
+
+post_upgrade() {
+    echo ":: Restarting Focus-Guard system daemon..."
+    systemctl daemon-reload
+    if systemctl is-active --quiet focus-guard.service; then
+        systemctl restart focus-guard.service
+    fi
+}
+
+pre_remove() {
+    echo ":: Stopping Focus-Guard system daemon..."
+    if systemctl is-active --quiet focus-guard.service; then
+        systemctl stop focus-guard.service
+    fi
+    systemctl disable focus-guard.service 2>/dev/null || true
+
+    # Clean up /etc/hosts entries if left behind
+    if [ -f /etc/hosts ] && grep -q "# FOCUS-GUARD-BEGIN" /etc/hosts; then
+        echo ":: Cleaning Focus-Guard markers from /etc/hosts..."
+        sed -i '/# FOCUS-GUARD-BEGIN/,/# FOCUS-GUARD-END/d' /etc/hosts
+    fi
+}

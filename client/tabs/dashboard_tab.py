@@ -11,6 +11,7 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QPalette
 from client.utils import format_human_time
 from client.icons import get_themed_icon
+from client.i18n import t
 
 
 class DashboardTab(QWidget):
@@ -23,6 +24,7 @@ class DashboardTab(QWidget):
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
+        self.last_status_args = None
         self._setup_ui()
 
     def is_dark_mode(self) -> bool:
@@ -61,17 +63,17 @@ class DashboardTab(QWidget):
         hero_layout.setSpacing(8)
 
         top_row = QHBoxLayout()
-        self.dash_state_title = QLabel("Estado Actual")
+        self.dash_state_title = QLabel(t("dash.state_title"))
         self.dash_state_title.setObjectName("sectionHeader")
         top_row.addWidget(self.dash_state_title)
         top_row.addStretch()
 
-        self.dash_state_pill = QLabel("ESTADO")
+        self.dash_state_pill = QLabel(t("dash.status_free"))
         self.dash_state_pill.setObjectName("statusBadge")
         top_row.addWidget(self.dash_state_pill)
         hero_layout.addLayout(top_row)
 
-        self.dash_countdown_lbl = QLabel("Calculando tiempo...")
+        self.dash_countdown_lbl = QLabel(t("dash.calculating"))
         self.dash_countdown_lbl.setStyleSheet("""
             font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", "Cascadia Code", "Fira Code", monospace;
             font-size: 22px;
@@ -100,35 +102,35 @@ class DashboardTab(QWidget):
         act_box = QVBoxLayout()
         act_box.setSpacing(8)
 
-        act_title = QLabel("Sesiones de Enfoque y Control")
-        act_title.setObjectName("sectionHeader")
-        act_box.addWidget(act_title)
+        self.act_title = QLabel(t("dash.sessions_title"))
+        self.act_title.setObjectName("sectionHeader")
+        act_box.addWidget(self.act_title)
 
         grid = QGridLayout()
         grid.setSpacing(8)
 
-        self.btn_pomodoro_25 = QPushButton("Pomodoro (25 min)")
+        self.btn_pomodoro_25 = QPushButton(t("dash.btn_pomodoro_25"))
         self.btn_pomodoro_25.setObjectName("secondaryBtn")
         self.btn_pomodoro_25.setMinimumHeight(38)
         self.btn_pomodoro_25.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_pomodoro_25.clicked.connect(lambda: self.focus_session_requested.emit(25))
         grid.addWidget(self.btn_pomodoro_25, 0, 0)
 
-        self.btn_pomodoro_50 = QPushButton("Trabajo Profundo (50 min)")
+        self.btn_pomodoro_50 = QPushButton(t("dash.btn_pomodoro_50"))
         self.btn_pomodoro_50.setObjectName("secondaryBtn")
         self.btn_pomodoro_50.setMinimumHeight(38)
         self.btn_pomodoro_50.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_pomodoro_50.clicked.connect(lambda: self.focus_session_requested.emit(50))
         grid.addWidget(self.btn_pomodoro_50, 0, 1)
 
-        self.btn_primary_action = QPushButton("Bloquear Ahora")
+        self.btn_primary_action = QPushButton(t("dash.btn_lock_now"))
         self.btn_primary_action.setObjectName("primaryBtn")
         self.btn_primary_action.setMinimumHeight(38)
         self.btn_primary_action.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_primary_action.clicked.connect(self.primary_action_clicked.emit)
         grid.addWidget(self.btn_primary_action, 1, 0)
 
-        self.btn_secondary_action = QPushButton("Pausa Temporal (15 min)")
+        self.btn_secondary_action = QPushButton(t("dash.btn_pause_15"))
         self.btn_secondary_action.setObjectName("secondaryBtn")
         self.btn_secondary_action.setMinimumHeight(38)
         self.btn_secondary_action.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -138,7 +140,7 @@ class DashboardTab(QWidget):
         act_box.addLayout(grid)
 
         # Stop manual focus button
-        self.btn_stop_focus = QPushButton("Finalizar Sesión de Enfoque")
+        self.btn_stop_focus = QPushButton(t("dash.btn_stop_focus"))
         self.btn_stop_focus.setObjectName("dangerBtn")
         self.btn_stop_focus.setMinimumHeight(38)
         self.btn_stop_focus.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -152,9 +154,9 @@ class DashboardTab(QWidget):
         self.telemetry_box = QVBoxLayout()
         self.telemetry_box.setSpacing(8)
 
-        telem_title = QLabel("Resumen de Configuración")
-        telem_title.setObjectName("sectionHeader")
-        self.telemetry_box.addWidget(telem_title)
+        self.telem_title = QLabel(t("dash.kpi_section_title"))
+        self.telem_title.setObjectName("sectionHeader")
+        self.telemetry_box.addWidget(self.telem_title)
 
         kpi_row = QHBoxLayout()
         kpi_row.setSpacing(10)
@@ -165,11 +167,11 @@ class DashboardTab(QWidget):
         kpi_dom_layout = QVBoxLayout(kpi_dom)
         kpi_dom_layout.setContentsMargins(10, 8, 10, 8)
         kpi_dom_layout.setSpacing(2)
-        lbl_dom_title = QLabel("SITIOS PROTEGIDOS")
-        lbl_dom_title.setObjectName("kpiTitle")
-        self.kpi_domains_val = QLabel("0 dominios")
+        self.lbl_dom_title = QLabel(t("dash.kpi_protected_sites"))
+        self.lbl_dom_title.setObjectName("kpiTitle")
+        self.kpi_domains_val = QLabel(t("dash.kpi_domains_val", count=0))
         self.kpi_domains_val.setObjectName("kpiValue")
-        kpi_dom_layout.addWidget(lbl_dom_title)
+        kpi_dom_layout.addWidget(self.lbl_dom_title)
         kpi_dom_layout.addWidget(self.kpi_domains_val)
         kpi_row.addWidget(kpi_dom)
 
@@ -179,11 +181,11 @@ class DashboardTab(QWidget):
         kpi_curf_layout = QVBoxLayout(kpi_curf)
         kpi_curf_layout.setContentsMargins(10, 8, 10, 8)
         kpi_curf_layout.setSpacing(2)
-        lbl_curf_title = QLabel("TOQUE DE QUEDA")
-        lbl_curf_title.setObjectName("kpiTitle")
+        self.lbl_curf_title = QLabel(t("dash.kpi_curfew"))
+        self.lbl_curf_title.setObjectName("kpiTitle")
         self.kpi_curfew_val = QLabel("23:15 a 07:00")
         self.kpi_curfew_val.setObjectName("kpiValue")
-        kpi_curf_layout.addWidget(lbl_curf_title)
+        kpi_curf_layout.addWidget(self.lbl_curf_title)
         kpi_curf_layout.addWidget(self.kpi_curfew_val)
         kpi_row.addWidget(kpi_curf)
 
@@ -193,11 +195,11 @@ class DashboardTab(QWidget):
         kpi_boot_layout = QVBoxLayout(kpi_boot)
         kpi_boot_layout.setContentsMargins(10, 8, 10, 8)
         kpi_boot_layout.setSpacing(2)
-        lbl_boot_title = QLabel("COOLDOWN INICIO")
-        lbl_boot_title.setObjectName("kpiTitle")
-        self.kpi_boot_val = QLabel("30 minutos")
+        self.lbl_boot_title = QLabel(t("dash.kpi_boot_cooldown"))
+        self.lbl_boot_title.setObjectName("kpiTitle")
+        self.kpi_boot_val = QLabel(t("dash.kpi_boot_val", mins=30))
         self.kpi_boot_val.setObjectName("kpiValue")
-        kpi_boot_layout.addWidget(lbl_boot_title)
+        kpi_boot_layout.addWidget(self.lbl_boot_title)
         kpi_boot_layout.addWidget(self.kpi_boot_val)
         kpi_row.addWidget(kpi_boot)
 
@@ -230,28 +232,30 @@ class DashboardTab(QWidget):
         curfew_emerg_enabled: bool = False
     ):
         """Updates all dashboard elements based on the daemon status."""
+        self.last_status_args = (res, config_data, blocked_domains_count, curfew_emerg_enabled)
+
         if res.get("status") != "ok":
-            self.dash_state_pill.setText("DESCONECTADO")
+            self.dash_state_pill.setText(t("dash.pill_offline"))
             self.dash_state_pill.setStyleSheet(
                 "border: 1px solid #30363D; color: #8B949E; font-size: 10px; font-weight: 700; "
                 "padding: 3px 10px; border-radius: 12px; background-color: rgba(110, 118, 129, 0.12);"
             )
-            self.dash_state_title.setText("Servicio Fuera de Línea")
-            self.dash_countdown_lbl.setText("Inactivo")
+            self.dash_state_title.setText(t("dash.offline_title"))
+            self.dash_countdown_lbl.setText(t("dash.offline_countdown"))
             self.dash_countdown_lbl.setStyleSheet(
                 "font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
                 "font-size: 20px; font-weight: 700; color: #8B949E;"
             )
-            self.dash_desc_lbl.setText("Inicia el servicio focus-guard para habilitar la protección.")
+            self.dash_desc_lbl.setText(t("dash.offline_desc"))
             self.dash_progress_bar.setValue(0)
             self.btn_primary_action.setEnabled(False)
-            self.btn_primary_action.setToolTip("El servicio focus-guard está fuera de línea.")
+            self.btn_primary_action.setToolTip(t("dash.offline_tooltip"))
             self.btn_pomodoro_25.setEnabled(False)
-            self.btn_pomodoro_25.setToolTip("El servicio focus-guard está fuera de línea.")
+            self.btn_pomodoro_25.setToolTip(t("dash.offline_tooltip"))
             self.btn_pomodoro_50.setEnabled(False)
-            self.btn_pomodoro_50.setToolTip("El servicio focus-guard está fuera de línea.")
+            self.btn_pomodoro_50.setToolTip(t("dash.offline_tooltip"))
             self.btn_secondary_action.setEnabled(False)
-            self.btn_secondary_action.setToolTip("El servicio focus-guard está fuera de línea.")
+            self.btn_secondary_action.setToolTip(t("dash.offline_tooltip"))
             self.btn_stop_focus.setVisible(False)
             return
 
@@ -266,90 +270,90 @@ class DashboardTab(QWidget):
         human_time = format_human_time(rem)
 
         # Update Telemetry Widget
-        self.kpi_domains_val.setText(f"{domains_cnt} dominios")
+        self.kpi_domains_val.setText(t("dash.kpi_domains_val", count=domains_cnt))
         curfew = config_data.get("curfew", {})
         curfew_str = (
-            f"{curfew.get('start_time', '23:15')} a {curfew.get('end_time', '07:00')}"
+            t("dash.kpi_curfew_val", start=curfew.get('start_time', '23:15'), end=curfew.get('end_time', '07:00'))
             if curfew.get("enabled")
-            else "Desactivado"
+            else t("dash.disabled")
         )
         self.kpi_curfew_val.setText(curfew_str)
         boot = config_data.get("boot_cooldown", {})
         boot_str = (
-            f"{boot.get('duration_minutes', 30)}m (Activo)"
+            t("dash.kpi_boot_active", mins=boot.get('duration_minutes', 30))
             if (reason == "BOOT_COOLDOWN")
-            else (f"{boot.get('duration_minutes', 30)}m" if boot.get("enabled") else "Desactivado")
+            else (t("dash.kpi_boot_val", mins=boot.get('duration_minutes', 30)) if boot.get("enabled") else t("dash.disabled"))
         )
         self.kpi_boot_val.setText(boot_str)
 
         # 1. State: UNLOCKED / FREE TIME
         if state == "UNLOCKED":
-            self.dash_state_pill.setText("MODO LIBRE")
+            self.dash_state_pill.setText(t("dash.pill_free"))
             self.dash_state_pill.setStyleSheet(
                 "border: 1px solid #2EA043; color: #3FB950; font-size: 10px; font-weight: 700; "
                 "padding: 3px 10px; border-radius: 12px; background-color: rgba(46, 160, 67, 0.12);"
             )
-            self.dash_state_title.setText("Modo Libre (Navegación Abierta)")
-            self.dash_countdown_lbl.setText("Sitios Desbloqueados")
+            self.dash_state_title.setText(t("dash.state_unlocked_title"))
+            self.dash_countdown_lbl.setText(t("dash.state_unlocked_countdown"))
             self.dash_countdown_lbl.setStyleSheet(
                 "font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
                 "font-size: 20px; font-weight: 700; color: #3FB950;"
             )
-            self.dash_desc_lbl.setText("El bloqueo no está activo. Puedes iniciar una sesión de enfoque cuando gustes.")
+            self.dash_desc_lbl.setText(t("dash.state_unlocked_desc"))
             self.dash_progress_bar.setValue(0)
             self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #2EA043; }")
             self.btn_stop_focus.setVisible(False)
 
-            self.btn_primary_action.setText("Bloquear Ahora")
+            self.btn_primary_action.setText(t("dash.btn_lock_now"))
             self.btn_primary_action.setEnabled(True)
-            self.btn_primary_action.setToolTip("Activar bloqueo manual de sitios distractores.")
+            self.btn_primary_action.setToolTip(t("dash.btn_lock_now"))
             self.btn_pomodoro_25.setEnabled(True)
-            self.btn_pomodoro_25.setToolTip("Iniciar sesión de concentración de 25 minutos.")
+            self.btn_pomodoro_25.setToolTip(t("dash.btn_pomodoro_25"))
             self.btn_pomodoro_50.setEnabled(True)
-            self.btn_pomodoro_50.setToolTip("Iniciar sesión de trabajo profundo de 50 minutos.")
-            self.btn_secondary_action.setText("Pausa Temporal (15 min)")
+            self.btn_pomodoro_50.setToolTip(t("dash.btn_pomodoro_50"))
+            self.btn_secondary_action.setText(t("dash.btn_pause_15"))
             self.btn_secondary_action.setEnabled(False)
-            self.btn_secondary_action.setToolTip("Las pausas temporales solo están disponibles cuando hay un bloqueo activo.")
+            self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
 
         # 2. State: BYPASS / BREAK
         elif state == "BYPASS":
-            self.dash_state_pill.setText("PAUSA TEMPORAL")
+            self.dash_state_pill.setText(t("dash.pill_pause"))
             self.dash_state_pill.setStyleSheet(
                 "border: 1px solid #D29922; color: #E3B341; font-size: 10px; font-weight: 700; "
                 "padding: 3px 10px; border-radius: 12px; background-color: rgba(210, 153, 34, 0.12);"
             )
-            self.dash_state_title.setText("Pausa Temporal Activa")
+            self.dash_state_title.setText(t("dash.state_bypass_title"))
             self.dash_countdown_lbl.setText(f"{human_time}")
             self.dash_countdown_lbl.setStyleSheet(
                 "font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
                 "font-size: 22px; font-weight: 700; color: #E3B341;"
             )
-            self.dash_desc_lbl.setText("Acceso concedido temporalmente. Los sitios se bloquearán al finalizar.")
+            self.dash_desc_lbl.setText(t("dash.state_bypass_desc"))
             self.dash_progress_bar.setValue(max(5, min(100, int((rem / 900) * 100))))
             self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #D29922; }")
             self.btn_stop_focus.setVisible(False)
 
-            self.btn_primary_action.setText("Terminar Descanso")
+            self.btn_primary_action.setText(t("dash.btn_end_pause"))
             self.btn_primary_action.setEnabled(True)
-            self.btn_primary_action.setToolTip("Finalizar la pausa y reactivar el bloqueo inmediatamente.")
+            self.btn_primary_action.setToolTip(t("dash.btn_end_pause"))
             self.btn_pomodoro_25.setEnabled(False)
-            self.btn_pomodoro_25.setToolTip("No disponible durante una pausa temporal.")
+            self.btn_pomodoro_25.setToolTip(t("dash.btn_pause_running"))
             self.btn_pomodoro_50.setEnabled(False)
-            self.btn_pomodoro_50.setToolTip("No disponible durante una pausa temporal.")
-            self.btn_secondary_action.setText("Pausa en Curso")
+            self.btn_pomodoro_50.setToolTip(t("dash.btn_pause_running"))
+            self.btn_secondary_action.setText(t("dash.btn_pause_running"))
             self.btn_secondary_action.setEnabled(False)
-            self.btn_secondary_action.setToolTip("La pausa temporal ya está activa.")
+            self.btn_secondary_action.setToolTip(t("dash.btn_pause_running"))
 
         # 3. State: LOCKED / ACTIVE PROTECTION
         elif is_blocking:
             if reason == "CURFEW":
-                self.dash_state_pill.setText("NOCHE PROTEGIDA")
+                self.dash_state_pill.setText(t("dash.pill_curfew"))
                 self.dash_state_pill.setStyleSheet(
                     "border: 1px solid #8957E5; color: #D2A8FF; font-size: 10px; font-weight: 700; "
                     "padding: 3px 10px; border-radius: 12px; background-color: rgba(137, 87, 229, 0.12);"
                 )
-                self.dash_state_title.setText("Toque de Queda Nocturno")
-                self.dash_desc_lbl.setText(f"Protección nocturna activa hasta las {target}.")
+                self.dash_state_title.setText(t("dash.state_curfew_title"))
+                self.dash_desc_lbl.setText(t("dash.state_curfew_desc", target=target))
                 self.dash_countdown_lbl.setStyleSheet(
                     "font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
                     "font-size: 22px; font-weight: 700; color: #D2A8FF;"
@@ -358,31 +362,31 @@ class DashboardTab(QWidget):
                 self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #8957E5; }")
                 self.btn_stop_focus.setVisible(False)
 
-                self.btn_primary_action.setText("Bloqueo Nocturno")
+                self.btn_primary_action.setText(t("dash.btn_night_lock"))
                 self.btn_primary_action.setEnabled(False)
-                self.btn_primary_action.setToolTip("El Toque de Queda está activo y protege tus horas de descanso.")
+                self.btn_primary_action.setToolTip(t("dash.btn_night_lock"))
                 self.btn_pomodoro_25.setEnabled(False)
-                self.btn_pomodoro_25.setToolTip("Las sesiones de enfoque no se pueden iniciar durante el Toque de Queda.")
+                self.btn_pomodoro_25.setToolTip(t("dash.btn_night_lock"))
                 self.btn_pomodoro_50.setEnabled(False)
-                self.btn_pomodoro_50.setToolTip("Las sesiones de enfoque no se pueden iniciar durante el Toque de Queda.")
+                self.btn_pomodoro_50.setToolTip(t("dash.btn_night_lock"))
 
                 if curfew_emerg_enabled:
-                    self.btn_secondary_action.setText("Desbloqueo de Emergencia")
+                    self.btn_secondary_action.setText(t("dash.btn_emergency_unlock"))
                     self.btn_secondary_action.setEnabled(True)
-                    self.btn_secondary_action.setToolTip("Solicitar 15 minutos de emergencia mediante frase de seguridad.")
+                    self.btn_secondary_action.setToolTip(t("dash.btn_emergency_unlock"))
                 else:
-                    self.btn_secondary_action.setText("Descanso Desactivado")
+                    self.btn_secondary_action.setText(t("dash.btn_break_disabled"))
                     self.btn_secondary_action.setEnabled(False)
-                    self.btn_secondary_action.setToolTip("Los descansos nocturnos están deshabilitados. Puedes habilitar la opción de emergencia en Horarios y Reglas.")
+                    self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
 
             elif reason == "BOOT_COOLDOWN":
-                self.dash_state_pill.setText("BOOT FOCUS")
+                self.dash_state_pill.setText(t("dash.pill_boot"))
                 self.dash_state_pill.setStyleSheet(
                     "border: 1px solid #388BFD; color: #58A6FF; font-size: 10px; font-weight: 700; "
                     "padding: 3px 10px; border-radius: 12px; background-color: rgba(56, 139, 253, 0.12);"
                 )
-                self.dash_state_title.setText("Cooldown de Arranque")
-                self.dash_desc_lbl.setText(f"Protección de inicio activa hasta las {target}.")
+                self.dash_state_title.setText(t("dash.state_boot_title"))
+                self.dash_desc_lbl.setText(t("dash.state_boot_desc", target=target))
                 self.dash_countdown_lbl.setStyleSheet(
                     "font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
                     "font-size: 22px; font-weight: 700; color: #58A6FF;"
@@ -392,31 +396,31 @@ class DashboardTab(QWidget):
                 self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #388BFD; }")
                 self.btn_stop_focus.setVisible(False)
 
-                self.btn_primary_action.setText("Inicio Activo")
+                self.btn_primary_action.setText(t("dash.btn_boot_active"))
                 self.btn_primary_action.setEnabled(False)
-                self.btn_primary_action.setToolTip("La protección de inicio de sesión está activa.")
+                self.btn_primary_action.setToolTip(t("dash.btn_boot_active"))
                 self.btn_pomodoro_25.setEnabled(False)
-                self.btn_pomodoro_25.setToolTip("El equipo se encuentra en período de foco de arranque.")
+                self.btn_pomodoro_25.setToolTip(t("dash.btn_boot_active"))
                 self.btn_pomodoro_50.setEnabled(False)
-                self.btn_pomodoro_50.setToolTip("El equipo se encuentra en período de foco de arranque.")
+                self.btn_pomodoro_50.setToolTip(t("dash.btn_boot_active"))
 
                 if bypasses_enabled:
-                    self.btn_secondary_action.setText("Pausa Temporal (15 min)")
+                    self.btn_secondary_action.setText(t("dash.btn_pause_15"))
                     self.btn_secondary_action.setEnabled(True)
-                    self.btn_secondary_action.setToolTip("Solicitar 15 minutos de descanso temporal.")
+                    self.btn_secondary_action.setToolTip(t("dash.btn_pause_15"))
                 else:
-                    self.btn_secondary_action.setText("Descanso Desactivado")
+                    self.btn_secondary_action.setText(t("dash.btn_break_disabled"))
                     self.btn_secondary_action.setEnabled(False)
-                    self.btn_secondary_action.setToolTip("Las pausas temporales están desactivadas en la configuración.")
+                    self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
 
             elif reason == "MANUAL_LOCK":
-                self.dash_state_pill.setText("ENFOQUE MANUAL")
+                self.dash_state_pill.setText(t("dash.pill_focus"))
                 self.dash_state_pill.setStyleSheet(
                     "border: 1px solid #388BFD; color: #58A6FF; font-size: 10px; font-weight: 700; "
                     "padding: 3px 10px; border-radius: 12px; background-color: rgba(56, 139, 253, 0.12);"
                 )
-                self.dash_state_title.setText("Modo Focus / Pomodoro")
-                self.dash_desc_lbl.setText("Sesión de concentración manual en curso.")
+                self.dash_state_title.setText(t("dash.state_manual_title"))
+                self.dash_desc_lbl.setText(t("dash.state_manual_desc"))
                 self.dash_countdown_lbl.setStyleSheet(
                     "font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
                     "font-size: 22px; font-weight: 700; color: #58A6FF;"
@@ -424,36 +428,36 @@ class DashboardTab(QWidget):
                 self.dash_progress_bar.setValue(100)
                 self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #388BFD; }")
                 self.btn_stop_focus.setVisible(True)
-                self.btn_stop_focus.setText("Finalizar Sesión de Enfoque")
-                self.btn_stop_focus.setToolTip("Finalizar la sesión de enfoque actual y desbloquear los sitios.")
+                self.btn_stop_focus.setText(t("dash.btn_stop_focus"))
+                self.btn_stop_focus.setToolTip(t("dash.btn_stop_focus"))
 
-                self.btn_primary_action.setText("Enfoque en Curso")
+                self.btn_primary_action.setText(t("dash.btn_focus_running"))
                 self.btn_primary_action.setEnabled(False)
-                self.btn_primary_action.setToolTip("Ya hay una sesión de concentración manual en curso.")
+                self.btn_primary_action.setToolTip(t("dash.btn_focus_running"))
                 self.btn_pomodoro_25.setEnabled(False)
-                self.btn_pomodoro_25.setToolTip("Ya hay una sesión de concentración activa.")
+                self.btn_pomodoro_25.setToolTip(t("dash.btn_focus_running"))
                 self.btn_pomodoro_50.setEnabled(False)
-                self.btn_pomodoro_50.setToolTip("Ya hay una sesión de concentración activa.")
+                self.btn_pomodoro_50.setToolTip(t("dash.btn_focus_running"))
 
                 if bypasses_enabled:
-                    self.btn_secondary_action.setText("Pausa Temporal (15 min)")
+                    self.btn_secondary_action.setText(t("dash.btn_pause_15"))
                     self.btn_secondary_action.setEnabled(True)
-                    self.btn_secondary_action.setToolTip("Solicitar 15 minutos de pausa temporal.")
+                    self.btn_secondary_action.setToolTip(t("dash.btn_pause_15"))
                 else:
-                    self.btn_secondary_action.setText("Descanso Desactivado")
+                    self.btn_secondary_action.setText(t("dash.btn_break_disabled"))
                     self.btn_secondary_action.setEnabled(False)
-                    self.btn_secondary_action.setToolTip("Las pausas temporales están desactivadas en la configuración.")
+                    self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
 
             elif reason == "SELECTIVE_LOCK":
                 sel_count = len(res.get("selective_domains", []))
                 is_indef = res.get("is_indefinite", False)
-                self.dash_state_pill.setText("INDEFINIDO" if is_indef else "TEMPORAL")
+                self.dash_state_pill.setText(t("dash.pill_indefinite") if is_indef else t("dash.pill_timed"))
                 self.dash_state_pill.setStyleSheet(
                     "border: 1px solid #388BFD; color: #58A6FF; font-size: 10px; font-weight: 700; "
                     "padding: 3px 10px; border-radius: 12px; background-color: rgba(56, 139, 253, 0.12);"
                 )
-                self.dash_state_title.setText(f"Bloqueo Selectivo ({sel_count} sitios)")
-                self.dash_desc_lbl.setText(f"Bloqueo específico activo para {sel_count} dominios seleccionados.")
+                self.dash_state_title.setText(t("dash.state_selective_title", count=sel_count))
+                self.dash_desc_lbl.setText(t("dash.state_selective_desc", count=sel_count))
                 self.dash_countdown_lbl.setStyleSheet(
                     "font-family: ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace; "
                     "font-size: 22px; font-weight: 700; color: #58A6FF;"
@@ -461,26 +465,47 @@ class DashboardTab(QWidget):
                 self.dash_progress_bar.setValue(100)
                 self.dash_progress_bar.setStyleSheet("QProgressBar::chunk { background-color: #388BFD; }")
                 self.btn_stop_focus.setVisible(True)
-                self.btn_stop_focus.setText("Finalizar Bloqueo")
-                self.btn_stop_focus.setToolTip("Finalizar el bloqueo selectivo y restaurar el acceso a todos los sitios.")
+                self.btn_stop_focus.setText(t("dash.btn_end_selective"))
+                self.btn_stop_focus.setToolTip(t("dash.btn_end_selective"))
 
-                self.btn_primary_action.setText("Bloqueo en Curso")
+                self.btn_primary_action.setText(t("dash.btn_lock_running"))
                 self.btn_primary_action.setEnabled(False)
                 self.btn_pomodoro_25.setEnabled(False)
                 self.btn_pomodoro_50.setEnabled(False)
 
                 if bypasses_enabled:
-                    self.btn_secondary_action.setText("Pausa Temporal (15 min)")
+                    self.btn_secondary_action.setText(t("dash.btn_pause_15"))
                     self.btn_secondary_action.setEnabled(True)
-                    self.btn_secondary_action.setToolTip("Solicitar 15 minutos de pausa temporal.")
+                    self.btn_secondary_action.setToolTip(t("dash.btn_pause_15"))
                 else:
-                    self.btn_secondary_action.setText("Descanso Desactivado")
+                    self.btn_secondary_action.setText(t("dash.btn_break_disabled"))
                     self.btn_secondary_action.setEnabled(False)
-                    self.btn_secondary_action.setToolTip("Las pausas temporales están desactivadas en la configuración.")
+                    self.btn_secondary_action.setToolTip(t("dash.btn_break_disabled"))
 
             if rem > 0:
                 self.dash_countdown_lbl.setText(f"{human_time}")
                 self.dash_progress_bar.setVisible(True)
             else:
-                self.dash_countdown_lbl.setText("Protección Activa")
+                self.dash_countdown_lbl.setText(t("dash.active_protection"))
                 self.dash_progress_bar.setVisible(False)
+
+    def retranslate_ui(self):
+        """Retranslates all static text in Dashboard tab."""
+        if hasattr(self, "act_title"):
+            self.act_title.setText(t("dash.sessions_title"))
+        if hasattr(self, "btn_pomodoro_25"):
+            self.btn_pomodoro_25.setText(t("dash.btn_pomodoro_25"))
+        if hasattr(self, "btn_pomodoro_50"):
+            self.btn_pomodoro_50.setText(t("dash.btn_pomodoro_50"))
+        if hasattr(self, "telem_title"):
+            self.telem_title.setText(t("dash.kpi_section_title"))
+        if hasattr(self, "lbl_dom_title"):
+            self.lbl_dom_title.setText(t("dash.kpi_protected_sites"))
+        if hasattr(self, "lbl_curf_title"):
+            self.lbl_curf_title.setText(t("dash.kpi_curfew"))
+        if hasattr(self, "lbl_boot_title"):
+            self.lbl_boot_title.setText(t("dash.kpi_boot_cooldown"))
+
+        if self.last_status_args is not None:
+            self.update_status(*self.last_status_args)
+
